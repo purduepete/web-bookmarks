@@ -170,7 +170,9 @@ export default function App() {
                     onGroupSelect={(name) => {
                         setSelectedGroup(name);
                         if (name) {
-                            document.getElementById(`group-${name}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            document
+                                .getElementById(`group-${name}`)
+                                ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                         }
                     }}
                 />
@@ -187,6 +189,11 @@ export default function App() {
                         onChange={(e) => setBookmarkFilter(e.target.value)}
                         onKeyDown={handleBookmarkKeyDown}
                     />
+                    {bookmarkFilter && (
+                        <button className="btn-clear" onClick={() => setBookmarkFilter('')} aria-label="Clear">
+                            ×
+                        </button>
+                    )}
                     <span className="input-group-text">
                         <input
                             type="checkbox"

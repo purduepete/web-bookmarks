@@ -134,6 +134,29 @@ td.col3 {
     border: 1px solid #1e293b;
 }
 
+.btn-clear {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 5;
+    background: none;
+    border: none;
+    color: #64748b;
+    font-size: 16px;
+    padding: 0 8px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.btn-clear:hover {
+    color: #e0e6ed;
+}
+
+.input-group {
+    position: relative;
+}
+
 /* ── Input Labels & Checkbox ─────────────────────── */
 
 .input-group-sm .input-group-text {

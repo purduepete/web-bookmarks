@@ -29,6 +29,11 @@ export default function GroupsSidebar({
                     onChange={(e) => onFilterChange(e.target.value)}
                     onKeyDown={onKeyDown}
                 />
+                {filter && (
+                    <button className="btn-clear" onClick={() => onFilterChange('')} aria-label="Clear">
+                        ×
+                    </button>
+                )}
             </div>
 
             <div className="group-header">

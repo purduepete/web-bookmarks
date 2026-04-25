@@ -1,0 +1,144 @@
+body {
+    font-family: 'Rubik', sans-serif;
+    font-size: 13px;
+    color: #212529;
+}
+
+.app-body {
+    margin-left: 25px;
+}
+
+.header-spacer {
+    height: 25px;
+}
+
+/* ── Left Column: Groups ─────────────────────────── */
+
+#colLeft {
+    float: left;
+    width: 15%;
+    min-width: 175px;
+    max-width: 225px;
+    margin-right: 50px;
+    margin-bottom: 50px;
+}
+
+/* ── Right Column: Bookmarks ─────────────────────── */
+
+#colRight {
+    float: left;
+    width: 50%;
+    min-width: 300px;
+    max-width: 1000px;
+    margin-bottom: 50px;
+}
+
+/* ── Group Headers ───────────────────────────────── */
+
+.group-header {
+    padding: 7px 0 7px 10px;
+    color: #fff;
+    background-color: #488cc8;
+    border: 1px solid #488cc8;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    text-transform: capitalize;
+    font-size: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-right: 10px;
+}
+
+/* ── Table Columns ───────────────────────────────── */
+
+td.col1 {
+    width: 225px;
+    font-weight: 500;
+}
+
+td.col1 a {
+    text-decoration: none;
+    color: #212529;
+}
+
+td.col1 a:hover {
+    text-decoration: underline;
+}
+
+td.col2 {
+    width: 300px;
+    padding-left: 15px;
+}
+
+td.col3 {
+    width: 100px;
+    padding-left: 15px;
+}
+
+/* ── Groups Sidebar ──────────────────────────────── */
+
+#groups td {
+    font-weight: 500;
+    text-transform: capitalize;
+    cursor: pointer;
+}
+
+#groups td:hover {
+    background-color: #e9ecef;
+}
+
+#groups td.active-group {
+    background-color: #488cc8;
+    color: #fff;
+}
+
+.bookmark-count {
+    float: right;
+    padding-right: 5px;
+    font-size: 12px;
+}
+
+/* ── Shortcut hover reveal ───────────────────────── */
+
+.shortcut-wrap {
+    display: flex;
+    align-items: center;
+}
+
+.shortcut-label {
+    flex-shrink: 0;
+}
+
+.shortcut-id {
+    display: none;
+    margin-left: auto;
+    background: #000;
+    color: #fff;
+    padding: 0 5px;
+    border-radius: 2px;
+    font-size: 12px;
+}
+
+.shortcut-wrap:hover .shortcut-id {
+    display: block;
+}
+
+/* ── Input Labels ────────────────────────────────── */
+
+.input-label-text {
+    font-weight: 500;
+}
+
+.label-prompt {
+    margin-left: 4px;
+    font-weight: 500;
+}
+
+/* ── Loading / Error ─────────────────────────────── */
+
+.loading-msg {
+    text-align: center;
+    padding: 40px;
+    color: #888;
+}

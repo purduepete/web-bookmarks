@@ -1,0 +1,16 @@
+name: webbookmarks
+metadata:
+    template: webbookmarks
+services:
+    api:
+        project: src/WebBookmarks.Api
+        host: appservice
+        language: dotnet
+    web:
+        project: src/WebBookmarks.Client
+        host: staticwebapp
+        language: js
+        dist: dist
+infra:
+    provider: bicep
+    path: infra

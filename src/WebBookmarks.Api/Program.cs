@@ -1,0 +1,103 @@
+using Microsoft.EntityFrameworkCore;
+using WebBookmarks.Api.Models;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    {
+        Title = "WebBookmarks API",
+        Version = "v1"
+    });
+});
+
+builder.Services.AddDbContext<WebBookmarksContext>(options =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("WebBookmarksDatabase");
+    options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure());
+});
+
+// CORS for local development (Static Web Apps proxies in production)
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.WithOrigins("http://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
+var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseHttpsRedirection();
+app.UseCors();
+
+// ── Bookmark Endpoints ──────────────────────────────────────────────
+
+app.MapGet("/api/bookmarks", async (WebBookmarksContext db) =>
+    await db.WebBookmarkItems
+        .Where(b => b.IsVisible)
+        .OrderBy(b => b.BookmarkGroup)
+        .ThenBy(b => b.SortOrder)
+        .ToListAsync())
+    .WithName("GetBookmarks")
+    .WithOpenApi();
+
+app.MapGet("/api/bookmarks/{id:int}", async (int id, WebBookmarksContext db) =>
+    await db.WebBookmarkItems.FindAsync(id) is { } item
+        ? Results.Ok(item)
+        : Results.NotFound())
+    .WithName("GetBookmark")
+    .WithOpenApi();
+
+app.MapPost("/api/bookmarks", async (WebBookmarksItem item, WebBookmarksContext db) =>
+{
+    db.WebBookmarkItems.Add(item);
+    await db.SaveChangesAsync();
+    return Results.Created($"/api/bookmarks/{item.Id}", item);
+})
+    .WithName("CreateBookmark")
+    .WithOpenApi();
+
+app.MapPut("/api/bookmarks/{id:int}", async (int id, WebBookmarksItem input, WebBookmarksContext db) =>
+{
+    var item = await db.WebBookmarkItems.FindAsync(id);
+    if (item is null) return Results.NotFound();
+
+    item.Name = input.Name;
+    item.Shortcut = input.Shortcut;
+    item.Description = input.Description;
+    item.URL = input.URL;
+    item.URLs = input.URLs;
+    item.IsVisible = input.IsVisible;
+    item.BookmarkGroup = input.BookmarkGroup;
+    item.SortOrder = input.SortOrder;
+
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+})
+    .WithName("UpdateBookmark")
+    .WithOpenApi();
+
+app.MapDelete("/api/bookmarks/{id:int}", async (int id, WebBookmarksContext db) =>
+{
+    var item = await db.WebBookmarkItems.FindAsync(id);
+    if (item is null) return Results.NotFound();
+
+    db.WebBookmarkItems.Remove(item);
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+})
+    .WithName("DeleteBookmark")
+    .WithOpenApi();
+
+app.Run();

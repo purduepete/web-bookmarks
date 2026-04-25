@@ -10,8 +10,8 @@ permissions:
     contents: read
 
 env:
-    AZURE_RESOURCE_GROUP: webbookmarkapi
-    API_APP_NAME: webbookmarks-api
+    AZURE_RESOURCE_GROUP: webbookmarks
+    API_APP_NAME: webbookmarksapi
 
 jobs:
     build-api:

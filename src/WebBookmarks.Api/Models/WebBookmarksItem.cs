@@ -6,7 +6,9 @@ public class WebBookmarksItem
     public string Name { get; set; } = string.Empty;
     public string Shortcut { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+    [System.Text.Json.Serialization.JsonPropertyName("url")]
     public string URL { get; set; } = string.Empty;
+    [System.Text.Json.Serialization.JsonPropertyName("urls")]
     public string? URLs { get; set; }
     public bool IsVisible { get; set; }
     public string BookmarkGroup { get; set; } = string.Empty;

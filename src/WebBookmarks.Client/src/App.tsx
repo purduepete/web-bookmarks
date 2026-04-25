@@ -70,6 +70,9 @@ export default function App() {
 
         if (selectedGroup) {
             result = result.filter((g) => g.name === selectedGroup);
+        } else if (groupFilter) {
+            const lower = groupFilter.toLowerCase();
+            result = result.filter((g) => g.name.toLowerCase().includes(lower));
         }
 
         if (bookmarkFilter) {
@@ -88,7 +91,7 @@ export default function App() {
         }
 
         return result;
-    }, [groups, selectedGroup, bookmarkFilter]);
+    }, [groups, selectedGroup, groupFilter, bookmarkFilter]);
 
     const showPromptLoop = useCallback(() => {
         // Use setTimeout so the checkbox renders before the prompt blocks the UI

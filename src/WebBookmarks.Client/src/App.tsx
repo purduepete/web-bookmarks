@@ -132,7 +132,7 @@ export default function App() {
             .finally(() => setLoading(false));
     }, []);
 
-    if (loading) return <div className="loading-msg">Loading bookmarks…</div>;
+    if (loading) return null;
     if (error) return <div className="loading-msg text-danger">{error}</div>;
     if (promptActive) return null;
 

@@ -137,6 +137,7 @@ export default function App() {
             if (e.key === 'Enter' && bookmarkFilter.trim()) {
                 navigateByShortcut(bookmarkFilter, bookmarks);
             } else if (e.key === 'Escape') {
+                e.preventDefault();
                 setBookmarkFilter('');
             }
         },
@@ -148,6 +149,7 @@ export default function App() {
             if (e.key === 'Enter' && groupFilter.trim()) {
                 openFilteredBookmarks();
             } else if (e.key === 'Escape') {
+                e.preventDefault();
                 setGroupFilter('');
             }
         },

@@ -117,13 +117,31 @@ export default function App() {
         localStorage.setItem('promptEnabled', String(checked));
     }, []);
 
+    const openFilteredBookmarks = useCallback(() => {
+        const items = displayedGroups.flatMap((g) => g.items);
+        for (const item of items) {
+            window.open(item.url, '_blank', 'noopener');
+        }
+    }, [displayedGroups]);
+
     const handleBookmarkKeyDown = useCallback(
         (e: React.KeyboardEvent<HTMLInputElement>) => {
-            if (e.key === 'Enter' && bookmarkFilter.trim()) {
-                navigateByShortcut(bookmarkFilter, bookmarks);
+            if (e.key === 'Enter') {
+                if (bookmarkFilter.trim()) {
+                    navigateByShortcut(bookmarkFilter, bookmarks);
+                }
             }
         },
         [bookmarkFilter, bookmarks],
+    );
+
+    const handleGroupKeyDown = useCallback(
+        (e: React.KeyboardEvent<HTMLInputElement>) => {
+            if (e.key === 'Enter' && groupFilter.trim()) {
+                openFilteredBookmarks();
+            }
+        },
+        [groupFilter, openFilteredBookmarks],
     );
 
     const reloadBookmarks = useCallback(() => {
@@ -148,6 +166,7 @@ export default function App() {
                     groups={groups}
                     filter={groupFilter}
                     onFilterChange={setGroupFilter}
+                    onKeyDown={handleGroupKeyDown}
                     selectedGroup={selectedGroup}
                     onGroupSelect={setSelectedGroup}
                 />

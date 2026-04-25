@@ -4,18 +4,19 @@ interface Props {
     groups: BookmarkGroup[];
     filter: string;
     onFilterChange: (value: string) => void;
+    onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
     selectedGroup: string | null;
     onGroupSelect: (group: string | null) => void;
 }
 
-export default function GroupsSidebar({ groups, filter, onFilterChange, selectedGroup, onGroupSelect }: Props) {
+export default function GroupsSidebar({ groups, filter, onFilterChange, onKeyDown, selectedGroup, onGroupSelect }: Props) {
     const filtered = groups.filter((g) => g.name.toLowerCase().includes(filter.toLowerCase()));
 
     return (
         <>
             <div className="input-group input-group-sm mb-3">
                 <span className="input-group-text input-label-text">Group</span>
-                <input className="form-control" value={filter} onChange={(e) => onFilterChange(e.target.value)} />
+                <input className="form-control" value={filter} onChange={(e) => onFilterChange(e.target.value)} onKeyDown={onKeyDown} />
             </div>
 
             <div className="group-header">

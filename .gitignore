@@ -34,3 +34,5 @@ Thumbs.db
 
 # Azure
 .azure/
+publish.zip
+publish/

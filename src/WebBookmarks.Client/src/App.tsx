@@ -107,7 +107,9 @@ export default function App() {
         setTimeout(() => {
             const input = window.prompt('Type `help` for a list of commands:');
             if (input !== null && input.trim().toLowerCase() !== 'help' && input.trim() !== '') {
+                // Navigate immediately — don't setPromptActive(false) so the page stays blank during navigation
                 navigateByShortcut(input, bookmarks);
+                return;
             }
             setPromptActive(false);
         }, 0);

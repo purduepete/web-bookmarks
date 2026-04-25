@@ -1,11 +1,14 @@
 body {
     font-family: 'Rubik', sans-serif;
     font-size: 13px;
-    color: #212529;
+    color: #b2bac2;
+    background-color: #020617;
+    scroll-behavior: smooth;
 }
 
 .app-body {
-    margin-left: 25px;
+    padding-left: 5%;
+    padding-right: 15%;
 }
 
 .header-spacer {
@@ -16,9 +19,9 @@ body {
 
 #colLeft {
     float: left;
-    width: 15%;
-    min-width: 175px;
-    max-width: 225px;
+    width: 19%;
+    min-width: 219px;
+    max-width: 281px;
     margin-right: 50px;
     margin-bottom: 50px;
 }
@@ -26,34 +29,39 @@ body {
 /* ── Right Column: Bookmarks ─────────────────────── */
 
 #colRight {
-    float: left;
-    width: 50%;
+    overflow: hidden;
     min-width: 300px;
-    max-width: 1000px;
     margin-bottom: 50px;
 }
 
 /* ── Group Headers ───────────────────────────────── */
 
 .group-header {
-    padding: 7px 0 7px 10px;
-    color: #fff;
-    background-color: #488cc8;
-    border: 1px solid #488cc8;
-    border-top-left-radius: 5px;
-    border-top-right-radius: 5px;
+    padding: 7px 10px;
+    color: #e0e6ed;
+    background-color: #0f172a;
+    border: 1px solid #1e293b;
     text-transform: capitalize;
     font-size: 14px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding-right: 10px;
+}
+
+/* ── Bookmark card wrapper ───────────────────────── */
+
+.mb-3 > .table {
+    border-left: 1px solid #1e293b;
+    border-right: 1px solid #1e293b;
+    border-bottom: 1px solid #1e293b;
+    overflow: hidden;
 }
 
 /* ── Table Columns ───────────────────────────────── */
 
 td {
     padding: 5px !important;
+    border-color: #1e293b !important;
 }
 
 td.col1 {
@@ -63,24 +71,42 @@ td.col1 {
 
 td.col1 a {
     text-decoration: none;
-    color: #212529;
+    color: #b2bac2;
 }
 
 td.col1 a:hover {
     text-decoration: underline;
+    color: #e0e6ed;
 }
 
 td.col2 {
     width: 300px;
-    padding-left: 15px;
+    padding-left: 15px !important;
 }
 
 td.col3 {
     width: 100px;
-    padding-left: 15px;
+    padding-left: 15px !important;
+}
+
+/* ── Bootstrap table overrides ───────────────────── */
+
+.table {
+    --bs-table-bg: #020617;
+    --bs-table-color: #b2bac2;
+    --bs-table-border-color: #1e293b;
+    --bs-table-striped-bg: #0a101f;
+    --bs-table-striped-color: #b2bac2;
+    --bs-table-hover-bg: #111827;
+    --bs-table-hover-color: #fff;
 }
 
 /* ── Groups Sidebar ──────────────────────────────── */
+
+#groups {
+    border: 1px solid #1e293b;
+    overflow: hidden;
+}
 
 #groups td {
     font-weight: 500;
@@ -89,48 +115,67 @@ td.col3 {
 }
 
 #groups td:hover {
-    background-color: #e9ecef;
+    background-color: #111827;
+    color: #fff;
 }
 
 #groups td.active-group {
-    background-color: #488cc8;
+    background-color: #1e293b;
     color: #fff;
 }
 
 .bookmark-count {
     float: right;
-    padding-right: 5px;
     font-size: 12px;
+    background-color: #0f172a;
+    color: #3b82f6;
+    padding: 2px 8px;
+    border-radius: 10px;
+    border: 1px solid #1e293b;
 }
 
 /* ── Input Labels & Checkbox ─────────────────────── */
 
 .input-group-sm .input-group-text {
     font-size: 12px;
-    color: #555;
-    background-color: #eee;
+    color: #b2bac2;
+    background-color: #0f172a;
+    border-color: #1e293b;
     padding: 5px 10px;
     font-weight: 500;
+    border-radius: 0;
 }
 
 .input-group-sm .form-control {
     font-size: 13px !important;
     font-weight: 500;
-    color: #555;
+    color: #b2bac2;
+    background-color: #020617;
+    border-color: #1e293b;
     padding: 5px 10px;
+    border-radius: 0;
+}
+
+.input-group-sm .form-control:focus {
+    background-color: #020617;
+    color: #e0e6ed;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
 }
 
 .input-label-text {
     cursor: pointer;
 }
 
-.form-check-input:checked {
-    background-color: #000;
-    border-color: #000;
+.form-check-input {
+    background-color: #020617;
+    border-color: #334155;
+    border-radius: 0;
 }
 
-.form-check-input {
-    border-color: #555;
+.form-check-input:checked {
+    background-color: #4fc3f7;
+    border-color: #4fc3f7;
 }
 
 /* ── Shortcut hover reveal ───────────────────────── */
@@ -147,8 +192,8 @@ td.col3 {
 .shortcut-id {
     display: none;
     margin-left: auto;
-    background: #000;
-    color: #fff;
+    background: #4fc3f7;
+    color: #0a1929;
     padding: 0 5px;
     border-radius: 2px;
     font-size: 12px;

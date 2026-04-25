@@ -6,19 +6,17 @@ interface Props {
 
 export default function BookmarkGroup({ group }: Props) {
     return (
-        <div className="mb-3">
+        <div className="mb-3" id={`group-${group.name}`}>
             <div className="group-header">
                 <span>{group.name}</span>
-                <span>{group.items.length}</span>
+                <span className="bookmark-count">{group.items.length}</span>
             </div>
             <table className="table table-striped table-bordered mb-0">
                 <tbody>
                     {group.items.map((item) => (
                         <tr key={item.id}>
                             <td className="col1">
-                                <a href={item.url} target="_blank" rel="noopener noreferrer">
-                                    {item.name}
-                                </a>
+                                <a href={item.url}>{item.name}</a>
                             </td>
                             <td className="col2">{item.description}</td>
                             <td className="col3">

@@ -4,39 +4,40 @@ import type { WebBookmarksItem, BookmarkGroup } from './types';
 import GroupsSidebar from './components/GroupsSidebar';
 import BookmarkGroupComponent from './components/BookmarkGroup';
 
+function openUrls(urls: string[]) {
+    for (let i = 0; i < urls.length; i++) {
+        if (i === urls.length - 1) {
+            window.location.href = urls[i];
+        } else {
+            window.open(urls[i], '_blank', 'noopener');
+        }
+    }
+}
+
 function navigateByShortcut(input: string, bookmarks: WebBookmarksItem[]) {
     const trimmed = input.trim();
     if (!trimmed) return;
 
-    // Split into shortcut and optional search query
     const parts = trimmed.split(/\s+/);
     const shortcut = parts[0].toLowerCase();
     const searchQuery = parts.slice(1).join(' ');
 
-    // Find matching bookmarks (exact match first, then partial)
     let matches = bookmarks.filter((b) => b.shortcut.trim().toLowerCase() === shortcut);
     if (matches.length === 0) {
         matches = bookmarks.filter((b) => b.shortcut.trim().toLowerCase().includes(shortcut));
     }
 
-    for (let i = 0; i < matches.length; i++) {
-        const match = matches[i];
-        const isLast = i === matches.length - 1;
-        const url = searchQuery && match.urls ? match.urls.replace('{q}', encodeURIComponent(searchQuery)) : match.url;
-
-        if (isLast) {
-            // Last match replaces the current page
-            window.location.href = url;
-        } else {
-            // Other matches open in new tabs
-            window.open(url, '_blank', 'noopener');
-        }
-    }
+    openUrls(
+        matches.map((m) => (searchQuery && m.urls ? m.urls.replace('{q}', encodeURIComponent(searchQuery)) : m.url)),
+    );
 }
 
 export default function App() {
-    const [bookmarks, setBookmarks] = useState<WebBookmarksItem[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [bookmarks, setBookmarks] = useState<WebBookmarksItem[]>(() => {
+        const cached = localStorage.getItem('bookmarks');
+        return cached ? JSON.parse(cached) : [];
+    });
+    const [loading, setLoading] = useState(() => !localStorage.getItem('bookmarks'));
     const [error, setError] = useState<string | null>(null);
 
     const [groupFilter, setGroupFilter] = useState('');
@@ -46,12 +47,20 @@ export default function App() {
     const [promptActive, setPromptActive] = useState(() => localStorage.getItem('promptEnabled') === 'true');
     const promptShown = useRef(false);
 
-    useEffect(() => {
+    const loadBookmarks = useCallback(() => {
+        setError(null);
         fetchBookmarks()
-            .then(setBookmarks)
+            .then((data) => {
+                setBookmarks(data);
+                localStorage.setItem('bookmarks', JSON.stringify(data));
+            })
             .catch((e) => setError(e.message))
             .finally(() => setLoading(false));
     }, []);
+
+    useEffect(() => {
+        loadBookmarks();
+    }, [loadBookmarks]);
 
     const groups: BookmarkGroup[] = useMemo(() => {
         const map = new Map<string, WebBookmarksItem[]>();
@@ -118,18 +127,15 @@ export default function App() {
     }, []);
 
     const openFilteredBookmarks = useCallback(() => {
-        const items = displayedGroups.flatMap((g) => g.items);
-        for (const item of items) {
-            window.open(item.url, '_blank', 'noopener');
-        }
+        openUrls(displayedGroups.flatMap((g) => g.items).map((item) => item.url));
     }, [displayedGroups]);
 
     const handleBookmarkKeyDown = useCallback(
         (e: React.KeyboardEvent<HTMLInputElement>) => {
-            if (e.key === 'Enter') {
-                if (bookmarkFilter.trim()) {
-                    navigateByShortcut(bookmarkFilter, bookmarks);
-                }
+            if (e.key === 'Enter' && bookmarkFilter.trim()) {
+                navigateByShortcut(bookmarkFilter, bookmarks);
+            } else if (e.key === 'Escape') {
+                setBookmarkFilter('');
             }
         },
         [bookmarkFilter, bookmarks],
@@ -139,19 +145,12 @@ export default function App() {
         (e: React.KeyboardEvent<HTMLInputElement>) => {
             if (e.key === 'Enter' && groupFilter.trim()) {
                 openFilteredBookmarks();
+            } else if (e.key === 'Escape') {
+                setGroupFilter('');
             }
         },
         [groupFilter, openFilteredBookmarks],
     );
-
-    const reloadBookmarks = useCallback(() => {
-        setLoading(true);
-        setError(null);
-        fetchBookmarks()
-            .then(setBookmarks)
-            .catch((e) => setError(e.message))
-            .finally(() => setLoading(false));
-    }, []);
 
     if (loading) return null;
     if (error) return <div className="loading-msg text-danger">{error}</div>;
@@ -168,13 +167,18 @@ export default function App() {
                     onFilterChange={setGroupFilter}
                     onKeyDown={handleGroupKeyDown}
                     selectedGroup={selectedGroup}
-                    onGroupSelect={setSelectedGroup}
+                    onGroupSelect={(name) => {
+                        setSelectedGroup(name);
+                        if (name) {
+                            document.getElementById(`group-${name}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                    }}
                 />
             </div>
 
             <div id="colRight">
                 <div className="input-group input-group-sm mb-3">
-                    <span className="input-group-text input-label-text" onClick={reloadBookmarks}>
+                    <span className="input-group-text input-label-text" onClick={loadBookmarks}>
                         Bookmark
                     </span>
                     <input

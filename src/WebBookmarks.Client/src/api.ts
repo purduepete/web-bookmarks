@@ -1,6 +1,6 @@
 import type { WebBookmarksItem } from './types';
 
-const API_BASE = '/api/bookmarks';
+const API_BASE = import.meta.env.PROD ? 'https://webbookmarksapi.azurewebsites.net/api/bookmarks' : '/api/bookmarks';
 
 export async function fetchBookmarks(): Promise<WebBookmarksItem[]> {
     const res = await fetch(API_BASE);

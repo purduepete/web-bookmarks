@@ -135,26 +135,18 @@ td.col3 {
 }
 
 .btn-clear {
-    position: absolute;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    z-index: 5;
-    background: none;
-    border: none;
+    background-color: #0f172a !important;
+    border-color: #1e293b !important;
     color: #64748b;
-    font-size: 16px;
-    padding: 0 8px;
+    font-size: 18px;
+    padding: 5px 12px !important;
     cursor: pointer;
     line-height: 1;
+    border-radius: 0 !important;
 }
 
 .btn-clear:hover {
     color: #e0e6ed;
-}
-
-.input-group {
-    position: relative;
 }
 
 /* ── Input Labels & Checkbox ─────────────────────── */
@@ -191,14 +183,22 @@ td.col3 {
 }
 
 .form-check-input {
-    background-color: #020617;
-    border-color: #334155;
+    background-color: #0f172a;
+    border-color: #1e293b;
     border-radius: 0;
+    width: 1.1em;
+    height: 1.1em;
 }
 
 .form-check-input:checked {
-    background-color: #4fc3f7;
-    border-color: #4fc3f7;
+    background-color: #0f172a;
+    border-color: #3b82f6;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%233b82f6' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='m6 10 3 3 6-6'/%3e%3c/svg%3e");
+}
+
+.form-check-input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
 }
 
 /* ── Shortcut hover reveal ───────────────────────── */

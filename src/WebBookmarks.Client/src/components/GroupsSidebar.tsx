@@ -30,7 +30,11 @@ export default function GroupsSidebar({
                     onKeyDown={onKeyDown}
                 />
                 {filter && (
-                    <button className="btn-clear" onClick={() => onFilterChange('')} aria-label="Clear">
+                    <button
+                        className="btn-clear input-group-text"
+                        onClick={() => onFilterChange('')}
+                        aria-label="Clear"
+                    >
                         ×
                     </button>
                 )}

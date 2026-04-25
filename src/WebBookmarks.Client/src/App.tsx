@@ -189,11 +189,6 @@ export default function App() {
                         onChange={(e) => setBookmarkFilter(e.target.value)}
                         onKeyDown={handleBookmarkKeyDown}
                     />
-                    {bookmarkFilter && (
-                        <button className="btn-clear" onClick={() => setBookmarkFilter('')} aria-label="Clear">
-                            ×
-                        </button>
-                    )}
                     <span className="input-group-text">
                         <input
                             type="checkbox"
@@ -204,6 +199,15 @@ export default function App() {
                         />
                         <span className="label-prompt">Prompt?</span>
                     </span>
+                    {bookmarkFilter && (
+                        <button
+                            className="btn-clear input-group-text"
+                            onClick={() => setBookmarkFilter('')}
+                            aria-label="Clear"
+                        >
+                            ×
+                        </button>
+                    )}
                 </div>
 
                 {displayedGroups.map((g) => (

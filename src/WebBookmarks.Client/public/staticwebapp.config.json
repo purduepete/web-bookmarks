@@ -11,12 +11,5 @@
     ],
     "globalHeaders": {
         "Cache-Control": "no-cache"
-    },
-    "responseOverrides": {
-        "200": {
-            "headers": {
-                "Cache-Control": "no-cache"
-            }
-        }
     }
 }

@@ -135,13 +135,13 @@ export default function App() {
     const handleBookmarkKeyDown = useCallback(
         (e: React.KeyboardEvent<HTMLInputElement>) => {
             if (e.key === 'Enter' && bookmarkFilter.trim()) {
-                navigateByShortcut(bookmarkFilter, bookmarks);
+                openFilteredBookmarks();
             } else if (e.key === 'Escape') {
                 e.preventDefault();
                 setBookmarkFilter('');
             }
         },
-        [bookmarkFilter, bookmarks],
+        [bookmarkFilter, openFilteredBookmarks],
     );
 
     const handleGroupKeyDown = useCallback(

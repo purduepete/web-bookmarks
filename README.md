@@ -91,3 +91,10 @@ az deployment group create \
 ```
 
 This provisions: App Service Plan, App Service (with managed identity), Static Web App, Azure SQL Server + Database, and links the SWA backend.
+
+## Live URLs
+
+| Component | URL                                                     |
+| --------- | ------------------------------------------------------- |
+| Web App   | https://witty-hill-00503bc10.7.azurestaticapps.net/     |
+| API       | https://webbookmarksapi.azurewebsites.net/api/bookmarks |

@@ -13,8 +13,20 @@ body {
 
 @media (max-width: 480px) {
     .app-body {
-        padding-left: 0;
-        padding-right: 0;
+        padding-left: 2%;
+        padding-right: 2%;
+    }
+    body {
+        font-size: 13px;
+    }
+    .group-header {
+        font-size: 14px;
+    }
+    .bookmark-count {
+        font-size: 12px;
+    }
+    .btn-clear {
+        font-size: 18px;
     }
 }
 

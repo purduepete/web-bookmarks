@@ -10,4 +10,9 @@ public class WebBookmarksContext : DbContext
     }
 
     public DbSet<WebBookmarksItem> WebBookmarkItems { get; set; } = null!;
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<WebBookmarksItem>().ToTable("webbookmarkitems");
+    }
 }

@@ -4,8 +4,8 @@ if (Test-Path $pidFile) {
     Get-Content $pidFile | ForEach-Object {
         $proc = Get-Process -Id $_ -ErrorAction SilentlyContinue
         if ($proc) {
-            Stop-Process -Id $_ -Force
-            Write-Host "Stopped process $_"
+            taskkill /T /F /PID $_ 2>$null | Out-Null
+            Write-Host "Stopped process tree for PID $_"
         }
     }
     Remove-Item $pidFile

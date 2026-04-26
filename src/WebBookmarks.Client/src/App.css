@@ -13,8 +13,8 @@ body {
 
 @media (min-width: 481px) and (max-width: 1400px) {
     .app-body {
-        padding-left: 7.5%;
-        padding-right: 7.5%;
+        padding-left: 2.5%;
+        padding-right: 2.5%;
     }
 }
 
@@ -30,7 +30,8 @@ body {
         font-size: 12px;
     }
     .bookmark-count {
-        font-size: 10px;
+        font-size: 9px;
+        padding: 1px 5px;
     }
     .btn-clear {
         font-size: 15px;

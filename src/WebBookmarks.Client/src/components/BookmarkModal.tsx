@@ -28,7 +28,7 @@ export default function BookmarkModal({ bookmark, onClose, onSaved }: Props) {
     const [aliasWarning, setAliasWarning] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const aliasTimer = useRef<ReturnType<typeof setTimeout>>();
+    const aliasTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const nameRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {

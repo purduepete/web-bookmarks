@@ -16,7 +16,7 @@ export default function BookmarkGroup({ group, onEdit, conflictIds }: Props) {
             <table className="table table-striped table-bordered mb-0">
                 <tbody>
                     {group.items.map((item) => (
-                        <tr key={item.id}>
+                        <tr key={item.id} className={item.isVisible ? '' : 'row-hidden-bookmark'}>
                             <td className="col1">
                                 <a href={item.url}>{item.name}</a>
                             </td>

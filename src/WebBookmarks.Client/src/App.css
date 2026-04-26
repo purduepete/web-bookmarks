@@ -271,6 +271,12 @@ td.col3 {
     margin-left: 4px;
 }
 
+/* ── Hidden Bookmarks ────────────────────────────── */
+
+.row-hidden-bookmark {
+    opacity: 0.4;
+}
+
 /* ── Loading / Error ─────────────────────────────── */
 
 .loading-msg {

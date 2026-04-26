@@ -43,12 +43,16 @@ app.UseCors();
 
 // ── Bookmark Endpoints ──────────────────────────────────────────────
 
-app.MapGet("/api/bookmarks", async (WebBookmarksContext db) =>
-    await db.WebBookmarkItems
-        .Where(b => b.IsVisible)
+app.MapGet("/api/bookmarks", async (bool? includeHidden, WebBookmarksContext db) =>
+{
+    var query = db.WebBookmarkItems.AsQueryable();
+    if (includeHidden != true)
+        query = query.Where(b => b.IsVisible);
+    return await query
         .OrderBy(b => b.BookmarkGroup)
         .ThenBy(b => b.SortOrder)
-        .ToListAsync())
+        .ToListAsync();
+})
     .WithName("GetBookmarks")
     .WithOpenApi();
 

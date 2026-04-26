@@ -52,17 +52,18 @@ export default function App() {
     const promptShown = useRef(false);
     const [modalOpen, setModalOpen] = useState(false);
     const [editingBookmark, setEditingBookmark] = useState<WebBookmarksItem | null>(null);
+    const [showHidden, setShowHidden] = useState(false);
 
     const loadBookmarks = useCallback(() => {
         setError(null);
-        fetchBookmarks()
+        fetchBookmarks(showHidden)
             .then((data) => {
                 setBookmarks(data);
                 localStorage.setItem('bookmarks', JSON.stringify(data));
             })
             .catch((e) => setError(e.message))
             .finally(() => setLoading(false));
-    }, []);
+    }, [showHidden]);
 
     useEffect(() => {
         loadBookmarks();
@@ -236,6 +237,16 @@ export default function App() {
                         onChange={(e) => setBookmarkFilter(e.target.value)}
                         onKeyDown={handleBookmarkKeyDown}
                     />
+                    <span className="input-group-text">
+                        <input
+                            type="checkbox"
+                            className="form-check-input mt-0 me-1"
+                            checked={showHidden}
+                            onChange={(e) => setShowHidden(e.target.checked)}
+                            aria-label="Show Hidden"
+                        />
+                        <span className="label-prompt">Hidden?</span>
+                    </span>
                     <span className="input-group-text">
                         <input
                             type="checkbox"

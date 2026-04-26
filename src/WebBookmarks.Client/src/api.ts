@@ -5,11 +5,12 @@ const API_BASE = import.meta.env.PROD ? 'https://webbookmarksapi.azurewebsites.n
 const MAX_RETRIES = 5;
 const RETRY_DELAY_MS = 2000;
 
-export async function fetchBookmarks(): Promise<WebBookmarksItem[]> {
+export async function fetchBookmarks(includeHidden = false): Promise<WebBookmarksItem[]> {
     let lastError: Error | undefined;
+    const url = includeHidden ? `${API_BASE}?includeHidden=true` : API_BASE;
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
         try {
-            const res = await fetch(API_BASE);
+            const res = await fetch(url);
             if (!res.ok) throw new Error(`Failed to fetch bookmarks: ${res.status}`);
             return await res.json();
         } catch (e) {

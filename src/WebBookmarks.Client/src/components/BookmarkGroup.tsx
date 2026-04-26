@@ -43,7 +43,6 @@ export default function BookmarkGroup({ group, onEdit, conflictIds }: Props) {
                                     >
                                         ✎
                                     </button>
-                                    <span className="shortcut-id">{item.id}</span>
                                 </div>
                             </td>
                         </tr>

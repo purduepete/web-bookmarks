@@ -13,10 +13,11 @@ if [ $TSC_EXIT -ne 0 ]; then
     exit 1
 fi
 
-# .NET build check (API)
+# .NET build check (API) — use temp output to avoid locking conflicts with running server
 echo "  Checking .NET build..."
-dotnet build src/WebBookmarks.Api/WebBookmarks.Api.csproj --no-restore -c Release -v q 2>&1
+dotnet build src/WebBookmarks.Api/WebBookmarks.Api.csproj --no-restore -c Release -v q -o .git/prebuild-tmp 2>&1
 DOTNET_EXIT=$?
+rm -rf .git/prebuild-tmp
 
 if [ $DOTNET_EXIT -ne 0 ]; then
     echo "❌ .NET build failed. Fix errors before committing."

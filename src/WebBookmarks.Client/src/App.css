@@ -253,20 +253,6 @@ td.col3 {
     font-size: 12px;
 }
 
-.shortcut-id {
-    visibility: hidden;
-    margin-left: auto;
-    background: #4fc3f7;
-    color: #0a1929;
-    padding: 0 5px;
-    border-radius: 2px;
-    font-size: 12px;
-}
-
-.shortcut-wrap:hover .shortcut-id {
-    visibility: visible;
-}
-
 .label-prompt {
     margin-left: 4px;
 }

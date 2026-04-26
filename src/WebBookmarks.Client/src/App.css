@@ -17,16 +17,16 @@ body {
         padding-right: 2%;
     }
     body {
-        font-size: 13px;
+        font-size: 11px;
     }
     .group-header {
-        font-size: 14px;
-    }
-    .bookmark-count {
         font-size: 12px;
     }
+    .bookmark-count {
+        font-size: 10px;
+    }
     .btn-clear {
-        font-size: 18px;
+        font-size: 15px;
     }
 }
 

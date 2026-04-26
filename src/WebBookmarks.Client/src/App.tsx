@@ -14,9 +14,9 @@ function openUrls(urls: string[]) {
     }
 }
 
-function navigateByShortcut(input: string, bookmarks: WebBookmarksItem[]) {
+function navigateByShortcut(input: string, bookmarks: WebBookmarksItem[]): boolean {
     const trimmed = input.trim();
-    if (!trimmed) return;
+    if (!trimmed) return false;
 
     const parts = trimmed.split(/\s+/);
     const shortcut = parts[0].toLowerCase();
@@ -27,9 +27,12 @@ function navigateByShortcut(input: string, bookmarks: WebBookmarksItem[]) {
         matches = bookmarks.filter((b) => b.shortcut.trim().toLowerCase().includes(shortcut));
     }
 
+    if (matches.length === 0) return false;
+
     openUrls(
         matches.map((m) => (searchQuery && m.urls ? m.urls.replace('{q}', encodeURIComponent(searchQuery)) : m.url)),
     );
+    return true;
 }
 
 export default function App() {
@@ -108,8 +111,7 @@ export default function App() {
             const input = window.prompt('Type `help` for a list of commands:');
             if (input !== null && input.trim().toLowerCase() !== 'help' && input.trim() !== '') {
                 // Navigate immediately — don't setPromptActive(false) so the page stays blank during navigation
-                navigateByShortcut(input, bookmarks);
-                return;
+                if (navigateByShortcut(input, bookmarks)) return;
             }
             setPromptActive(false);
         }, 0);

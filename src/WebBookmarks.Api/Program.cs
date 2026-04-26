@@ -100,4 +100,29 @@ app.MapDelete("/api/bookmarks/{id:int}", async (int id, WebBookmarksContext db) 
     .WithName("DeleteBookmark")
     .WithOpenApi();
 
+app.MapGet("/api/bookmarks/check-alias", async (string alias, int? excludeId, WebBookmarksContext db) =>
+{
+    var lower = alias.Trim().ToLower();
+    var query = db.WebBookmarkItems.Where(b =>
+        b.Shortcut.ToLower().Contains(lower) || lower.Contains(b.Shortcut.ToLower()));
+
+    if (excludeId.HasValue)
+        query = query.Where(b => b.Id != excludeId.Value);
+
+    var matches = await query.Select(b => new { b.Id, b.Name, b.Shortcut }).ToListAsync();
+    return Results.Ok(new { isDuplicate = matches.Count > 0, matches });
+})
+    .WithName("CheckAlias")
+    .WithOpenApi();
+
+app.MapGet("/api/bookmarks/groups", async (WebBookmarksContext db) =>
+    await db.WebBookmarkItems
+        .Where(b => b.IsVisible)
+        .Select(b => b.BookmarkGroup)
+        .Distinct()
+        .OrderBy(g => g)
+        .ToListAsync())
+    .WithName("GetGroups")
+    .WithOpenApi();
+
 app.Run();

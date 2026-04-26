@@ -21,3 +21,39 @@ export async function fetchBookmarks(): Promise<WebBookmarksItem[]> {
     }
     throw lastError!;
 }
+
+export async function createBookmark(item: Omit<WebBookmarksItem, 'id'>): Promise<WebBookmarksItem> {
+    const res = await fetch(API_BASE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item),
+    });
+    if (!res.ok) throw new Error(`Failed to create bookmark: ${res.status}`);
+    return await res.json();
+}
+
+export async function updateBookmark(id: number, item: WebBookmarksItem): Promise<void> {
+    const res = await fetch(`${API_BASE}/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item),
+    });
+    if (!res.ok) throw new Error(`Failed to update bookmark: ${res.status}`);
+}
+
+export async function checkAlias(
+    alias: string,
+    excludeId?: number,
+): Promise<{ isDuplicate: boolean; matches: { id: number; name: string; shortcut: string }[] }> {
+    const params = new URLSearchParams({ alias });
+    if (excludeId !== undefined) params.set('excludeId', String(excludeId));
+    const res = await fetch(`${API_BASE}/check-alias?${params}`);
+    if (!res.ok) throw new Error(`Failed to check alias: ${res.status}`);
+    return await res.json();
+}
+
+export async function fetchGroups(): Promise<string[]> {
+    const res = await fetch(`${API_BASE}/groups`);
+    if (!res.ok) throw new Error(`Failed to fetch groups: ${res.status}`);
+    return await res.json();
+}

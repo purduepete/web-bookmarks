@@ -177,6 +177,10 @@ td.col3 {
     color: #e0e6ed;
 }
 
+.btn-clear-hidden {
+    visibility: hidden;
+}
+
 /* ── Input Labels & Checkbox ─────────────────────── */
 
 .input-group-sm .input-group-text {
@@ -240,8 +244,17 @@ td.col3 {
     flex-shrink: 0;
 }
 
+.shortcut-conflict {
+    color: #f59e0b;
+}
+
+.conflict-icon {
+    margin-right: 4px;
+    font-size: 12px;
+}
+
 .shortcut-id {
-    display: none;
+    visibility: hidden;
     margin-left: auto;
     background: #4fc3f7;
     color: #0a1929;
@@ -251,7 +264,7 @@ td.col3 {
 }
 
 .shortcut-wrap:hover .shortcut-id {
-    display: block;
+    visibility: visible;
 }
 
 .label-prompt {
@@ -264,4 +277,221 @@ td.col3 {
     text-align: center;
     padding: 40px;
     color: #888;
+}
+
+/* ── Edit Bookmark Button ────────────────────────── */
+
+.btn-edit-bookmark {
+    visibility: hidden;
+    margin-left: auto;
+    background: none;
+    border: 1px solid #1e293b;
+    color: #64748b;
+    cursor: pointer;
+    font-size: 13px;
+    padding: 0 5px;
+    border-radius: 2px;
+    line-height: 1.4;
+}
+
+.btn-edit-bookmark:hover {
+    color: #3b82f6;
+    border-color: #3b82f6;
+}
+
+.shortcut-wrap:hover .btn-edit-bookmark {
+    visibility: visible;
+}
+
+/* ── New Bookmark Button ─────────────────────────── */
+
+.btn-new-bookmark {
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: bold;
+    color: #64748b !important;
+    padding: 2px 10px !important;
+}
+
+.btn-new-bookmark:hover {
+    color: #3b82f6 !important;
+}
+
+/* ── Modal ───────────────────────────────────────── */
+
+.modal-backdrop-custom {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content-custom {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 4px;
+    width: 520px;
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-header-custom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid #1e293b;
+    font-size: 15px;
+    font-weight: 600;
+    color: #e0e6ed;
+}
+
+.modal-close-btn {
+    background: none;
+    border: none;
+    color: #64748b;
+    font-size: 22px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 4px;
+}
+
+.modal-close-btn:hover {
+    color: #e0e6ed;
+}
+
+.modal-body-custom {
+    padding: 16px;
+}
+
+.modal-field {
+    margin-bottom: 12px;
+}
+
+.modal-field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: #94a3b8;
+    margin-bottom: 4px;
+}
+
+.modal-field .form-control {
+    font-size: 13px !important;
+    color: #b2bac2;
+    background-color: #020617;
+    border-color: #1e293b;
+    border-radius: 2px;
+    padding: 5px 10px;
+}
+
+.modal-field .form-control:focus {
+    background-color: #020617;
+    color: #e0e6ed;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
+}
+
+.modal-field select.form-control {
+    appearance: auto;
+}
+
+.modal-field-row {
+    display: flex;
+    gap: 16px;
+    align-items: flex-end;
+}
+
+.modal-field-row .modal-field {
+    flex: 1;
+}
+
+.checkbox-label {
+    display: flex !important;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    padding-top: 20px;
+}
+
+.group-select-row {
+    display: flex;
+    gap: 8px;
+}
+
+.group-select-row .form-control {
+    flex: 1;
+}
+
+.btn-toggle-group {
+    background: #1e293b;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    font-size: 12px;
+    padding: 4px 10px;
+    cursor: pointer;
+    border-radius: 2px;
+    white-space: nowrap;
+}
+
+.btn-toggle-group:hover {
+    color: #e0e6ed;
+    border-color: #3b82f6;
+}
+
+.alias-warning {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #f59e0b;
+}
+
+.modal-error {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #ef4444;
+}
+
+.modal-footer-custom {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid #1e293b;
+}
+
+.btn-modal {
+    font-size: 13px;
+    padding: 6px 16px;
+    border-radius: 2px;
+    border: 1px solid #1e293b;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.btn-modal-cancel {
+    background: #1e293b;
+    color: #94a3b8;
+}
+
+.btn-modal-cancel:hover {
+    color: #e0e6ed;
+}
+
+.btn-modal-save {
+    background: #1d4ed8;
+    color: #fff;
+    border-color: #1d4ed8;
+}
+
+.btn-modal-save:hover {
+    background: #2563eb;
+}
+
+.btn-modal-save:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }

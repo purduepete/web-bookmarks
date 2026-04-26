@@ -29,15 +29,14 @@ export default function GroupsSidebar({
                     onChange={(e) => onFilterChange(e.target.value)}
                     onKeyDown={onKeyDown}
                 />
-                {filter && (
-                    <button
-                        className="btn-clear input-group-text"
-                        onClick={() => onFilterChange('')}
-                        aria-label="Clear"
-                    >
-                        ×
-                    </button>
-                )}
+                <button
+                    className={`btn-clear input-group-text${filter ? '' : ' btn-clear-hidden'}`}
+                    onClick={() => onFilterChange('')}
+                    aria-label="Clear"
+                    tabIndex={filter ? 0 : -1}
+                >
+                    ×
+                </button>
             </div>
 
             <div className="group-header">

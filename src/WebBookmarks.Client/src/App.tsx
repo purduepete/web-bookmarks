@@ -3,6 +3,7 @@ import { fetchBookmarks } from './api';
 import type { WebBookmarksItem, BookmarkGroup } from './types';
 import GroupsSidebar from './components/GroupsSidebar';
 import BookmarkGroupComponent from './components/BookmarkGroup';
+import BookmarkModal from './components/BookmarkModal';
 
 function openUrls(urls: string[]) {
     for (let i = 0; i < urls.length; i++) {
@@ -49,6 +50,8 @@ export default function App() {
     const [promptEnabled, setPromptEnabled] = useState(() => localStorage.getItem('promptEnabled') === 'true');
     const [promptActive, setPromptActive] = useState(() => localStorage.getItem('promptEnabled') === 'true');
     const promptShown = useRef(false);
+    const [modalOpen, setModalOpen] = useState(false);
+    const [editingBookmark, setEditingBookmark] = useState<WebBookmarksItem | null>(null);
 
     const loadBookmarks = useCallback(() => {
         setError(null);
@@ -75,6 +78,23 @@ export default function App() {
         return Array.from(map.entries())
             .map(([name, items]) => ({ name, items }))
             .sort((a, b) => a.name.localeCompare(b.name));
+    }, [bookmarks]);
+
+    const conflictIds = useMemo(() => {
+        const ids = new Set<number>();
+        for (let i = 0; i < bookmarks.length; i++) {
+            const a = bookmarks[i].shortcut.trim().toLowerCase();
+            if (!a) continue;
+            for (let j = i + 1; j < bookmarks.length; j++) {
+                const b = bookmarks[j].shortcut.trim().toLowerCase();
+                if (!b) continue;
+                if (a.includes(b) || b.includes(a)) {
+                    ids.add(bookmarks[i].id);
+                    ids.add(bookmarks[j].id);
+                }
+            }
+        }
+        return ids;
     }, [bookmarks]);
 
     const displayedGroups = useMemo(() => {
@@ -158,6 +178,27 @@ export default function App() {
         [groupFilter, openFilteredBookmarks],
     );
 
+    const openCreateModal = useCallback(() => {
+        setEditingBookmark(null);
+        setModalOpen(true);
+    }, []);
+
+    const openEditModal = useCallback((item: WebBookmarksItem) => {
+        setEditingBookmark(item);
+        setModalOpen(true);
+    }, []);
+
+    const handleModalClose = useCallback(() => {
+        setModalOpen(false);
+        setEditingBookmark(null);
+    }, []);
+
+    const handleModalSaved = useCallback(() => {
+        setModalOpen(false);
+        setEditingBookmark(null);
+        loadBookmarks();
+    }, [loadBookmarks]);
+
     if (loading) return null;
     if (error) return <div className="loading-msg text-danger">{error}</div>;
     if (promptActive) return null;
@@ -205,21 +246,31 @@ export default function App() {
                         />
                         <span className="label-prompt">Prompt?</span>
                     </span>
-                    {bookmarkFilter && (
-                        <button
-                            className="btn-clear input-group-text"
-                            onClick={() => setBookmarkFilter('')}
-                            aria-label="Clear"
-                        >
-                            ×
-                        </button>
-                    )}
+                    <button
+                        className="btn-new-bookmark input-group-text"
+                        onClick={openCreateModal}
+                        title="New Bookmark"
+                    >
+                        +
+                    </button>
+                    <button
+                        className={`btn-clear input-group-text${bookmarkFilter ? '' : ' btn-clear-hidden'}`}
+                        onClick={() => setBookmarkFilter('')}
+                        aria-label="Clear"
+                        tabIndex={bookmarkFilter ? 0 : -1}
+                    >
+                        ×
+                    </button>
                 </div>
 
                 {displayedGroups.map((g) => (
-                    <BookmarkGroupComponent key={g.name} group={g} />
+                    <BookmarkGroupComponent key={g.name} group={g} onEdit={openEditModal} conflictIds={conflictIds} />
                 ))}
             </div>
+
+            {modalOpen && (
+                <BookmarkModal bookmark={editingBookmark} onClose={handleModalClose} onSaved={handleModalSaved} />
+            )}
         </div>
     );
 }

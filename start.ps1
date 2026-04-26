@@ -1,3 +1,6 @@
+# Ensure git hooks are configured
+git config core.hooksPath .githooks
+
 $apiJob = Start-Process pwsh -ArgumentList "-NoExit", "-Command", "cd '$PSScriptRoot\src\WebBookmarks.Api'; dotnet run" -PassThru
 $clientJob = Start-Process pwsh -ArgumentList "-NoExit", "-Command", "cd '$PSScriptRoot\src\WebBookmarks.Client'; npm run dev" -PassThru
 

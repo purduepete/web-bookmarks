@@ -11,30 +11,30 @@ body {
     padding-right: 15%;
 }
 
-@media (min-width: 481px) and (max-width: 1400px) {
+@media (min-width: 769px) and (max-width: 1400px) {
     .app-body {
         padding-left: 2.5%;
         padding-right: 2.5%;
     }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 768px) {
     .app-body {
         padding-left: 2%;
         padding-right: 2%;
     }
     body {
-        font-size: 11px;
+        font-size: 11px !important;
     }
     .group-header {
-        font-size: 12px;
+        font-size: 12px !important;
     }
     .bookmark-count {
-        font-size: 7px;
-        padding: 1px 5px;
+        font-size: 9px !important;
+        padding: 1px 5px !important;
     }
     .btn-clear {
-        font-size: 15px;
+        font-size: 15px !important;
     }
 }
 

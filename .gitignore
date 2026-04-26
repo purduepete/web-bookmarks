@@ -32,6 +32,9 @@ dist/
 Thumbs.db
 .DS_Store
 
+# Dev scripts
+.dev-pids
+
 # Azure
 .azure/
 publish.zip

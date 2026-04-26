@@ -11,6 +11,15 @@ A personal bookmark manager with a .NET 9 API and React frontend, deployed to Az
 | Database  | SQL Server                      | Azure SQL (Basic)            |
 | Auth      | Managed Identity (passwordless) | —                            |
 
+## Features
+
+- **Bookmark groups** — organized sidebar with filtering and one-click navigation
+- **Shortcut aliases** — type a shortcut in the prompt to navigate instantly
+- **Create / Edit bookmarks** — modal form with group dropdown (existing or new)
+- **Alias conflict detection** — warns on partial matches (e.g. `_stwp` vs `_stwpl`) both in the modal and inline with ⚠ icons
+- **Show / Hide hidden bookmarks** — toggle to reveal hidden bookmarks (dimmed at 40% opacity)
+- **Prompt mode** — optional browser prompt for quick shortcut-based navigation
+
 ## Project Structure
 
 ```
@@ -23,6 +32,13 @@ azure.yaml                    # Azure Developer CLI manifest
 ```
 
 ## Local Development
+
+### Quick Start
+
+```powershell
+.\start.ps1      # starts API + client dev servers, configures git hooks
+.\stop.ps1        # stops both servers
+```
 
 ### Prerequisites
 
@@ -49,6 +65,16 @@ npm install
 npm run dev
 # → http://localhost:5173  (proxies /api → localhost:5288)
 ```
+
+## Pre-commit Hooks
+
+A git pre-commit hook runs TypeScript (`tsc`) and .NET build checks before every commit. It is automatically configured when you run `.\start.ps1`, or you can set it up manually:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+To skip in an emergency: `git commit --no-verify`
 
 ## Deployment
 

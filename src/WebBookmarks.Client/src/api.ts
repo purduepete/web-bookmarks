@@ -42,6 +42,13 @@ export async function updateBookmark(id: number, item: WebBookmarksItem): Promis
     if (!res.ok) throw new Error(`Failed to update bookmark: ${res.status}`);
 }
 
+export async function deleteBookmark(id: number): Promise<void> {
+    const res = await fetch(`${API_BASE}/${id}`, {
+        method: 'DELETE',
+    });
+    if (!res.ok) throw new Error(`Failed to delete bookmark: ${res.status}`);
+}
+
 export async function checkAlias(
     alias: string,
     excludeId?: number,

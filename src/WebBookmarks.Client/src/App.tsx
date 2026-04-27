@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { fetchBookmarks } from './api';
+import { fetchBookmarks, deleteBookmark } from './api';
 import type { WebBookmarksItem, BookmarkGroup } from './types';
 import GroupsSidebar from './components/GroupsSidebar';
 import BookmarkGroupComponent from './components/BookmarkGroup';
@@ -200,6 +200,19 @@ export default function App() {
         loadBookmarks();
     }, [loadBookmarks]);
 
+    const handleDelete = useCallback(
+        async (item: WebBookmarksItem) => {
+            if (!window.confirm(`Delete "${item.name}"?`)) return;
+            try {
+                await deleteBookmark(item.id);
+                loadBookmarks();
+            } catch (e) {
+                setError(e instanceof Error ? e.message : 'Delete failed');
+            }
+        },
+        [loadBookmarks],
+    );
+
     if (loading) return null;
     if (error) return <div className="loading-msg text-danger">{error}</div>;
     if (promptActive) return null;
@@ -275,7 +288,13 @@ export default function App() {
                 </div>
 
                 {displayedGroups.map((g) => (
-                    <BookmarkGroupComponent key={g.name} group={g} onEdit={openEditModal} conflictIds={conflictIds} />
+                    <BookmarkGroupComponent
+                        key={g.name}
+                        group={g}
+                        onEdit={openEditModal}
+                        onDelete={handleDelete}
+                        conflictIds={conflictIds}
+                    />
                 ))}
             </div>
 

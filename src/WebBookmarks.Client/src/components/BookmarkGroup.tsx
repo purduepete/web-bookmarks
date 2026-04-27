@@ -3,10 +3,11 @@ import type { BookmarkGroup as BookmarkGroupType, WebBookmarksItem } from '../ty
 interface Props {
     group: BookmarkGroupType;
     onEdit: (item: WebBookmarksItem) => void;
+    onDelete: (item: WebBookmarksItem) => void;
     conflictIds: Set<number>;
 }
 
-export default function BookmarkGroup({ group, onEdit, conflictIds }: Props) {
+export default function BookmarkGroup({ group, onEdit, onDelete, conflictIds }: Props) {
     return (
         <div className="mb-3" id={`group-${group.name}`}>
             <div className="group-header">
@@ -20,7 +21,6 @@ export default function BookmarkGroup({ group, onEdit, conflictIds }: Props) {
                             <td className="col1">
                                 <a href={item.url}>{item.name}</a>
                             </td>
-                            <td className="col2">{item.description}</td>
                             <td className="col3">
                                 <div className="shortcut-wrap">
                                     <span
@@ -42,6 +42,13 @@ export default function BookmarkGroup({ group, onEdit, conflictIds }: Props) {
                                         title="Edit bookmark"
                                     >
                                         ✎
+                                    </button>
+                                    <button
+                                        className="btn-delete-bookmark"
+                                        onClick={() => onDelete(item)}
+                                        title="Delete bookmark"
+                                    >
+                                        ✕
                                     </button>
                                 </div>
                             </td>

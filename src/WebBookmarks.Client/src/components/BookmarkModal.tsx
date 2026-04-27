@@ -149,14 +149,7 @@ export default function BookmarkModal({ bookmark, onClose, onSaved }: Props) {
                             />
                             {aliasWarning && <div className="alias-warning">{aliasWarning}</div>}
                         </div>
-                        <div className="modal-field">
-                            <label>Description</label>
-                            <input
-                                className="form-control form-control-sm"
-                                value={form.description}
-                                onChange={(e) => handleChange('description', e.target.value)}
-                            />
-                        </div>
+
                         <div className="modal-field">
                             <label>Group</label>
                             <div className="group-select-row">

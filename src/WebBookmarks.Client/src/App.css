@@ -78,6 +78,7 @@ body {
 /* ── Bookmark card wrapper ───────────────────────── */
 
 .mb-3 > .table {
+    table-layout: fixed;
     border-left: 1px solid #1e293b;
     border-right: 1px solid #1e293b;
     border-bottom: 1px solid #1e293b;
@@ -92,7 +93,7 @@ td {
 }
 
 td.col1 {
-    width: 225px;
+    width: 80%;
     font-weight: 500;
 }
 
@@ -106,13 +107,8 @@ td.col1 a:hover {
     color: #e0e6ed;
 }
 
-td.col2 {
-    width: 300px;
-    padding-left: 15px !important;
-}
-
 td.col3 {
-    width: 100px;
+    width: 20%;
     padding-left: 15px !important;
 }
 
@@ -292,6 +288,30 @@ td.col3 {
 }
 
 .shortcut-wrap:hover .btn-edit-bookmark {
+    visibility: visible;
+}
+
+/* ── Delete Bookmark Button ──────────────────────── */
+
+.btn-delete-bookmark {
+    visibility: hidden;
+    margin-left: 2px;
+    background: none;
+    border: 1px solid #1e293b;
+    color: #64748b;
+    cursor: pointer;
+    font-size: 11px;
+    padding: 0 5px;
+    border-radius: 2px;
+    line-height: 1.4;
+}
+
+.btn-delete-bookmark:hover {
+    color: #ef4444;
+    border-color: #ef4444;
+}
+
+.shortcut-wrap:hover .btn-delete-bookmark {
     visibility: visible;
 }
 

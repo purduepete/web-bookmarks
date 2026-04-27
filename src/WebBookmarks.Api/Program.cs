@@ -37,8 +37,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+else
+{
+    app.UseHttpsRedirection();
+}
 
-app.UseHttpsRedirection();
 app.UseCors();
 
 // ── Bookmark Endpoints ──────────────────────────────────────────────

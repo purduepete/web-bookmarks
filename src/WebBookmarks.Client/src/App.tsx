@@ -6,13 +6,13 @@ import BookmarkGroupComponent from './components/BookmarkGroup';
 import BookmarkModal from './components/BookmarkModal';
 
 function openUrls(urls: string[]) {
-    for (let i = 0; i < urls.length; i++) {
-        if (i === urls.length - 1) {
-            window.location.href = urls[i];
-        } else {
-            window.open(urls[i], '_blank', 'noopener');
-        }
+    for (let i = 0; i < urls.length - 1; i++) {
+        window.open(urls[i], '_blank', 'noopener');
     }
+    // Navigate last so the other tabs have time to open
+    setTimeout(() => {
+        window.location.href = urls[urls.length - 1];
+    }, 100);
 }
 
 function navigateByShortcut(input: string, bookmarks: WebBookmarksItem[]): boolean {
@@ -299,7 +299,12 @@ export default function App() {
             </div>
 
             {modalOpen && (
-                <BookmarkModal bookmark={editingBookmark} onClose={handleModalClose} onSaved={handleModalSaved} />
+                <BookmarkModal
+                    bookmark={editingBookmark}
+                    allBookmarks={bookmarks}
+                    onClose={handleModalClose}
+                    onSaved={handleModalSaved}
+                />
             )}
         </div>
     );

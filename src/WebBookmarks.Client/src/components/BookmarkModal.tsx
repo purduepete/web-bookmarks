@@ -4,6 +4,7 @@ import { checkAlias, createBookmark, updateBookmark, fetchGroups } from '../api'
 
 interface Props {
     bookmark: WebBookmarksItem | null; // null = create mode
+    allBookmarks: WebBookmarksItem[];
     onClose: () => void;
     onSaved: () => void;
 }
@@ -19,13 +20,15 @@ const emptyBookmark: Omit<WebBookmarksItem, 'id'> = {
     sortOrder: 0,
 };
 
-export default function BookmarkModal({ bookmark, onClose, onSaved }: Props) {
+export default function BookmarkModal({ bookmark, allBookmarks, onClose, onSaved }: Props) {
     const isEdit = bookmark !== null;
     const [form, setForm] = useState<Omit<WebBookmarksItem, 'id'>>(bookmark ? { ...bookmark } : { ...emptyBookmark });
     const [groups, setGroups] = useState<string[]>([]);
     const [newGroup, setNewGroup] = useState('');
     const [useNewGroup, setUseNewGroup] = useState(false);
     const [aliasWarning, setAliasWarning] = useState<string | null>(null);
+    const [sortOrderWarning, setSortOrderWarning] = useState<string | null>(null);
+    const [sortOrderText, setSortOrderText] = useState(() => String(bookmark?.sortOrder ?? 0));
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const aliasTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -65,10 +68,35 @@ export default function BookmarkModal({ bookmark, onClose, onSaved }: Props) {
         [bookmark?.id],
     );
 
+    const validateSortOrder = useCallback(
+        (order: number, group: string) => {
+            if (order === 0) {
+                setSortOrderWarning(null);
+                return;
+            }
+            const conflict = allBookmarks.find(
+                (b) => b.bookmarkGroup === group && b.sortOrder === order && b.id !== bookmark?.id,
+            );
+            if (conflict) {
+                setSortOrderWarning(`Sort order ${order} is already used by "${conflict.name}" in this group.`);
+            } else {
+                setSortOrderWarning(null);
+            }
+        },
+        [allBookmarks, bookmark?.id],
+    );
+
     const handleChange = (field: keyof typeof form, value: string | boolean | number) => {
-        setForm((prev) => ({ ...prev, [field]: value }));
+        const next = { ...form, [field]: value };
+        setForm(next);
         if (field === 'shortcut' && typeof value === 'string') {
             validateAlias(value);
+        }
+        if (field === 'sortOrder' || field === 'bookmarkGroup') {
+            const group =
+                field === 'bookmarkGroup' ? String(value) : useNewGroup ? newGroup.trim() : next.bookmarkGroup;
+            const order = field === 'sortOrder' ? Number(value) || 0 : next.sortOrder;
+            validateSortOrder(order, group);
         }
     };
 
@@ -84,7 +112,7 @@ export default function BookmarkModal({ bookmark, onClose, onSaved }: Props) {
             return;
         }
 
-        const payload = { ...form, bookmarkGroup: finalGroup };
+        const payload = { ...form, bookmarkGroup: finalGroup, sortOrder: Number(sortOrderText) || 0 };
 
         try {
             if (isEdit && bookmark) {
@@ -188,11 +216,14 @@ export default function BookmarkModal({ bookmark, onClose, onSaved }: Props) {
                             <div className="modal-field">
                                 <label>Sort Order</label>
                                 <input
-                                    type="number"
                                     className="form-control form-control-sm"
-                                    value={form.sortOrder}
-                                    onChange={(e) => handleChange('sortOrder', Number(e.target.value))}
+                                    value={sortOrderText}
+                                    onChange={(e) => {
+                                        setSortOrderText(e.target.value);
+                                        handleChange('sortOrder', Number(e.target.value) || 0);
+                                    }}
                                 />
+                                {sortOrderWarning && <div className="alias-warning">{sortOrderWarning}</div>}
                             </div>
                             <div className="modal-field">
                                 <label className="checkbox-label">

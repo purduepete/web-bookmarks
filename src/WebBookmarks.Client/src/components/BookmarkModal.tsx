@@ -171,7 +171,13 @@ export default function BookmarkModal({ bookmark, allBookmarks, onClose, onSaved
     };
 
     return (
-        <div className="modal-backdrop-custom" onClick={handleBackdropClick} ref={modalRef} role="dialog" aria-modal="true">
+        <div
+            className="modal-backdrop-custom"
+            onClick={handleBackdropClick}
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+        >
             <div className="modal-content-custom">
                 <div className="modal-header-custom">
                     <span>{isEdit ? 'Edit Bookmark' : 'New Bookmark'}</span>

@@ -50,6 +50,7 @@ export default function App() {
     const [promptEnabled, setPromptEnabled] = useState(() => localStorage.getItem('promptEnabled') === 'true');
     const [promptActive, setPromptActive] = useState(() => localStorage.getItem('promptEnabled') === 'true');
     const promptShown = useRef(false);
+    const bookmarkInputRef = useRef<HTMLInputElement>(null);
     const [modalOpen, setModalOpen] = useState(false);
     const [editingBookmark, setEditingBookmark] = useState<WebBookmarksItem | null>(null);
     const [showHidden, setShowHidden] = useState(false);
@@ -68,6 +69,12 @@ export default function App() {
     useEffect(() => {
         loadBookmarks();
     }, [loadBookmarks]);
+
+    useEffect(() => {
+        if (!loading && !promptActive) {
+            bookmarkInputRef.current?.focus();
+        }
+    }, [loading, promptActive]);
 
     const groups: BookmarkGroup[] = useMemo(() => {
         const map = new Map<string, WebBookmarksItem[]>();
@@ -245,6 +252,7 @@ export default function App() {
                         Bookmark
                     </span>
                     <input
+                        ref={bookmarkInputRef}
                         className="form-control"
                         value={bookmarkFilter}
                         onChange={(e) => setBookmarkFilter(e.target.value)}

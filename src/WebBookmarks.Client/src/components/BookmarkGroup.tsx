@@ -1,24 +1,44 @@
 import type { BookmarkGroup as BookmarkGroupType, WebBookmarksItem } from '../types';
+import { toUpperCaseStr } from '../utils';
 
 interface Props {
     group: BookmarkGroupType;
     onEdit: (item: WebBookmarksItem) => void;
     onDelete: (item: WebBookmarksItem) => void;
+    onMove: (item: WebBookmarksItem, direction: 'up' | 'down') => void;
     conflictIds: Set<number>;
 }
 
-export default function BookmarkGroup({ group, onEdit, onDelete, conflictIds }: Props) {
+export default function BookmarkGroup({ group, onEdit, onDelete, onMove, conflictIds }: Props) {
     return (
         <div className="mb-3" id={`group-${group.name}`}>
             <div className="group-header">
-                <span>{group.name}</span>
+                <span>{toUpperCaseStr(group.name)}</span>
                 <span className="bookmark-count">{group.items.length}</span>
             </div>
             <table className="table table-striped table-bordered mb-0">
                 <tbody>
-                    {group.items.map((item) => (
+                    {group.items.map((item, index) => (
                         <tr key={item.id} className={item.isVisible ? '' : 'row-hidden-bookmark'}>
                             <td className="col1">
+                                <span className="sort-buttons">
+                                    <button
+                                        className="btn-sort"
+                                        onClick={() => onMove(item, 'up')}
+                                        disabled={index === 0}
+                                        title="Move up"
+                                    >
+                                        ▲
+                                    </button>
+                                    <button
+                                        className="btn-sort"
+                                        onClick={() => onMove(item, 'down')}
+                                        disabled={index === group.items.length - 1}
+                                        title="Move down"
+                                    >
+                                        ▼
+                                    </button>
+                                </span>
                                 <a href={item.url}>{item.name}</a>
                             </td>
                             <td className="col3">

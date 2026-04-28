@@ -68,7 +68,6 @@ body {
     color: #e0e6ed;
     background-color: #0f172a;
     border: 1px solid #1e293b;
-    text-transform: capitalize;
     font-size: 16px;
     display: flex;
     justify-content: space-between;
@@ -134,7 +133,6 @@ td.col3 {
 #groups td {
     padding: 8px 10px !important;
     font-weight: 500;
-    text-transform: capitalize;
     cursor: pointer;
 }
 
@@ -506,4 +504,36 @@ td.col3 {
 .btn-modal-save:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+/* ── Sort Buttons ────────────────────────────────── */
+
+.sort-buttons {
+    display: inline-flex;
+    flex-direction: column;
+    margin-right: 6px;
+    vertical-align: middle;
+    visibility: hidden;
+}
+
+tr:hover .sort-buttons {
+    visibility: visible;
+}
+
+.btn-sort {
+    background: none;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    font-size: 8px;
+    padding: 0 2px;
+    line-height: 1;
+}
+
+.btn-sort:hover {
+    color: #3b82f6;
+}
+
+.btn-sort:disabled {
+    visibility: hidden;
 }

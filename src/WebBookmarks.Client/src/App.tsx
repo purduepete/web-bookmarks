@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { fetchBookmarks, deleteBookmark } from './api';
+import { fetchBookmarks, deleteBookmark, reorderBookmarks } from './api';
 import type { WebBookmarksItem, BookmarkGroup } from './types';
 import GroupsSidebar from './components/GroupsSidebar';
 import BookmarkGroupComponent from './components/BookmarkGroup';
@@ -84,7 +84,7 @@ export default function App() {
             map.set(b.bookmarkGroup, list);
         }
         return Array.from(map.entries())
-            .map(([name, items]) => ({ name, items }))
+            .map(([name, items]) => ({ name, items: items.sort((a, b) => a.sortOrder - b.sortOrder) }))
             .sort((a, b) => a.name.localeCompare(b.name));
     }, [bookmarks]);
 
@@ -220,6 +220,53 @@ export default function App() {
         [loadBookmarks],
     );
 
+    const handleMove = useCallback(
+        async (item: WebBookmarksItem, direction: 'up' | 'down') => {
+            const group = groups.find((g) => g.name === item.bookmarkGroup);
+            if (!group) return;
+            const items = group.items;
+            const idx = items.findIndex((i) => i.id === item.id);
+            if (idx < 0) return;
+            const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+            if (swapIdx < 0 || swapIdx >= items.length) return;
+
+            // If sort orders aren't unique, normalize the whole group first
+            const needsNormalize = new Set(items.map((i) => i.sortOrder)).size !== items.length;
+            let entries: { id: number; sortOrder: number }[];
+
+            if (needsNormalize) {
+                // Assign sequential sort orders based on current position, with the swap applied
+                const reordered = [...items];
+                const [moved] = reordered.splice(idx, 1);
+                reordered.splice(swapIdx, 0, moved);
+                entries = reordered.map((i, pos) => ({ id: i.id, sortOrder: pos }));
+            } else {
+                entries = [
+                    { id: items[idx].id, sortOrder: items[swapIdx].sortOrder },
+                    { id: items[swapIdx].id, sortOrder: items[idx].sortOrder },
+                ];
+            }
+
+            // Optimistic update
+            setBookmarks((prev) => {
+                const next = [...prev];
+                for (const entry of entries) {
+                    const b = next.find((b) => b.id === entry.id);
+                    if (b) b.sortOrder = entry.sortOrder;
+                }
+                return next;
+            });
+
+            try {
+                await reorderBookmarks(entries);
+            } catch (e) {
+                setError(e instanceof Error ? e.message : 'Reorder failed');
+                loadBookmarks();
+            }
+        },
+        [groups, loadBookmarks],
+    );
+
     if (loading) return null;
     if (error) return <div className="loading-msg text-danger">{error}</div>;
     if (promptActive) return null;
@@ -301,6 +348,7 @@ export default function App() {
                         group={g}
                         onEdit={openEditModal}
                         onDelete={handleDelete}
+                        onMove={handleMove}
                         conflictIds={conflictIds}
                     />
                 ))}

@@ -1,4 +1,5 @@
 import type { BookmarkGroup } from '../types';
+import { toUpperCaseStr } from '../utils';
 
 interface Props {
     groups: BookmarkGroup[];
@@ -47,7 +48,7 @@ export default function GroupsSidebar({
                     {filtered.map((g) => (
                         <tr key={g.name} onClick={() => onGroupSelect(selectedGroup === g.name ? null : g.name)}>
                             <td className={selectedGroup === g.name ? 'active-group' : ''}>
-                                <span>{g.name}</span>
+                                <span>{toUpperCaseStr(g.name)}</span>
                                 <span className="bookmark-count">{g.items.length}</span>
                             </td>
                         </tr>

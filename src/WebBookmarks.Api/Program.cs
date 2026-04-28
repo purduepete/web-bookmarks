@@ -132,4 +132,20 @@ app.MapGet("/api/bookmarks/groups", async (WebBookmarksContext db) =>
     .WithName("GetGroups")
     .WithOpenApi();
 
+app.MapPost("/api/bookmarks/reorder", async (List<ReorderEntry> entries, WebBookmarksContext db) =>
+{
+    foreach (var entry in entries)
+    {
+        var item = await db.WebBookmarkItems.FindAsync(entry.Id);
+        if (item is not null)
+            item.SortOrder = entry.SortOrder;
+    }
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+})
+    .WithName("ReorderBookmarks")
+    .WithOpenApi();
+
 app.Run();
+
+record ReorderEntry(int Id, int SortOrder);

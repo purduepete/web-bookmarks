@@ -49,6 +49,15 @@ export async function deleteBookmark(id: number): Promise<void> {
     if (!res.ok) throw new Error(`Failed to delete bookmark: ${res.status}`);
 }
 
+export async function reorderBookmarks(entries: { id: number; sortOrder: number }[]): Promise<void> {
+    const res = await fetch(`${API_BASE}/reorder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(entries),
+    });
+    if (!res.ok) throw new Error(`Failed to reorder bookmarks: ${res.status}`);
+}
+
 export async function checkAlias(
     alias: string,
     excludeId?: number,

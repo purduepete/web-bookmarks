@@ -6,13 +6,17 @@ import BookmarkGroupComponent from './components/BookmarkGroup';
 import BookmarkModal from './components/BookmarkModal';
 
 function openUrls(urls: string[]) {
-    for (let i = 0; i < urls.length - 1; i++) {
-        window.open(urls[i], '_blank', 'noopener');
+    let i = 0;
+    function next() {
+        if (i < urls.length - 1) {
+            window.open(urls[i], '_blank', 'noopener');
+            i++;
+            setTimeout(next, 500);
+        } else {
+            window.location.href = urls[i];
+        }
     }
-    // Navigate last so the other tabs have time to open
-    setTimeout(() => {
-        window.location.href = urls[urls.length - 1];
-    }, 100);
+    next();
 }
 
 function navigateByShortcut(input: string, bookmarks: WebBookmarksItem[]): boolean {

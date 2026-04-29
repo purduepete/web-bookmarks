@@ -220,32 +220,18 @@ export default function App() {
         [loadBookmarks],
     );
 
-    const handleMove = useCallback(
-        async (item: WebBookmarksItem, direction: 'up' | 'down') => {
-            const group = groups.find((g) => g.name === item.bookmarkGroup);
+    const handleReorder = useCallback(
+        async (groupName: string, activeId: number, overId: number) => {
+            const group = groups.find((g) => g.name === groupName);
             if (!group) return;
-            const items = group.items;
-            const idx = items.findIndex((i) => i.id === item.id);
-            if (idx < 0) return;
-            const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
-            if (swapIdx < 0 || swapIdx >= items.length) return;
+            const items = [...group.items];
+            const oldIndex = items.findIndex((i) => i.id === activeId);
+            const newIndex = items.findIndex((i) => i.id === overId);
+            if (oldIndex < 0 || newIndex < 0) return;
 
-            // If sort orders aren't unique, normalize the whole group first
-            const needsNormalize = new Set(items.map((i) => i.sortOrder)).size !== items.length;
-            let entries: { id: number; sortOrder: number }[];
-
-            if (needsNormalize) {
-                // Assign sequential sort orders based on current position, with the swap applied
-                const reordered = [...items];
-                const [moved] = reordered.splice(idx, 1);
-                reordered.splice(swapIdx, 0, moved);
-                entries = reordered.map((i, pos) => ({ id: i.id, sortOrder: pos }));
-            } else {
-                entries = [
-                    { id: items[idx].id, sortOrder: items[swapIdx].sortOrder },
-                    { id: items[swapIdx].id, sortOrder: items[idx].sortOrder },
-                ];
-            }
+            const [moved] = items.splice(oldIndex, 1);
+            items.splice(newIndex, 0, moved);
+            const entries = items.map((i, pos) => ({ id: i.id, sortOrder: pos }));
 
             // Optimistic update
             setBookmarks((prev) => {
@@ -348,7 +334,7 @@ export default function App() {
                         group={g}
                         onEdit={openEditModal}
                         onDelete={handleDelete}
-                        onMove={handleMove}
+                        onReorder={handleReorder}
                         conflictIds={conflictIds}
                     />
                 ))}

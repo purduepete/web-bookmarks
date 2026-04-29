@@ -61,6 +61,12 @@ body {
         min-width: 44px;
         min-height: 44px;
     }
+    .btn-options {
+        font-size: 22px !important;
+        padding: 6px 14px !important;
+        min-width: 44px;
+        min-height: 44px;
+    }
     td {
         padding: 10px 8px !important;
     }
@@ -305,6 +311,61 @@ td.col3 {
     margin-left: 4px;
 }
 
+/* ── Options Dropdown ────────────────────────────── */
+
+.dropdown-options-wrap {
+    position: relative;
+    display: flex;
+}
+
+.btn-options {
+    cursor: pointer;
+    font-size: 16px;
+    color: #64748b !important;
+    padding: 5px 10px !important;
+    border-radius: 0 !important;
+}
+
+.btn-options:hover {
+    color: #e0e6ed !important;
+}
+
+.dropdown-options-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    z-index: 100;
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 4px;
+    padding: 4px 0;
+    min-width: 130px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.dropdown-options-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    font-size: 13px;
+    color: #b2bac2;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.dropdown-options-item:hover {
+    background: #1e293b;
+    color: #e0e6ed;
+}
+
+/* ── Edit-mode hidden (preserve space) ───────────── */
+
+.edit-hidden {
+    visibility: hidden;
+    pointer-events: none;
+}
+
 /* ── Hidden Bookmarks ────────────────────────────── */
 
 .row-hidden-bookmark {
@@ -334,13 +395,13 @@ td.col3 {
     line-height: 1.4;
 }
 
+.btn-edit-bookmark:not(.edit-hidden) {
+    visibility: visible;
+}
+
 .btn-edit-bookmark:hover {
     color: #3b82f6;
     border-color: #3b82f6;
-}
-
-.shortcut-wrap:hover .btn-edit-bookmark {
-    visibility: visible;
 }
 
 /* ── Delete Bookmark Button ──────────────────────── */
@@ -358,13 +419,13 @@ td.col3 {
     line-height: 1.4;
 }
 
+.btn-delete-bookmark:not(.edit-hidden) {
+    visibility: visible;
+}
+
 .btn-delete-bookmark:hover {
     color: #ef4444;
     border-color: #ef4444;
-}
-
-.shortcut-wrap:hover .btn-delete-bookmark {
-    visibility: visible;
 }
 
 /* ── New Bookmark Button ─────────────────────────── */
@@ -599,9 +660,14 @@ td.col3 {
         border: 1px solid #1e293b;
         border-radius: 4px;
     }
+    .btn-options {
+        font-size: 18px;
+        padding: 5px 14px !important;
+        min-width: 44px;
+        min-height: 44px;
+    }
     .btn-edit-bookmark,
     .btn-delete-bookmark {
-        visibility: visible;
         font-size: 16px;
         padding: 4px 8px;
         min-width: 32px;
@@ -609,6 +675,10 @@ td.col3 {
         display: inline-flex;
         align-items: center;
         justify-content: center;
+    }
+    .btn-edit-bookmark:not(.edit-hidden),
+    .btn-delete-bookmark:not(.edit-hidden) {
+        visibility: visible;
     }
     td {
         padding: 12px 10px !important;

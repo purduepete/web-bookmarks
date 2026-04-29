@@ -20,6 +20,7 @@ interface Props {
     onDelete: (item: WebBookmarksItem) => void;
     onReorder: (groupName: string, activeId: number, overId: number) => void;
     conflictIds: Set<number>;
+    editMode: boolean;
 }
 
 function SortableRow({
@@ -27,11 +28,13 @@ function SortableRow({
     onEdit,
     onDelete,
     conflictIds,
+    editMode,
 }: {
     item: WebBookmarksItem;
     onEdit: (item: WebBookmarksItem) => void;
     onDelete: (item: WebBookmarksItem) => void;
     conflictIds: Set<number>;
+    editMode: boolean;
 }) {
     const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
         id: item.id,
@@ -47,10 +50,9 @@ function SortableRow({
         <tr ref={setNodeRef} style={style} className={item.isVisible ? '' : 'row-hidden-bookmark'}>
             <td className="col1">
                 <span
-                    className="drag-handle"
+                    className={`drag-handle${editMode ? '' : ' edit-hidden'}`}
                     ref={setActivatorNodeRef}
-                    {...attributes}
-                    {...listeners}
+                    {...(editMode ? { ...attributes, ...listeners } : {})}
                     title="Drag to reorder"
                 >
                     ☰
@@ -67,10 +69,18 @@ function SortableRow({
                         )}
                         {item.shortcut}
                     </span>
-                    <button className="btn-edit-bookmark" onClick={() => onEdit(item)} title="Edit bookmark">
+                    <button
+                        className={`btn-edit-bookmark${editMode ? '' : ' edit-hidden'}`}
+                        onClick={() => onEdit(item)}
+                        title="Edit bookmark"
+                    >
                         ✎
                     </button>
-                    <button className="btn-delete-bookmark" onClick={() => onDelete(item)} title="Delete bookmark">
+                    <button
+                        className={`btn-delete-bookmark${editMode ? '' : ' edit-hidden'}`}
+                        onClick={() => onDelete(item)}
+                        title="Delete bookmark"
+                    >
                         ✕
                     </button>
                 </div>
@@ -79,7 +89,7 @@ function SortableRow({
     );
 }
 
-export default function BookmarkGroup({ group, onEdit, onDelete, onReorder, conflictIds }: Props) {
+export default function BookmarkGroup({ group, onEdit, onDelete, onReorder, conflictIds, editMode }: Props) {
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
         useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
@@ -113,6 +123,7 @@ export default function BookmarkGroup({ group, onEdit, onDelete, onReorder, conf
                                     onEdit={onEdit}
                                     onDelete={onDelete}
                                     conflictIds={conflictIds}
+                                    editMode={editMode}
                                 />
                             ))}
                         </tbody>

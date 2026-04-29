@@ -54,6 +54,21 @@ export default function App() {
     const [modalOpen, setModalOpen] = useState(false);
     const [editingBookmark, setEditingBookmark] = useState<WebBookmarksItem | null>(null);
     const [showHidden, setShowHidden] = useState(false);
+    const [editMode, setEditMode] = useState(false);
+    const [optionsOpen, setOptionsOpen] = useState(false);
+    const optionsRef = useRef<HTMLDivElement>(null);
+
+    // Close options dropdown when clicking outside
+    useEffect(() => {
+        if (!optionsOpen) return;
+        const handleClickOutside = (e: MouseEvent) => {
+            if (optionsRef.current && !optionsRef.current.contains(e.target as Node)) {
+                setOptionsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [optionsOpen]);
 
     const loadBookmarks = useCallback(() => {
         setError(null);
@@ -291,16 +306,37 @@ export default function App() {
                         onChange={(e) => setBookmarkFilter(e.target.value)}
                         onKeyDown={handleBookmarkKeyDown}
                     />
-                    <span className="input-group-text">
-                        <input
-                            type="checkbox"
-                            className="form-check-input mt-0 me-1"
-                            checked={showHidden}
-                            onChange={(e) => setShowHidden(e.target.checked)}
-                            aria-label="Show Hidden"
-                        />
-                        <span className="label-prompt">Hidden?</span>
-                    </span>
+                    <div className="dropdown-options-wrap" ref={optionsRef}>
+                        <button
+                            className="btn-options input-group-text"
+                            onClick={() => setOptionsOpen((v) => !v)}
+                            title="Options"
+                        >
+                            ⚙
+                        </button>
+                        {optionsOpen && (
+                            <div className="dropdown-options-menu">
+                                <label className="dropdown-options-item">
+                                    <input
+                                        type="checkbox"
+                                        className="form-check-input mt-0 me-1"
+                                        checked={showHidden}
+                                        onChange={(e) => setShowHidden(e.target.checked)}
+                                    />
+                                    Hidden
+                                </label>
+                                <label className="dropdown-options-item">
+                                    <input
+                                        type="checkbox"
+                                        className="form-check-input mt-0 me-1"
+                                        checked={editMode}
+                                        onChange={(e) => setEditMode(e.target.checked)}
+                                    />
+                                    Edit
+                                </label>
+                            </div>
+                        )}
+                    </div>
                     <span className="input-group-text">
                         <input
                             type="checkbox"
@@ -336,6 +372,7 @@ export default function App() {
                         onDelete={handleDelete}
                         onReorder={handleReorder}
                         conflictIds={conflictIds}
+                        editMode={editMode}
                     />
                 ))}
             </div>

@@ -10,7 +10,13 @@ const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 function openUrls(urls: string[]) {
     if (isSafari) {
         for (let i = 0; i < urls.length - 1; i++) {
-            window.open(urls[i], '_blank', 'noopener');
+            const a = document.createElement('a');
+            a.href = urls[i];
+            a.target = '_blank';
+            a.rel = 'noopener';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
         }
         window.location.href = urls[urls.length - 1];
     } else {

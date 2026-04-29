@@ -5,18 +5,27 @@ import GroupsSidebar from './components/GroupsSidebar';
 import BookmarkGroupComponent from './components/BookmarkGroup';
 import BookmarkModal from './components/BookmarkModal';
 
+const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
 function openUrls(urls: string[]) {
-    let i = 0;
-    function next() {
-        if (i < urls.length - 1) {
+    if (isSafari) {
+        for (let i = 0; i < urls.length - 1; i++) {
             window.open(urls[i], '_blank', 'noopener');
-            i++;
-            setTimeout(next, 500);
-        } else {
-            window.location.href = urls[i];
         }
+        window.location.href = urls[urls.length - 1];
+    } else {
+        let i = 0;
+        function next() {
+            if (i < urls.length - 1) {
+                window.open(urls[i], '_blank', 'noopener');
+                i++;
+                setTimeout(next, 500);
+            } else {
+                window.location.href = urls[i];
+            }
+        }
+        next();
     }
-    next();
 }
 
 function navigateByShortcut(input: string, bookmarks: WebBookmarksItem[]): boolean {

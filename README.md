@@ -124,3 +124,34 @@ This provisions: App Service Plan, App Service (with managed identity), Static W
 | --------- | ------------------------------------------------------- |
 | Web App   | https://witty-hill-00503bc10.7.azurestaticapps.net/     |
 | API       | https://webbookmarksapi.azurewebsites.net/api/bookmarks |
+
+## Browser Setup: Allow Pop-ups
+
+When opening multiple bookmarks via a shortcut, the browser needs permission to open multiple tabs. To allow pop-ups for this site:
+
+### Edge
+
+1. Go to `edge://settings/content/popups`
+2. Under **Allow**, click **Add**
+3. Enter the site URL (e.g. `https://witty-hill-00503bc10.7.azurestaticapps.net`)
+4. Click **Add**
+
+### Chrome
+
+1. Go to `chrome://settings/content/popups`
+2. Under **Allowed to send pop-ups and use redirects**, click **Add**
+3. Enter the site URL
+4. Click **Add**
+
+### Safari (macOS)
+
+1. Navigate to the site
+2. Go to **Safari → Settings → Websites → Pop-up Windows**
+3. Find the site in the list and set it to **Allow**
+
+### Safari (iPad/iPhone)
+
+1. Open **Settings → Safari**
+2. Turn off **Block Pop-ups**
+
+> Note: iOS/iPadOS Safari does not support per-site pop-up settings.

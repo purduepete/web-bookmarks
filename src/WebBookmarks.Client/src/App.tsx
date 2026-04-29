@@ -9,14 +9,16 @@ const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
 function openUrls(urls: string[]) {
     if (isSafari) {
+        // Pre-open all windows synchronously within the user gesture
+        const wins: (Window | null)[] = [];
         for (let i = 0; i < urls.length - 1; i++) {
-            const a = document.createElement('a');
-            a.href = urls[i];
-            a.target = '_blank';
-            a.rel = 'noopener';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            wins.push(window.open('', '_blank'));
+        }
+        // Assign URLs to the pre-opened windows
+        for (let i = 0; i < wins.length; i++) {
+            if (wins[i]) {
+                wins[i]!.location.href = urls[i];
+            }
         }
         window.location.href = urls[urls.length - 1];
     } else {

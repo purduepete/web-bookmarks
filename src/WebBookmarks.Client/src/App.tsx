@@ -7,17 +7,17 @@ import BookmarkModal from './components/BookmarkModal';
 
 const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
-function openUrls(urls: string[]) {
+function openUrls(items: { name: string; url: string }[]) {
     if (isSafari) {
         // Safari iOS limits window.open to ~1-2 per gesture.
-        // Open a single helper tab with links to all URLs.
+        // Open a single helper page with links to all URLs.
         const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Opening bookmarks...</title>
 <style>body{font-family:-apple-system,sans-serif;background:#1a1a2e;color:#eee;padding:20px}
 a{display:block;padding:14px;margin:8px 0;background:#16213e;color:#4fc3f7;border-radius:8px;text-decoration:none;font-size:17px}
 a:active{background:#0f3460}</style></head><body>
 <h2>Tap each to open:</h2>
-${urls.map((u) => `<a href="${u}" target="_blank">${new URL(u).hostname}</a>`).join('')}
+${items.map((item) => `<a href="${item.url}" target="_blank">${item.name}</a>`).join('')}
 </body></html>`;
         const blob = new Blob([html], { type: 'text/html' });
         const blobUrl = URL.createObjectURL(blob);
@@ -25,12 +25,12 @@ ${urls.map((u) => `<a href="${u}" target="_blank">${new URL(u).hostname}</a>`).j
     } else {
         let i = 0;
         function next() {
-            if (i < urls.length - 1) {
-                window.open(urls[i], '_blank', 'noopener');
+            if (i < items.length - 1) {
+                window.open(items[i].url, '_blank', 'noopener');
                 i++;
                 setTimeout(next, 500);
             } else {
-                window.location.href = urls[i];
+                window.location.href = items[i].url;
             }
         }
         next();
@@ -53,7 +53,10 @@ function navigateByShortcut(input: string, bookmarks: WebBookmarksItem[]): boole
     if (matches.length === 0) return false;
 
     openUrls(
-        matches.map((m) => (searchQuery && m.urls ? m.urls.replace('{q}', encodeURIComponent(searchQuery)) : m.url)),
+        matches.map((m) => ({
+            name: m.name,
+            url: searchQuery && m.urls ? m.urls.replace('{q}', encodeURIComponent(searchQuery)) : m.url,
+        })),
     );
     return true;
 }
@@ -196,7 +199,7 @@ export default function App() {
     }, []);
 
     const openFilteredBookmarks = useCallback(() => {
-        openUrls(displayedGroups.flatMap((g) => g.items).map((item) => item.url));
+        openUrls(displayedGroups.flatMap((g) => g.items).map((item) => ({ name: item.name, url: item.url })));
     }, [displayedGroups]);
 
     const handleBookmarkKeyDown = useCallback(

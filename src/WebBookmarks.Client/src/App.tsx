@@ -21,7 +21,7 @@ ${urls.map((u) => `<a href="${u}" target="_blank">${new URL(u).hostname}</a>`).j
 </body></html>`;
         const blob = new Blob([html], { type: 'text/html' });
         const blobUrl = URL.createObjectURL(blob);
-        window.open(blobUrl, '_blank');
+        window.location.href = blobUrl;
     } else {
         let i = 0;
         function next() {

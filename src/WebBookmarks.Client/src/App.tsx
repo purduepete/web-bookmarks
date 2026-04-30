@@ -9,18 +9,19 @@ const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
 function openUrls(urls: string[]) {
     if (isSafari) {
-        // Pre-open all windows synchronously within the user gesture
-        const wins: (Window | null)[] = [];
-        for (let i = 0; i < urls.length - 1; i++) {
-            wins.push(window.open('', '_blank'));
-        }
-        // Assign URLs to the pre-opened windows
-        for (let i = 0; i < wins.length; i++) {
-            if (wins[i]) {
-                wins[i]!.location.href = urls[i];
-            }
-        }
-        window.location.href = urls[urls.length - 1];
+        // Safari iOS limits window.open to ~1-2 per gesture.
+        // Open a single helper tab with links to all URLs.
+        const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Opening bookmarks...</title>
+<style>body{font-family:-apple-system,sans-serif;background:#1a1a2e;color:#eee;padding:20px}
+a{display:block;padding:14px;margin:8px 0;background:#16213e;color:#4fc3f7;border-radius:8px;text-decoration:none;font-size:17px}
+a:active{background:#0f3460}</style></head><body>
+<h2>Tap each to open:</h2>
+${urls.map((u) => `<a href="${u}" target="_blank">${new URL(u).hostname}</a>`).join('')}
+</body></html>`;
+        const blob = new Blob([html], { type: 'text/html' });
+        const blobUrl = URL.createObjectURL(blob);
+        window.open(blobUrl, '_blank');
     } else {
         let i = 0;
         function next() {

@@ -4,6 +4,7 @@ import type { WebBookmarksItem, BookmarkGroup } from './types';
 import GroupsSidebar from './components/GroupsSidebar';
 import BookmarkGroupComponent from './components/BookmarkGroup';
 import BookmarkModal from './components/BookmarkModal';
+import { wildcardMatch } from './utils';
 
 const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
@@ -151,8 +152,7 @@ export default function App() {
         if (selectedGroup) {
             result = result.filter((g) => g.name === selectedGroup);
         } else if (groupFilter) {
-            const lower = groupFilter.toLowerCase();
-            result = result.filter((g) => g.name.toLowerCase().includes(lower));
+            result = result.filter((g) => wildcardMatch(g.name, groupFilter));
         }
 
         if (bookmarkFilter) {

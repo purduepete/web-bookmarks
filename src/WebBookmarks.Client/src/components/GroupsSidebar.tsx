@@ -1,5 +1,5 @@
 import type { BookmarkGroup } from '../types';
-import { toUpperCaseStr } from '../utils';
+import { toUpperCaseStr, wildcardMatch } from '../utils';
 
 interface Props {
     groups: BookmarkGroup[];
@@ -18,7 +18,7 @@ export default function GroupsSidebar({
     selectedGroup,
     onGroupSelect,
 }: Props) {
-    const filtered = groups.filter((g) => g.name.toLowerCase().includes(filter.toLowerCase()));
+    const filtered = groups.filter((g) => wildcardMatch(g.name, filter));
 
     return (
         <>

@@ -198,7 +198,10 @@ export default function BulkEditModal({ bookmarks, activeProfile, onClose, onCha
                                     { value: 'group', label: 'Change Group' },
                                     { value: 'delete', label: 'Delete' },
                                 ]}
-                                onChange={(v) => { setAction(v as typeof action); setResult(null); }}
+                                onChange={(v) => {
+                                    setAction(v as typeof action);
+                                    setResult(null);
+                                }}
                             />
 
                             {action === 'profile' && (

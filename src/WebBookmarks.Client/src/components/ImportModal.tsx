@@ -112,7 +112,7 @@ export default function ImportModal({ activeProfile, onClose, onImported }: Prop
     const commitNewGroup = (index: number) => {
         const name = newGroupValue.trim();
         if (name) {
-            setCustomGroups((prev) => prev.includes(name) ? prev : [...prev, name]);
+            setCustomGroups((prev) => (prev.includes(name) ? prev : [...prev, name]));
             editField(index, 'folder', name);
         }
         setNewGroupRow(null);
@@ -265,7 +265,10 @@ export default function ImportModal({ activeProfile, onClose, onImported }: Prop
                                                             onChange={(e) => setNewGroupValue(e.target.value)}
                                                             onKeyDown={(e) => {
                                                                 if (e.key === 'Enter') commitNewGroup(i);
-                                                                if (e.key === 'Escape') { setNewGroupRow(null); setNewGroupValue(''); }
+                                                                if (e.key === 'Escape') {
+                                                                    setNewGroupRow(null);
+                                                                    setNewGroupValue('');
+                                                                }
                                                             }}
                                                             onBlur={() => commitNewGroup(i)}
                                                         />

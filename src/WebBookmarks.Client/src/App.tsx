@@ -351,7 +351,7 @@ export default function App() {
         <div className="app-body">
             <div className="header-spacer" />
 
-            <div id="colMain">
+            <div id="colMain" style={startupPaletteHiding ? { display: 'none' } : undefined}>
                 <div className="input-group input-group-sm mb-3">
                     <span className="input-group-text input-label-text" onClick={loadBookmarks}>
                         Search
@@ -475,18 +475,17 @@ export default function App() {
                     </button>
                 </div>
 
-                {!startupPaletteHiding &&
-                    displayedGroups.map((g) => (
-                        <BookmarkGroupComponent
-                            key={g.name}
-                            group={g}
-                            onEdit={openEditModal}
-                            onDelete={handleDelete}
-                            onReorder={handleReorder}
-                            conflictIds={conflictIds}
-                            editMode={editMode}
-                        />
-                    ))}
+                {displayedGroups.map((g) => (
+                    <BookmarkGroupComponent
+                        key={g.name}
+                        group={g}
+                        onEdit={openEditModal}
+                        onDelete={handleDelete}
+                        onReorder={handleReorder}
+                        conflictIds={conflictIds}
+                        editMode={editMode}
+                    />
+                ))}
             </div>
 
             {modalOpen && (
@@ -501,9 +500,9 @@ export default function App() {
             {paletteOpen && (
                 <CommandPalette
                     groups={groups}
-                    onClose={() => {
+                    onClose={(navigating) => {
                         setPaletteOpen(false);
-                        if (startupPaletteHiding) setStartupPaletteHiding(false);
+                        if (startupPaletteHiding && !navigating) setStartupPaletteHiding(false);
                     }}
                 />
             )}

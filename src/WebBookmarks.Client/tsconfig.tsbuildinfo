@@ -1,1 +1,1 @@
-{"root":["./src/app.tsx","./src/api.ts","./src/main.tsx","./src/types.ts","./src/utils.ts","./src/vite-env.d.ts","./src/components/bookmarkgroup.tsx","./src/components/bookmarkmodal.tsx","./src/components/commandpalette.tsx","./src/components/groupssidebar.tsx"],"version":"5.7.3"}
+{"root":["./src/app.tsx","./src/api.ts","./src/main.tsx","./src/types.ts","./src/utils.ts","./src/vite-env.d.ts","./src/components/bookmarkgroup.tsx","./src/components/bookmarkmodal.tsx","./src/components/commandpalette.tsx","./src/components/groupssidebar.tsx"],"errors":true,"version":"5.7.3"}

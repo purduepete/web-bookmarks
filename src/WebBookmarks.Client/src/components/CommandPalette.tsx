@@ -4,7 +4,7 @@ import { wildcardMatch } from '../utils';
 
 interface Props {
     groups: BookmarkGroup[];
-    onClose: () => void;
+    onClose: (navigating?: boolean) => void;
 }
 
 interface PaletteEntry {
@@ -161,7 +161,7 @@ export default function CommandPalette({ groups, onClose }: Props) {
             } else if (entry.kind === 'bookmark' && entry.bookmark) {
                 window.location.href = entry.bookmark.url;
             }
-            onClose();
+            onClose(true);
         },
         [onClose, isTouchDevice, query],
     );
@@ -177,7 +177,7 @@ export default function CommandPalette({ groups, onClose }: Props) {
             }
             if (toOpen.length > 0) {
                 openUrls(toOpen);
-                onClose();
+                onClose(true);
             }
         },
         [displayList, bookmarkNumbers, onClose],
@@ -197,7 +197,7 @@ export default function CommandPalette({ groups, onClose }: Props) {
         }
         if (toOpen.length > 0) {
             openUrls(toOpen);
-            onClose();
+            onClose(true);
         }
     }, [displayList, multiSelected, onClose]);
 
@@ -283,7 +283,7 @@ export default function CommandPalette({ groups, onClose }: Props) {
     const selectedNumbers = numberSelection;
 
     return (
-        <div className="palette-backdrop" onMouseDown={onClose}>
+        <div className="palette-backdrop" onMouseDown={() => onClose()}>
             <div className="palette-container" onMouseDown={(e) => e.stopPropagation()}>
                 <input
                     ref={inputRef}

@@ -329,10 +329,14 @@
         const closeBtn = document.createElement('button');
         closeBtn.textContent = '\u2715';
         closeBtn.title = 'Close (Ctrl+Esc)';
-        closeBtn.style.cssText = 'margin-left:auto;background:none;border:none;color:#64748b;font-size:18px;cursor:pointer;padding:6px 12px;line-height:1;';
-        closeBtn.addEventListener('mouseenter', () => closeBtn.style.color = '#e0e6ed');
-        closeBtn.addEventListener('mouseleave', () => closeBtn.style.color = '#64748b');
-        closeBtn.addEventListener('click', (e) => { e.preventDefault(); close(); });
+        closeBtn.style.cssText =
+            'margin-left:auto;background:none;border:none;color:#64748b;font-size:18px;cursor:pointer;padding:6px 12px;line-height:1;';
+        closeBtn.addEventListener('mouseenter', () => (closeBtn.style.color = '#e0e6ed'));
+        closeBtn.addEventListener('mouseleave', () => (closeBtn.style.color = '#64748b'));
+        closeBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            close();
+        });
         headerBar.appendChild(closeBtn);
 
         const input = document.createElement('input');
@@ -611,7 +615,7 @@
         };
     }
 
-    // ── Global hotkey: Ctrl + / ──────────────────────
+    // ── Global hotkey: Ctrl + / (toggle) ───────────────
     document.addEventListener(
         'keydown',
         async (e) => {
@@ -619,7 +623,13 @@
             if (e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey && isSlash) {
                 e.preventDefault();
                 e.stopImmediatePropagation();
-                if (paletteOpen) return;
+                if (paletteOpen) {
+                    // Close palette on second Ctrl+/
+                    const backdrop = document.querySelector('.wbp-backdrop');
+                    if (backdrop) backdrop.remove();
+                    paletteOpen = false;
+                    return;
+                }
                 try {
                     const groups = await getGroups();
                     openPalette(groups);

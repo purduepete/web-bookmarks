@@ -5,6 +5,8 @@ import { wildcardMatch } from './utils';
 
 import BookmarkGroupComponent from './components/BookmarkGroup';
 import BookmarkModal from './components/BookmarkModal';
+import ImportModal from './components/ImportModal';
+import BulkEditModal from './components/BulkEditModal';
 import CommandPalette from './components/CommandPalette';
 
 const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
@@ -93,6 +95,8 @@ export default function App() {
     const [optionsOpen, setOptionsOpen] = useState(false);
     const optionsRef = useRef<HTMLDivElement>(null);
     const [paletteOpen, setPaletteOpen] = useState(false);
+    const [importOpen, setImportOpen] = useState(false);
+    const [bulkEditOpen, setBulkEditOpen] = useState(false);
     const [startupPaletteHiding, setStartupPaletteHiding] = useState(() => {
         const saved = localStorage.getItem('startupMode');
         return saved === 'palette';
@@ -240,7 +244,14 @@ export default function App() {
     const showPromptLoop = useCallback(() => {
         // Use setTimeout so the checkbox renders before the prompt blocks the UI
         setTimeout(() => {
-            const input = window.prompt('Type `help` for a list of commands:');
+            let input: string | null = null;
+            try {
+                input = window.prompt('Type `help` for a list of commands:');
+            } catch {
+                // prompt() not supported (e.g. VS Code Simple Browser)
+                setPromptActive(false);
+                return;
+            }
             if (input !== null && input.trim().toLowerCase() !== 'help' && input.trim() !== '') {
                 // Navigate immediately — don't setPromptActive(false) so the page stays blank during navigation
                 if (navigateByShortcut(input, bookmarks)) return;
@@ -448,6 +459,24 @@ export default function App() {
                                     />
                                     Edit
                                 </label>
+                                <button
+                                    className="dropdown-options-item dropdown-options-btn"
+                                    onClick={() => {
+                                        setImportOpen(true);
+                                        setOptionsOpen(false);
+                                    }}
+                                >
+                                    Import
+                                </button>
+                                <button
+                                    className="dropdown-options-item dropdown-options-btn"
+                                    onClick={() => {
+                                        setBulkEditOpen(true);
+                                        setOptionsOpen(false);
+                                    }}
+                                >
+                                    Bulk Edit
+                                </button>
                             </div>
                         )}
                     </div>
@@ -520,6 +549,23 @@ export default function App() {
                     activeProfile={activeProfile}
                     onClose={handleModalClose}
                     onSaved={handleModalSaved}
+                />
+            )}
+
+            {importOpen && (
+                <ImportModal
+                    activeProfile={activeProfile}
+                    onClose={() => setImportOpen(false)}
+                    onImported={loadBookmarks}
+                />
+            )}
+
+            {bulkEditOpen && (
+                <BulkEditModal
+                    bookmarks={bookmarks}
+                    activeProfile={activeProfile}
+                    onClose={() => setBulkEditOpen(false)}
+                    onChanged={loadBookmarks}
                 />
             )}
 

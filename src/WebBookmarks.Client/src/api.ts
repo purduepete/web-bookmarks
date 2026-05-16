@@ -85,3 +85,37 @@ export async function fetchProfiles(): Promise<string[]> {
     if (!res.ok) throw new Error(`Failed to fetch profiles: ${res.status}`);
     return await res.json();
 }
+
+export async function bulkCreateBookmarks(items: Omit<WebBookmarksItem, 'id'>[]): Promise<{ imported: number }> {
+    const res = await fetch(`${API_BASE}/bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(items),
+    });
+    if (!res.ok) throw new Error(`Failed to bulk import: ${res.status}`);
+    return await res.json();
+}
+
+export async function bulkUpdateBookmarks(
+    ids: number[],
+    profile?: string,
+    bookmarkGroup?: string,
+): Promise<{ updated: number }> {
+    const res = await fetch(`${API_BASE}/bulk`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, profile: profile ?? null, bookmarkGroup: bookmarkGroup ?? null }),
+    });
+    if (!res.ok) throw new Error(`Failed to bulk update: ${res.status}`);
+    return await res.json();
+}
+
+export async function bulkDeleteBookmarks(ids: number[]): Promise<{ deleted: number }> {
+    const res = await fetch(`${API_BASE}/bulk-delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ids),
+    });
+    if (!res.ok) throw new Error(`Failed to bulk delete: ${res.status}`);
+    return await res.json();
+}

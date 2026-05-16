@@ -254,6 +254,7 @@
     // ── Data ─────────────────────────────────────────
     let cachedGroups = null;
     let cachedProfile = null;
+    let cachedProfiles = null;
     let lastFetch = 0;
     const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
@@ -266,6 +267,7 @@
         // Invalidate cache when profile changes
         cachedGroups = null;
         cachedProfile = null;
+        cachedProfiles = null;
     }
 
     function fetchBookmarks(profile) {
@@ -323,6 +325,10 @@
         cachedGroups = [...map.entries()].map(([name, items]) => ({ name, items }));
         cachedProfile = profile;
         lastFetch = Date.now();
+        // Also pre-fetch profiles if not cached
+        if (!cachedProfiles) {
+            cachedProfiles = await fetchProfiles().catch(() => ['home']);
+        }
         return cachedGroups;
     }
 
@@ -681,7 +687,9 @@
                     return;
                 }
                 try {
-                    const [groups, profiles] = await Promise.all([getGroups(), fetchProfiles()]);
+                    const groups = await getGroups();
+                    const profiles = cachedProfiles || (await fetchProfiles().catch(() => ['home']));
+                    cachedProfiles = profiles;
                     openPalette(groups, profiles);
                 } catch (err) {
                     console.error('[WebBookmarks] Failed to fetch bookmarks:', err);

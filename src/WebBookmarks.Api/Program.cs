@@ -114,7 +114,7 @@ app.MapGet("/api/bookmarks/check-alias", async (string alias, int? excludeId, We
 {
     var lower = alias.Trim().ToLower();
     var query = db.WebBookmarkItems.Where(b =>
-        b.Shortcut.ToLower().Contains(lower) || lower.Contains(b.Shortcut.ToLower()));
+        b.Shortcut != "" && (b.Shortcut.ToLower().Contains(lower) || lower.Contains(b.Shortcut.ToLower())));
 
     if (excludeId.HasValue)
         query = query.Where(b => b.Id != excludeId.Value);
@@ -162,6 +162,44 @@ app.MapGet("/api/bookmarks/profiles", async (WebBookmarksContext db) =>
     .WithName("GetProfiles")
     .WithOpenApi();
 
+app.MapPost("/api/bookmarks/bulk", async (List<WebBookmarksItem> items, WebBookmarksContext db) =>
+{
+    db.WebBookmarkItems.AddRange(items);
+    await db.SaveChangesAsync();
+    return Results.Ok(new { imported = items.Count });
+})
+    .WithName("BulkCreateBookmarks")
+    .WithOpenApi();
+
+app.MapPut("/api/bookmarks/bulk", async (BulkUpdateRequest request, WebBookmarksContext db) =>
+{
+    var items = await db.WebBookmarkItems
+        .Where(b => request.Ids.Contains(b.Id))
+        .ToListAsync();
+    foreach (var item in items)
+    {
+        if (request.Profile is not null) item.Profile = request.Profile;
+        if (request.BookmarkGroup is not null) item.BookmarkGroup = request.BookmarkGroup;
+    }
+    await db.SaveChangesAsync();
+    return Results.Ok(new { updated = items.Count });
+})
+    .WithName("BulkUpdateBookmarks")
+    .WithOpenApi();
+
+app.MapPost("/api/bookmarks/bulk-delete", async (List<int> ids, WebBookmarksContext db) =>
+{
+    var items = await db.WebBookmarkItems
+        .Where(b => ids.Contains(b.Id))
+        .ToListAsync();
+    db.WebBookmarkItems.RemoveRange(items);
+    await db.SaveChangesAsync();
+    return Results.Ok(new { deleted = items.Count });
+})
+    .WithName("BulkDeleteBookmarks")
+    .WithOpenApi();
+
 app.Run();
 
 record ReorderEntry(int Id, int SortOrder);
+record BulkUpdateRequest(List<int> Ids, string? Profile, string? BookmarkGroup);

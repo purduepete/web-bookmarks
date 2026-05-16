@@ -565,6 +565,22 @@
         document.body.appendChild(backdrop);
         input.focus();
         render();
+
+        // Global Escape listener — closes palette even when input doesn't have focus
+        function onDocKeyDown(e) {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                close();
+            }
+        }
+        document.addEventListener('keydown', onDocKeyDown, true);
+
+        const origClose = close;
+        close = function () {
+            document.removeEventListener('keydown', onDocKeyDown, true);
+            origClose();
+        };
     }
 
     // ── Global hotkey: Ctrl + / ──────────────────────

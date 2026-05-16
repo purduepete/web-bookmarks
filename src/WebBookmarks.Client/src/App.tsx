@@ -176,16 +176,16 @@ export default function App() {
 
         if (raw.startsWith('/')) {
             // Bookmark-only filter
-            const lower = raw.slice(1).toLowerCase();
-            if (lower) {
+            const term = raw.slice(1);
+            if (term) {
                 result = result
                     .map((g) => ({
                         ...g,
                         items: g.items.filter(
                             (item) =>
-                                item.name.toLowerCase().includes(lower) ||
-                                item.shortcut.toLowerCase().includes(lower) ||
-                                item.description.toLowerCase().includes(lower),
+                                wildcardMatch(item.name, term) ||
+                                wildcardMatch(item.shortcut, term) ||
+                                wildcardMatch(item.description, term),
                         ),
                     }))
                     .filter((g) => g.items.length > 0);
@@ -198,27 +198,26 @@ export default function App() {
             }
         } else {
             // Search both groups and bookmarks
-            const lower = raw.toLowerCase();
             result = result
                 .filter(
                     (g) =>
-                        g.name.toLowerCase().includes(lower) ||
+                        wildcardMatch(g.name, raw) ||
                         g.items.some(
                             (item) =>
-                                item.name.toLowerCase().includes(lower) ||
-                                item.shortcut.toLowerCase().includes(lower) ||
-                                item.description.toLowerCase().includes(lower),
+                                wildcardMatch(item.name, raw) ||
+                                wildcardMatch(item.shortcut, raw) ||
+                                wildcardMatch(item.description, raw),
                         ),
                 )
                 .map((g) => {
-                    if (g.name.toLowerCase().includes(lower)) return g;
+                    if (wildcardMatch(g.name, raw)) return g;
                     return {
                         ...g,
                         items: g.items.filter(
                             (item) =>
-                                item.name.toLowerCase().includes(lower) ||
-                                item.shortcut.toLowerCase().includes(lower) ||
-                                item.description.toLowerCase().includes(lower),
+                                wildcardMatch(item.name, raw) ||
+                                wildcardMatch(item.shortcut, raw) ||
+                                wildcardMatch(item.description, raw),
                         ),
                     };
                 });

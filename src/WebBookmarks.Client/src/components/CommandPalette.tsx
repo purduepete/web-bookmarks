@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { WebBookmarksItem, BookmarkGroup } from '../types';
+import { wildcardMatch } from '../utils';
 
 interface Props {
     groups: BookmarkGroup[];
@@ -15,17 +16,6 @@ interface PaletteEntry {
     group?: BookmarkGroup;
 }
 
-/** Simple fuzzy match — every character of the query must appear in order. */
-function fuzzyMatch(text: string, query: string): boolean {
-    const lower = text.toLowerCase();
-    let qi = 0;
-    for (let i = 0; i < lower.length && qi < query.length; i++) {
-        if (lower[i] === query[qi]) qi++;
-    }
-    return qi === query.length;
-}
-
-/** Parse a number selection like "1, 2, 3" or "1-6" or "2, 4-7" into a set of 1-based indices. */
 function parseNumberSelection(input: string): Set<number> | null {
     const nums = new Set<number>();
     const parts = input.split(',').map((s) => s.trim());
@@ -125,9 +115,9 @@ export default function CommandPalette({ groups, onClose }: Props) {
     }, [query]);
 
     const filtered = useMemo(() => {
-        const q = searchPart.toLowerCase().trim();
+        const q = searchPart.trim();
         if (!q) return allEntries;
-        return allEntries.filter((e) => fuzzyMatch(e.label, q) || fuzzyMatch(e.secondary, q) || fuzzyMatch(e.alias, q));
+        return allEntries.filter((e) => wildcardMatch(e.label, q) || wildcardMatch(e.secondary, q) || wildcardMatch(e.alias, q));
     }, [allEntries, searchPart]);
 
     const displayList = filtered;

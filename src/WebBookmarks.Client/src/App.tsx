@@ -459,6 +459,7 @@ export default function App() {
                                     />
                                     Edit
                                 </label>
+                                <div className="dropdown-options-divider" />
                                 <button
                                     className="dropdown-options-item dropdown-options-btn"
                                     onClick={() => {

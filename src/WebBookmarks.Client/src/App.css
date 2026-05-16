@@ -299,7 +299,7 @@ td.col3 {
 
 .form-check-input {
     background-color: #0f172a;
-    border-color: #1e293b;
+    border-color: #475569;
     border-radius: 0;
     width: 1.1em;
     height: 1.1em;
@@ -408,11 +408,18 @@ td.col3 {
     border: none;
     width: 100%;
     text-align: left;
-    font: inherit;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: inherit;
     color: inherit;
-    padding: 0;
-    padding-left: 23px;
+    padding: 8px 12px 8px 35px;
     margin: 0;
+}
+
+.dropdown-options-divider {
+    height: 1px;
+    background: #1e293b;
+    margin: 4px 0;
 }
 
 /* ── Edit-mode hidden (preserve space) ───────────── */
@@ -576,9 +583,9 @@ td.col3 {
 }
 
 .modal-field input[type='file'].form-control::file-selector-button {
-    background-color: #1e293b;
-    color: #b2bac2;
-    border: 1px solid #334155;
+    background-color: #1e293b !important;
+    color: #b2bac2 !important;
+    border: 1px solid #334155 !important;
     border-radius: 3px;
     padding: 4px 12px;
     margin-right: 10px;
@@ -587,8 +594,8 @@ td.col3 {
 }
 
 .modal-field input[type='file'].form-control::file-selector-button:hover {
-    background-color: #334155;
-    color: #e0e6ed;
+    background-color: #334155 !important;
+    color: #e0e6ed !important;
 }
 
 .modal-field .form-control:focus {
@@ -599,7 +606,28 @@ td.col3 {
 }
 
 .modal-field select.form-control {
-    appearance: auto;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 12px;
+    padding-right: 30px;
+    cursor: pointer;
+}
+
+.modal-field select.form-control option {
+    background: #0f172a;
+    color: #b2bac2;
+    padding: 8px 12px;
+}
+
+.modal-field select.form-control option:checked {
+    background: #1e3a5f;
+    color: #93c5fd;
+}
+
+.modal-field select.form-control option:hover {
+    background: #1e293b;
 }
 
 .modal-field-row {
@@ -626,6 +654,10 @@ td.col3 {
 }
 
 .group-select-row .form-control {
+    flex: 1;
+}
+
+.group-select-row .dark-select {
     flex: 1;
 }
 
@@ -840,13 +872,141 @@ td.col3 {
     border-bottom-color: #3b82f6;
 }
 
+/* ── Dark Select Component ───────────────────────── */
+
+.dark-select {
+    position: relative;
+    display: inline-block;
+    min-width: 0;
+    flex: 1;
+}
+
+.dark-select-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 5px 10px;
+    font-size: 13px;
+    font-family: inherit;
+    color: #b2bac2;
+    background: #020617;
+    border: 1px solid #1e293b;
+    border-radius: 2px;
+    cursor: pointer;
+    text-align: left;
+    gap: 8px;
+}
+
+.dark-select-trigger:hover {
+    border-color: #334155;
+}
+
+.dark-select-trigger:focus {
+    border-color: #3b82f6;
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
+}
+
+.dark-select-value {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dark-select-chevron {
+    flex-shrink: 0;
+    color: #64748b;
+}
+
+.dark-select-list {
+    z-index: 9999;
+    max-height: 260px;
+    overflow-y: auto;
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 4px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    padding: 4px 0;
+}
+
+.dark-select-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.dark-select-list::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 3px;
+}
+
+.dark-select-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.dark-select-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px 7px 32px;
+    font-size: 13px;
+    color: #b2bac2;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    position: relative;
+}
+
+.dark-select-option:hover {
+    background: #1e293b;
+    color: #e0e6ed;
+}
+
+.dark-select-option-active {
+    background: #172554;
+    color: #93c5fd;
+}
+
+.dark-select-option-active:hover {
+    background: #1e3a5f;
+}
+
+.dark-select-check {
+    position: absolute;
+    left: 10px;
+    color: #3b82f6;
+}
+
+/* inline variant for bulk table cells */
+.dark-select-inline .dark-select-trigger {
+    background: transparent;
+    border-color: transparent;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+.dark-select-inline .dark-select-trigger:hover {
+    border-color: #1e293b;
+}
+
+.dark-select-inline .dark-select-trigger:focus {
+    border-color: #3b82f6;
+    background: #0f172a;
+}
+
+
+
 /* ── Bulk / Import Modals ────────────────────────── */
 
 .modal-wide {
-    max-width: 1000px;
+    max-width: 1200px;
     width: 95vw;
+    max-height: 90vh;
     margin-top: 5vh;
     align-self: flex-start;
+    overflow-y: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .bulk-toolbar {
@@ -883,18 +1043,49 @@ td.col3 {
     box-shadow: none;
 }
 
+.bulk-toolbar select.form-control,
+.bulk-actions select.form-control {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 12px;
+    padding-right: 30px;
+    cursor: pointer;
+}
+
 .bulk-toolbar select.form-control option,
 .bulk-actions select.form-control option {
     background: #0f172a;
     color: #b2bac2;
+    padding: 8px 12px;
+}
+
+.bulk-toolbar select.form-control option:checked,
+.bulk-actions select.form-control option:checked {
+    background: #1e3a5f;
+    color: #93c5fd;
 }
 
 .bulk-table-wrap {
-    max-height: 45vh;
+    max-height: 60vh;
     overflow-y: auto;
     border: 1px solid #1e293b;
     border-radius: 6px;
     margin-bottom: 12px;
+}
+
+.bulk-table-wrap::-webkit-scrollbar {
+    width: 6px;
+}
+
+.bulk-table-wrap::-webkit-scrollbar-thumb {
+    background: #1e293b;
+    border-radius: 3px;
+}
+
+.bulk-table-wrap::-webkit-scrollbar-track {
+    background: transparent;
 }
 
 .bulk-table {
@@ -981,13 +1172,24 @@ td.col3 {
 }
 
 select.bulk-edit-input {
-    appearance: auto;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 6px center;
+    background-size: 12px;
+    padding-right: 24px;
     cursor: pointer;
 }
 
 select.bulk-edit-input option {
     background: #0f172a;
     color: #b2bac2;
+    padding: 8px 12px;
+}
+
+select.bulk-edit-input option:checked {
+    background: #1e3a5f;
+    color: #93c5fd;
 }
 
 .bulk-profile-label {

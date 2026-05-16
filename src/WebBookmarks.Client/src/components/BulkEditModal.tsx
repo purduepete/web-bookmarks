@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type { WebBookmarksItem } from '../types';
 import { bulkUpdateBookmarks, bulkDeleteBookmarks, fetchGroups, fetchProfiles } from '../api';
+import DarkSelect from './DarkSelect';
 
 interface Props {
     bookmarks: WebBookmarksItem[];
@@ -187,48 +188,42 @@ export default function BulkEditModal({ bookmarks, activeProfile, onClose, onCha
                     {selected.size > 0 && (
                         <div className="bulk-actions">
                             <label>Action:</label>
-                            <select
-                                className="form-control form-control-sm bulk-action-select"
+                            <DarkSelect
+                                className="bulk-action-select"
                                 value={action}
-                                onChange={(e) => {
-                                    setAction(e.target.value as typeof action);
-                                    setResult(null);
-                                }}
-                            >
-                                <option value="">-- Choose --</option>
-                                <option value="profile">Change Profile</option>
-                                <option value="group">Change Group</option>
-                                <option value="delete">Delete</option>
-                            </select>
+                                placeholder="-- Choose --"
+                                options={[
+                                    { value: '', label: '-- Choose --' },
+                                    { value: 'profile', label: 'Change Profile' },
+                                    { value: 'group', label: 'Change Group' },
+                                    { value: 'delete', label: 'Delete' },
+                                ]}
+                                onChange={(v) => { setAction(v as typeof action); setResult(null); }}
+                            />
 
                             {action === 'profile' && (
-                                <select
-                                    className="form-control form-control-sm bulk-action-target"
+                                <DarkSelect
+                                    className="bulk-action-target"
                                     value={targetProfile}
-                                    onChange={(e) => setTargetProfile(e.target.value)}
-                                >
-                                    {profiles.map((p) => (
-                                        <option key={p} value={p}>
-                                            {p}
-                                        </option>
-                                    ))}
-                                    {!profiles.includes('all') && <option value="all">all</option>}
-                                </select>
+                                    options={[
+                                        ...profiles.map((p) => ({ value: p, label: p })),
+                                        ...(!profiles.includes('all') ? [{ value: 'all', label: 'all' }] : []),
+                                    ]}
+                                    onChange={setTargetProfile}
+                                />
                             )}
 
                             {action === 'group' && (
-                                <select
-                                    className="form-control form-control-sm bulk-action-target"
+                                <DarkSelect
+                                    className="bulk-action-target"
                                     value={targetGroup}
-                                    onChange={(e) => setTargetGroup(e.target.value)}
-                                >
-                                    <option value="">-- Select --</option>
-                                    {groups.map((g) => (
-                                        <option key={g} value={g}>
-                                            {g}
-                                        </option>
-                                    ))}
-                                </select>
+                                    placeholder="-- Select --"
+                                    options={[
+                                        { value: '', label: '-- Select --' },
+                                        ...groups.map((g) => ({ value: g, label: g })),
+                                    ]}
+                                    onChange={setTargetGroup}
+                                />
                             )}
 
                             {action && (

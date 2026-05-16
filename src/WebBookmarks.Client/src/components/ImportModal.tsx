@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import type { WebBookmarksItem } from '../types';
 import { bulkCreateBookmarks, fetchProfiles, fetchGroups } from '../api';
+import DarkSelect from './DarkSelect';
 
 interface Props {
     activeProfile: string;
@@ -57,6 +58,10 @@ export default function ImportModal({ activeProfile, onClose, onImported }: Prop
     const [profile, setProfile] = useState(activeProfile);
     const [profiles, setProfiles] = useState<string[]>([]);
     const [existingGroups, setExistingGroups] = useState<string[]>([]);
+    const [customGroups, setCustomGroups] = useState<string[]>([]);
+    const [newGroupRow, setNewGroupRow] = useState<number | null>(null);
+    const [newGroupValue, setNewGroupValue] = useState('');
+    const newGroupRef = useRef<HTMLInputElement>(null);
     const fileRef = useRef<HTMLInputElement>(null);
     const modalRef = useRef<HTMLDivElement>(null);
 
@@ -101,6 +106,24 @@ export default function ImportModal({ activeProfile, onClose, onImported }: Prop
     const editField = (index: number, field: keyof ParsedBookmark, value: string) => {
         setParsed((prev) => prev.map((b, i) => (i === index ? { ...b, [field]: value } : b)));
     };
+
+    const allGroups = [...new Set([...existingGroups, ...customGroups, ...parsed.map((p) => p.folder)])].sort();
+
+    const commitNewGroup = (index: number) => {
+        const name = newGroupValue.trim();
+        if (name) {
+            setCustomGroups((prev) => prev.includes(name) ? prev : [...prev, name]);
+            editField(index, 'folder', name);
+        }
+        setNewGroupRow(null);
+        setNewGroupValue('');
+    };
+
+    useEffect(() => {
+        if (newGroupRow !== null && newGroupRef.current) {
+            newGroupRef.current.focus();
+        }
+    }, [newGroupRow]);
 
     const handleImport = async () => {
         setError(null);
@@ -186,18 +209,15 @@ export default function ImportModal({ activeProfile, onClose, onImported }: Prop
                                 </span>
                                 <label className="bulk-profile-label">
                                     Profile:
-                                    <select
-                                        className="form-control form-control-sm bulk-profile-select"
+                                    <DarkSelect
+                                        className="bulk-profile-select"
                                         value={profile}
-                                        onChange={(e) => setProfile(e.target.value)}
-                                    >
-                                        {profiles.map((p) => (
-                                            <option key={p} value={p}>
-                                                {p}
-                                            </option>
-                                        ))}
-                                        {!profiles.includes('all') && <option value="all">all</option>}
-                                    </select>
+                                        options={[
+                                            ...profiles.map((p) => ({ value: p, label: p })),
+                                            ...(!profiles.includes('all') ? [{ value: 'all', label: 'all' }] : []),
+                                        ]}
+                                        onChange={setProfile}
+                                    />
                                 </label>
                             </div>
                             <div className="bulk-table-wrap">
@@ -236,24 +256,37 @@ export default function ImportModal({ activeProfile, onClose, onImported }: Prop
                                                     />
                                                 </td>
                                                 <td>
-                                                    <select
-                                                        className="bulk-edit-input"
-                                                        value={b.folder}
-                                                        onChange={(e) => editField(i, 'folder', e.target.value)}
-                                                    >
-                                                        {[
-                                                            ...new Set([
-                                                                ...existingGroups,
-                                                                ...parsed.map((p) => p.folder),
-                                                            ]),
-                                                        ]
-                                                            .sort()
-                                                            .map((g) => (
-                                                                <option key={g} value={g}>
-                                                                    {g}
-                                                                </option>
-                                                            ))}
-                                                    </select>
+                                                    {newGroupRow === i ? (
+                                                        <input
+                                                            ref={newGroupRef}
+                                                            className="bulk-edit-input"
+                                                            placeholder="New group name..."
+                                                            value={newGroupValue}
+                                                            onChange={(e) => setNewGroupValue(e.target.value)}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') commitNewGroup(i);
+                                                                if (e.key === 'Escape') { setNewGroupRow(null); setNewGroupValue(''); }
+                                                            }}
+                                                            onBlur={() => commitNewGroup(i)}
+                                                        />
+                                                    ) : (
+                                                        <DarkSelect
+                                                            className="dark-select-inline"
+                                                            value={b.folder}
+                                                            options={[
+                                                                { value: '__new__', label: '+ New Group...' },
+                                                                ...allGroups.map((g) => ({ value: g, label: g })),
+                                                            ]}
+                                                            onChange={(v) => {
+                                                                if (v === '__new__') {
+                                                                    setNewGroupRow(i);
+                                                                    setNewGroupValue('');
+                                                                } else {
+                                                                    editField(i, 'folder', v);
+                                                                }
+                                                            }}
+                                                        />
+                                                    )}
                                                 </td>
                                             </tr>
                                         ))}

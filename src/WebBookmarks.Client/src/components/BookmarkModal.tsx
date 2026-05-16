@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { WebBookmarksItem } from '../types';
 import { checkAlias, createBookmark, updateBookmark, fetchGroups, fetchProfiles } from '../api';
+import DarkSelect from './DarkSelect';
 
 interface Props {
     bookmark: WebBookmarksItem | null; // null = create mode
@@ -245,18 +246,15 @@ export default function BookmarkModal({ bookmark, allBookmarks, activeProfile, o
                             <label>Group</label>
                             <div className="group-select-row">
                                 {!useNewGroup ? (
-                                    <select
-                                        className="form-control form-control-sm"
+                                    <DarkSelect
                                         value={form.bookmarkGroup}
-                                        onChange={(e) => handleChange('bookmarkGroup', e.target.value)}
-                                    >
-                                        <option value="">-- Select Group --</option>
-                                        {groups.map((g) => (
-                                            <option key={g} value={g}>
-                                                {g}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        placeholder="-- Select Group --"
+                                        options={[
+                                            { value: '', label: '-- Select Group --' },
+                                            ...groups.map((g) => ({ value: g, label: g })),
+                                        ]}
+                                        onChange={(v) => handleChange('bookmarkGroup', v)}
+                                    />
                                 ) : (
                                     <input
                                         className="form-control form-control-sm"
@@ -279,21 +277,17 @@ export default function BookmarkModal({ bookmark, allBookmarks, activeProfile, o
                             <label>Profile</label>
                             <div className="group-select-row">
                                 {!useNewProfile ? (
-                                    <select
-                                        className="form-control form-control-sm"
+                                    <DarkSelect
                                         value={form.profile}
-                                        onChange={(e) => handleChange('profile', e.target.value)}
-                                    >
-                                        {!profiles.includes('all') && <option value="all">all</option>}
-                                        {profiles.map((p) => (
-                                            <option key={p} value={p}>
-                                                {p}
-                                            </option>
-                                        ))}
-                                        {!profiles.includes(form.profile) && form.profile !== 'all' && (
-                                            <option value={form.profile}>{form.profile}</option>
-                                        )}
-                                    </select>
+                                        options={[
+                                            ...(!profiles.includes('all') ? [{ value: 'all', label: 'all' }] : []),
+                                            ...profiles.map((p) => ({ value: p, label: p })),
+                                            ...(!profiles.includes(form.profile) && form.profile !== 'all'
+                                                ? [{ value: form.profile, label: form.profile }]
+                                                : []),
+                                        ]}
+                                        onChange={(v) => handleChange('profile', v)}
+                                    />
                                 ) : (
                                     <input
                                         className="form-control form-control-sm"

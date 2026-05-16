@@ -342,7 +342,7 @@
 
         const hintsEl = document.createElement('span');
         hintsEl.innerHTML =
-            '<kbd>\u2191\u2193</kbd> navigate &nbsp; <kbd>PgDn/PgUp</kbd> page &nbsp; <kbd>Home/End</kbd> top/bottom &nbsp; <kbd>Ctrl+Space</kbd> select &nbsp; <kbd>Enter</kbd> open &nbsp; <kbd>Esc</kbd> close';
+            '<kbd>\u2191\u2193</kbd> navigate &nbsp; <kbd>\u2192</kbd> expand group &nbsp; <kbd>\u2190</kbd> back &nbsp; <kbd>Ctrl+Space</kbd> select &nbsp; <kbd>Enter</kbd> open &nbsp; <kbd>Esc</kbd> close';
         footer.appendChild(hintsEl);
 
         const hintExtra = document.createElement('span');
@@ -509,8 +509,6 @@
             render();
         });
 
-        const PAGE_SIZE = 10; // items per "page" for Ctrl+d/u/f/b
-
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 e.preventDefault();
@@ -521,15 +519,13 @@
             const { filtered } = getFiltered();
             const maxIdx = filtered.length - 1;
 
-            // Ctrl+j / ArrowDown — single step down
-            if (e.key === 'ArrowDown' || (e.ctrlKey && e.key === 'j')) {
+            if (e.key === 'ArrowDown') {
                 e.preventDefault();
                 activeIndex = Math.min(activeIndex + 1, maxIdx);
                 render();
                 return;
             }
-            // Ctrl+k / ArrowUp — single step up
-            if (e.key === 'ArrowUp' || (e.ctrlKey && e.key === 'k')) {
+            if (e.key === 'ArrowUp') {
                 e.preventDefault();
                 activeIndex = Math.max(activeIndex - 1, 0);
                 render();
@@ -573,47 +569,12 @@
         input.focus();
         render();
 
-        // Global capture-phase listener — intercepts before browser shortcuts
+        // Global capture-phase listener for Escape
         function onDocKeyDown(e) {
             if (e.key === 'Escape') {
                 e.preventDefault();
                 e.stopImmediatePropagation();
                 close();
-                return;
-            }
-            const { filtered } = getFiltered();
-            const maxIdx = filtered.length - 1;
-            // PageDown — full page down
-            if (e.key === 'PageDown') {
-                e.preventDefault();
-                e.stopImmediatePropagation();
-                activeIndex = Math.min(activeIndex + PAGE_SIZE, maxIdx);
-                render();
-                return;
-            }
-            // PageUp — full page up
-            if (e.key === 'PageUp') {
-                e.preventDefault();
-                e.stopImmediatePropagation();
-                activeIndex = Math.max(activeIndex - PAGE_SIZE, 0);
-                render();
-                return;
-            }
-            // Home — jump to top
-            if (e.key === 'Home') {
-                e.preventDefault();
-                e.stopImmediatePropagation();
-                activeIndex = 0;
-                render();
-                return;
-            }
-            // End — jump to bottom
-            if (e.key === 'End') {
-                e.preventDefault();
-                e.stopImmediatePropagation();
-                activeIndex = maxIdx;
-                render();
-                return;
             }
         }
         document.addEventListener('keydown', onDocKeyDown, true);

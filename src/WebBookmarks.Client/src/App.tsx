@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { fetchBookmarks, deleteBookmark, reorderBookmarks } from './api';
 import type { WebBookmarksItem, BookmarkGroup } from './types';
-import GroupsSidebar from './components/GroupsSidebar';
+import { wildcardMatch } from './utils';
+
 import BookmarkGroupComponent from './components/BookmarkGroup';
 import BookmarkModal from './components/BookmarkModal';
-import { wildcardMatch } from './utils';
+import CommandPalette from './components/CommandPalette';
 
 const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
@@ -70,11 +71,19 @@ export default function App() {
     const [loading, setLoading] = useState(() => !localStorage.getItem('bookmarks'));
     const [error, setError] = useState<string | null>(null);
 
-    const [groupFilter, setGroupFilter] = useState('');
-    const [bookmarkFilter, setBookmarkFilter] = useState('');
-    const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
-    const [promptEnabled, setPromptEnabled] = useState(() => localStorage.getItem('promptEnabled') === 'true');
-    const [promptActive, setPromptActive] = useState(() => localStorage.getItem('promptEnabled') === 'true');
+    const [searchFilter, setSearchFilter] = useState('');
+    const [startupMode, setStartupMode] = useState<'none' | 'prompt' | 'palette'>(() => {
+        const saved = localStorage.getItem('startupMode');
+        if (saved === 'prompt' || saved === 'palette') return saved;
+        if (localStorage.getItem('promptEnabled') === 'true') return 'prompt';
+        return 'none';
+    });
+    const [promptActive, setPromptActive] = useState(() => {
+        const saved = localStorage.getItem('startupMode');
+        if (saved === 'prompt') return true;
+        if (!saved && localStorage.getItem('promptEnabled') === 'true') return true;
+        return false;
+    });
     const promptShown = useRef(false);
     const bookmarkInputRef = useRef<HTMLInputElement>(null);
     const [modalOpen, setModalOpen] = useState(false);
@@ -83,6 +92,7 @@ export default function App() {
     const [editMode, setEditMode] = useState(false);
     const [optionsOpen, setOptionsOpen] = useState(false);
     const optionsRef = useRef<HTMLDivElement>(null);
+    const [paletteOpen, setPaletteOpen] = useState(false);
 
     // Close options dropdown when clicking outside
     useEffect(() => {
@@ -95,6 +105,18 @@ export default function App() {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [optionsOpen]);
+
+    // Ctrl+\ opens command palette
+    useEffect(() => {
+        const handleGlobalKeyDown = (e: KeyboardEvent) => {
+            if (e.key === '\\' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                setPaletteOpen((v) => !v);
+            }
+        };
+        document.addEventListener('keydown', handleGlobalKeyDown);
+        return () => document.removeEventListener('keydown', handleGlobalKeyDown);
+    }, []);
 
     const loadBookmarks = useCallback(() => {
         setError(null);
@@ -148,30 +170,61 @@ export default function App() {
 
     const displayedGroups = useMemo(() => {
         let result = groups;
+        const raw = searchFilter.trim();
 
-        if (selectedGroup) {
-            result = result.filter((g) => g.name === selectedGroup);
-        } else if (groupFilter) {
-            result = result.filter((g) => wildcardMatch(g.name, groupFilter));
-        }
+        if (!raw) return result;
 
-        if (bookmarkFilter) {
-            const lower = bookmarkFilter.toLowerCase();
+        if (raw.startsWith('/')) {
+            // Bookmark-only filter
+            const lower = raw.slice(1).toLowerCase();
+            if (lower) {
+                result = result
+                    .map((g) => ({
+                        ...g,
+                        items: g.items.filter(
+                            (item) =>
+                                item.name.toLowerCase().includes(lower) ||
+                                item.shortcut.toLowerCase().includes(lower) ||
+                                item.description.toLowerCase().includes(lower),
+                        ),
+                    }))
+                    .filter((g) => g.items.length > 0);
+            }
+        } else if (raw.startsWith('@')) {
+            // Group-only filter
+            const term = raw.slice(1);
+            if (term) {
+                result = result.filter((g) => wildcardMatch(g.name, term));
+            }
+        } else {
+            // Search both groups and bookmarks
+            const lower = raw.toLowerCase();
             result = result
-                .map((g) => ({
-                    ...g,
-                    items: g.items.filter(
+                .filter((g) =>
+                    g.name.toLowerCase().includes(lower) ||
+                    g.items.some(
                         (item) =>
                             item.name.toLowerCase().includes(lower) ||
                             item.shortcut.toLowerCase().includes(lower) ||
                             item.description.toLowerCase().includes(lower),
                     ),
-                }))
-                .filter((g) => g.items.length > 0);
+                )
+                .map((g) => {
+                    if (g.name.toLowerCase().includes(lower)) return g;
+                    return {
+                        ...g,
+                        items: g.items.filter(
+                            (item) =>
+                                item.name.toLowerCase().includes(lower) ||
+                                item.shortcut.toLowerCase().includes(lower) ||
+                                item.description.toLowerCase().includes(lower),
+                        ),
+                    };
+                });
         }
 
         return result;
-    }, [groups, selectedGroup, groupFilter, bookmarkFilter]);
+    }, [groups, searchFilter]);
 
     const showPromptLoop = useCallback(() => {
         // Use setTimeout so the checkbox renders before the prompt blocks the UI
@@ -185,45 +238,38 @@ export default function App() {
         }, 0);
     }, [bookmarks]);
 
-    // Show prompt on page load if checkbox was saved as enabled (once only)
+    // Show prompt or palette on page load based on startupMode (once only)
     useEffect(() => {
-        if (promptEnabled && bookmarks.length > 0 && !promptShown.current) {
+        if (bookmarks.length > 0 && !promptShown.current) {
             promptShown.current = true;
-            showPromptLoop();
+            if (startupMode === 'prompt') {
+                showPromptLoop();
+            } else if (startupMode === 'palette') {
+                setPaletteOpen(true);
+                setPromptActive(false);
+            }
         }
     }, [bookmarks]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const handlePromptToggle = useCallback((checked: boolean) => {
-        setPromptEnabled(checked);
-        localStorage.setItem('promptEnabled', String(checked));
+    const handleStartupModeChange = useCallback((mode: 'none' | 'prompt' | 'palette') => {
+        setStartupMode(mode);
+        localStorage.setItem('startupMode', mode);
     }, []);
 
     const openFilteredBookmarks = useCallback(() => {
         openUrls(displayedGroups.flatMap((g) => g.items).map((item) => ({ name: item.name, url: item.url })));
     }, [displayedGroups]);
 
-    const handleBookmarkKeyDown = useCallback(
+    const handleSearchKeyDown = useCallback(
         (e: React.KeyboardEvent<HTMLInputElement>) => {
-            if (e.key === 'Enter' && bookmarkFilter.trim()) {
+            if (e.key === 'Enter' && searchFilter.trim()) {
                 openFilteredBookmarks();
             } else if (e.key === 'Escape') {
                 e.preventDefault();
-                setBookmarkFilter('');
+                setSearchFilter('');
             }
         },
-        [bookmarkFilter, openFilteredBookmarks],
-    );
-
-    const handleGroupKeyDown = useCallback(
-        (e: React.KeyboardEvent<HTMLInputElement>) => {
-            if (e.key === 'Enter' && groupFilter.trim()) {
-                openFilteredBookmarks();
-            } else if (e.key === 'Escape') {
-                e.preventDefault();
-                setGroupFilter('');
-            }
-        },
-        [groupFilter, openFilteredBookmarks],
+        [searchFilter, openFilteredBookmarks],
     );
 
     const openCreateModal = useCallback(() => {
@@ -301,36 +347,29 @@ export default function App() {
         <div className="app-body">
             <div className="header-spacer" />
 
-            <div id="colLeft">
-                <GroupsSidebar
-                    groups={groups}
-                    filter={groupFilter}
-                    onFilterChange={setGroupFilter}
-                    onKeyDown={handleGroupKeyDown}
-                    selectedGroup={selectedGroup}
-                    onGroupSelect={(name) => {
-                        setSelectedGroup(name);
-                        if (name) {
-                            document
-                                .getElementById(`group-${name}`)
-                                ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }
-                    }}
-                />
-            </div>
-
-            <div id="colRight">
+            <div id="colMain">
                 <div className="input-group input-group-sm mb-3">
                     <span className="input-group-text input-label-text" onClick={loadBookmarks}>
-                        Bookmark
+                        Search
                     </span>
                     <input
                         ref={bookmarkInputRef}
                         className="form-control"
-                        value={bookmarkFilter}
-                        onChange={(e) => setBookmarkFilter(e.target.value)}
-                        onKeyDown={handleBookmarkKeyDown}
+                        placeholder="/ bookmarks · @ groups"
+                        value={searchFilter}
+                        onChange={(e) => setSearchFilter(e.target.value)}
+                        onKeyDown={handleSearchKeyDown}
                     />
+                    <button
+                        className="btn-palette input-group-text"
+                        onClick={() => setPaletteOpen(true)}
+                        title="Command Palette (Ctrl+/)"
+                    >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="10.5" cy="10.5" r="7" />
+                            <line x1="15.5" y1="15.5" x2="22" y2="22" />
+                        </svg>
+                    </button>
                     <div className="dropdown-options-wrap" ref={optionsRef}>
                         <button
                             className="btn-options input-group-text"
@@ -362,15 +401,37 @@ export default function App() {
                             </div>
                         )}
                     </div>
-                    <span className="input-group-text">
-                        <input
-                            type="checkbox"
-                            className="form-check-input mt-0 me-1"
-                            checked={promptEnabled}
-                            onChange={(e) => handlePromptToggle(e.target.checked)}
-                            aria-label="Prompt"
-                        />
-                        <span className="label-prompt">Prompt?</span>
+                    <span className="input-group-text startup-mode-group">
+                        <label className="startup-mode-option">
+                            <input
+                                type="radio"
+                                className="form-check-input mt-0 me-1"
+                                name="startupMode"
+                                checked={startupMode === 'prompt'}
+                                onChange={() => handleStartupModeChange('prompt')}
+                            />
+                            Prompt
+                        </label>
+                        <label className="startup-mode-option">
+                            <input
+                                type="radio"
+                                className="form-check-input mt-0 me-1"
+                                name="startupMode"
+                                checked={startupMode === 'palette'}
+                                onChange={() => handleStartupModeChange('palette')}
+                            />
+                            Palette
+                        </label>
+                        <label className="startup-mode-option">
+                            <input
+                                type="radio"
+                                className="form-check-input mt-0 me-1"
+                                name="startupMode"
+                                checked={startupMode === 'none'}
+                                onChange={() => handleStartupModeChange('none')}
+                            />
+                            None
+                        </label>
                     </span>
                     <button
                         className="btn-new-bookmark input-group-text"
@@ -380,10 +441,10 @@ export default function App() {
                         +
                     </button>
                     <button
-                        className={`btn-clear input-group-text${bookmarkFilter ? '' : ' btn-clear-hidden'}`}
-                        onClick={() => setBookmarkFilter('')}
+                        className={`btn-clear input-group-text${searchFilter ? '' : ' btn-clear-inactive'}`}
+                        onClick={() => searchFilter && setSearchFilter('')}
                         aria-label="Clear"
-                        tabIndex={bookmarkFilter ? 0 : -1}
+                        tabIndex={searchFilter ? 0 : -1}
                     >
                         ×
                     </button>
@@ -408,6 +469,13 @@ export default function App() {
                     allBookmarks={bookmarks}
                     onClose={handleModalClose}
                     onSaved={handleModalSaved}
+                />
+            )}
+
+            {paletteOpen && (
+                <CommandPalette
+                    groups={groups}
+                    onClose={() => setPaletteOpen(false)}
                 />
             )}
         </div>

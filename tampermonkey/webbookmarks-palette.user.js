@@ -570,19 +570,23 @@
         input.focus();
         render();
 
-        // Global capture-phase listener for Escape
-        function onDocKeyDown(e) {
+        // Global capture-phase listener for Escape (keydown + keyup)
+        // Vimium extension intercepts Escape keydown to exit insert mode,
+        // so we also listen on keyup which Vimium doesn't block.
+        function onDocEscape(e) {
             if (e.key === 'Escape') {
                 e.preventDefault();
                 e.stopImmediatePropagation();
                 close();
             }
         }
-        document.addEventListener('keydown', onDocKeyDown, true);
+        document.addEventListener('keydown', onDocEscape, true);
+        document.addEventListener('keyup', onDocEscape, true);
 
         const origClose = close;
         close = function () {
-            document.removeEventListener('keydown', onDocKeyDown, true);
+            document.removeEventListener('keydown', onDocEscape, true);
+            document.removeEventListener('keyup', onDocEscape, true);
             origClose();
         };
     }

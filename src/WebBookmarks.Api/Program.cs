@@ -46,11 +46,13 @@ app.UseCors();
 
 // ── Bookmark Endpoints ──────────────────────────────────────────────
 
-app.MapGet("/api/bookmarks", async (bool? includeHidden, WebBookmarksContext db) =>
+app.MapGet("/api/bookmarks", async (bool? includeHidden, string? profile, WebBookmarksContext db) =>
 {
     var query = db.WebBookmarkItems.AsQueryable();
     if (includeHidden != true)
         query = query.Where(b => b.IsVisible);
+    if (!string.IsNullOrEmpty(profile))
+        query = query.Where(b => b.Profile == profile);
     return await query
         .OrderBy(b => b.BookmarkGroup)
         .ThenBy(b => b.SortOrder)
@@ -88,6 +90,7 @@ app.MapPut("/api/bookmarks/{id:int}", async (int id, WebBookmarksItem input, Web
     item.IsVisible = input.IsVisible;
     item.BookmarkGroup = input.BookmarkGroup;
     item.SortOrder = input.SortOrder;
+    item.Profile = input.Profile;
 
     await db.SaveChangesAsync();
     return Results.NoContent();
@@ -122,13 +125,17 @@ app.MapGet("/api/bookmarks/check-alias", async (string alias, int? excludeId, We
     .WithName("CheckAlias")
     .WithOpenApi();
 
-app.MapGet("/api/bookmarks/groups", async (WebBookmarksContext db) =>
-    await db.WebBookmarkItems
-        .Where(b => b.IsVisible)
+app.MapGet("/api/bookmarks/groups", async (string? profile, WebBookmarksContext db) =>
+{
+    var query = db.WebBookmarkItems.Where(b => b.IsVisible);
+    if (!string.IsNullOrEmpty(profile))
+        query = query.Where(b => b.Profile == profile);
+    return await query
         .Select(b => b.BookmarkGroup)
         .Distinct()
         .OrderBy(g => g)
-        .ToListAsync())
+        .ToListAsync();
+})
     .WithName("GetGroups")
     .WithOpenApi();
 
@@ -144,6 +151,15 @@ app.MapPost("/api/bookmarks/reorder", async (List<ReorderEntry> entries, WebBook
     return Results.NoContent();
 })
     .WithName("ReorderBookmarks")
+    .WithOpenApi();
+
+app.MapGet("/api/bookmarks/profiles", async (WebBookmarksContext db) =>
+    await db.WebBookmarkItems
+        .Select(b => b.Profile)
+        .Distinct()
+        .OrderBy(p => p)
+        .ToListAsync())
+    .WithName("GetProfiles")
     .WithOpenApi();
 
 app.Run();

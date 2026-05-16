@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { fetchBookmarks, deleteBookmark, reorderBookmarks } from './api';
+import { fetchBookmarks, deleteBookmark, reorderBookmarks, fetchProfiles } from './api';
 import type { WebBookmarksItem, BookmarkGroup } from './types';
 import { wildcardMatch } from './utils';
 
@@ -97,6 +97,10 @@ export default function App() {
         const saved = localStorage.getItem('startupMode');
         return saved === 'palette';
     });
+    const [activeProfile, setActiveProfile] = useState<string>(() => {
+        return localStorage.getItem('activeProfile') || 'home';
+    });
+    const [profiles, setProfiles] = useState<string[]>([]);
 
     // Close options dropdown when clicking outside
     useEffect(() => {
@@ -124,14 +128,17 @@ export default function App() {
 
     const loadBookmarks = useCallback(() => {
         setError(null);
-        fetchBookmarks(showHidden)
+        fetchBookmarks(showHidden, activeProfile)
             .then((data) => {
                 setBookmarks(data);
                 localStorage.setItem('bookmarks', JSON.stringify(data));
             })
             .catch((e) => setError(e.message))
             .finally(() => setLoading(false));
-    }, [showHidden]);
+        fetchProfiles()
+            .then(setProfiles)
+            .catch(() => {});
+    }, [showHidden, activeProfile]);
 
     useEffect(() => {
         loadBookmarks();
@@ -260,6 +267,11 @@ export default function App() {
         localStorage.setItem('startupMode', mode);
     }, []);
 
+    const handleProfileChange = useCallback((profile: string) => {
+        setActiveProfile(profile);
+        localStorage.setItem('activeProfile', profile);
+    }, []);
+
     const openFilteredBookmarks = useCallback(() => {
         openUrls(displayedGroups.flatMap((g) => g.items).map((item) => ({ name: item.name, url: item.url })));
     }, [displayedGroups]);
@@ -352,6 +364,19 @@ export default function App() {
             <div className="header-spacer" />
 
             <div id="colMain" style={startupPaletteHiding ? { display: 'none' } : undefined}>
+                {profiles.length > 1 && (
+                    <div className="profile-tabs">
+                        {profiles.map((p) => (
+                            <button
+                                key={p}
+                                className={`profile-tab${p === activeProfile ? ' profile-tab-active' : ''}`}
+                                onClick={() => handleProfileChange(p)}
+                            >
+                                {p}
+                            </button>
+                        ))}
+                    </div>
+                )}
                 <div className="input-group input-group-sm mb-3">
                     <span className="input-group-text input-label-text" onClick={loadBookmarks}>
                         Search
@@ -492,6 +517,7 @@ export default function App() {
                 <BookmarkModal
                     bookmark={editingBookmark}
                     allBookmarks={bookmarks}
+                    activeProfile={activeProfile}
                     onClose={handleModalClose}
                     onSaved={handleModalSaved}
                 />

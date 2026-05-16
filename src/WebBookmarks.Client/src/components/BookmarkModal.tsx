@@ -5,6 +5,7 @@ import { checkAlias, createBookmark, updateBookmark, fetchGroups } from '../api'
 interface Props {
     bookmark: WebBookmarksItem | null; // null = create mode
     allBookmarks: WebBookmarksItem[];
+    activeProfile: string;
     onClose: () => void;
     onSaved: () => void;
 }
@@ -18,11 +19,12 @@ const emptyBookmark: Omit<WebBookmarksItem, 'id'> = {
     isVisible: true,
     bookmarkGroup: '',
     sortOrder: 0,
+    profile: 'home',
 };
 
-export default function BookmarkModal({ bookmark, allBookmarks, onClose, onSaved }: Props) {
+export default function BookmarkModal({ bookmark, allBookmarks, activeProfile, onClose, onSaved }: Props) {
     const isEdit = bookmark !== null;
-    const [form, setForm] = useState<Omit<WebBookmarksItem, 'id'>>(bookmark ? { ...bookmark } : { ...emptyBookmark });
+    const [form, setForm] = useState<Omit<WebBookmarksItem, 'id'>>(bookmark ? { ...bookmark } : { ...emptyBookmark, profile: activeProfile });
     const [groups, setGroups] = useState<string[]>([]);
     const [newGroup, setNewGroup] = useState('');
     const [useNewGroup, setUseNewGroup] = useState(false);
@@ -36,10 +38,10 @@ export default function BookmarkModal({ bookmark, allBookmarks, onClose, onSaved
     const modalRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        fetchGroups()
+        fetchGroups(activeProfile)
             .then(setGroups)
             .catch(() => {});
-    }, []);
+    }, [activeProfile]);
 
     useEffect(() => {
         nameRef.current?.focus();

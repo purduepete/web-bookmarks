@@ -8,6 +8,7 @@ export interface WebBookmarksItem {
     isVisible: boolean;
     bookmarkGroup: string;
     sortOrder: number;
+    profile: string;
 }
 
 export interface BookmarkGroup {

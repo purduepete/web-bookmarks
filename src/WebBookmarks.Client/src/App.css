@@ -774,6 +774,37 @@ td.col3 {
     }
 }
 
+/* ── Profile Tabs ────────────────────────────────── */
+
+.profile-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #1e293b;
+}
+
+.profile-tab {
+    padding: 8px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #64748b;
+    background: none;
+    border: 1px solid transparent;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    text-transform: capitalize;
+    transition: color 0.15s, border-color 0.15s;
+}
+
+.profile-tab:hover {
+    color: #e0e6ed;
+}
+
+.profile-tab-active {
+    color: #3b82f6;
+    border-bottom-color: #3b82f6;
+}
+
 /* ── Command Palette ─────────────────────────────── */
 
 .palette-backdrop {

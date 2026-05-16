@@ -5,9 +5,13 @@ const API_BASE = import.meta.env.PROD ? 'https://webbookmarksapi.azurewebsites.n
 const MAX_RETRIES = 5;
 const RETRY_DELAY_MS = 2000;
 
-export async function fetchBookmarks(includeHidden = false): Promise<WebBookmarksItem[]> {
+export async function fetchBookmarks(includeHidden = false, profile?: string): Promise<WebBookmarksItem[]> {
     let lastError: Error | undefined;
-    const url = includeHidden ? `${API_BASE}?includeHidden=true` : API_BASE;
+    const params = new URLSearchParams();
+    if (includeHidden) params.set('includeHidden', 'true');
+    if (profile) params.set('profile', profile);
+    const qs = params.toString();
+    const url = qs ? `${API_BASE}?${qs}` : API_BASE;
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
         try {
             const res = await fetch(url);
@@ -69,8 +73,15 @@ export async function checkAlias(
     return await res.json();
 }
 
-export async function fetchGroups(): Promise<string[]> {
-    const res = await fetch(`${API_BASE}/groups`);
+export async function fetchGroups(profile?: string): Promise<string[]> {
+    const params = profile ? `?profile=${encodeURIComponent(profile)}` : '';
+    const res = await fetch(`${API_BASE}/groups${params}`);
     if (!res.ok) throw new Error(`Failed to fetch groups: ${res.status}`);
+    return await res.json();
+}
+
+export async function fetchProfiles(): Promise<string[]> {
+    const res = await fetch(`${API_BASE}/profiles`);
+    if (!res.ok) throw new Error(`Failed to fetch profiles: ${res.status}`);
     return await res.json();
 }

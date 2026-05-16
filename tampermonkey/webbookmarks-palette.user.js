@@ -7,6 +7,8 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
 // @grant        GM_openInTab
+// @grant        GM_getValue
+// @grant        GM_setValue
 // @connect      webbookmarksapi.azurewebsites.net
 // @run-at       document-idle
 // ==/UserScript==
@@ -158,6 +160,25 @@
             border-radius: 3px;
         }
         .wbp-footer-hint { font-style: italic; }
+        .wbp-profile-tabs {
+            display: flex;
+            border-bottom: 1px solid #1e293b;
+            background: #020617;
+        }
+        .wbp-profile-tab {
+            padding: 6px 16px;
+            font-size: 12px;
+            font-weight: 500;
+            color: #64748b;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            text-transform: capitalize;
+            font-family: inherit;
+        }
+        .wbp-profile-tab:hover { color: #e0e6ed; }
+        .wbp-profile-tab-active { color: #3b82f6; border-bottom-color: #3b82f6; }
         @media (max-width: 768px) {
             .wbp-backdrop { padding-top: 6vh; }
             .wbp-container { max-width: 96vw; }
@@ -232,14 +253,27 @@
 
     // ── Data ─────────────────────────────────────────
     let cachedGroups = null;
+    let cachedProfile = null;
     let lastFetch = 0;
     const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-    function fetchBookmarks() {
+    function getActiveProfile() {
+        return GM_getValue('activeProfile', 'home');
+    }
+
+    function setActiveProfile(profile) {
+        GM_setValue('activeProfile', profile);
+        // Invalidate cache when profile changes
+        cachedGroups = null;
+        cachedProfile = null;
+    }
+
+    function fetchBookmarks(profile) {
+        const url = profile ? API_BASE + '?profile=' + encodeURIComponent(profile) : API_BASE;
         return new Promise((resolve, reject) => {
             GM_xmlhttpRequest({
                 method: 'GET',
-                url: API_BASE,
+                url: url,
                 onload(res) {
                     if (res.status !== 200) return reject(new Error('HTTP ' + res.status));
                     try {
@@ -255,9 +289,25 @@
         });
     }
 
+    function fetchProfiles() {
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url: API_BASE + '/profiles',
+                onload(res) {
+                    if (res.status !== 200) return reject(new Error('HTTP ' + res.status));
+                    try { resolve(JSON.parse(res.responseText)); }
+                    catch (e) { reject(e); }
+                },
+                onerror(e) { reject(e); },
+            });
+        });
+    }
+
     async function getGroups() {
-        if (cachedGroups && Date.now() - lastFetch < CACHE_TTL) return cachedGroups;
-        const items = await fetchBookmarks();
+        const profile = getActiveProfile();
+        if (cachedGroups && cachedProfile === profile && Date.now() - lastFetch < CACHE_TTL) return cachedGroups;
+        const items = await fetchBookmarks(profile);
         const map = new Map();
         for (const b of items) {
             if (!b.isVisible) continue;
@@ -266,6 +316,7 @@
             map.get(g).push(b);
         }
         cachedGroups = [...map.entries()].map(([name, items]) => ({ name, items }));
+        cachedProfile = profile;
         lastFetch = Date.now();
         return cachedGroups;
     }
@@ -301,11 +352,11 @@
         return entries;
     }
 
-    function openPalette(groups) {
+    function openPalette(groups, profiles) {
         if (paletteOpen) return;
         paletteOpen = true;
 
-        const allEntries = buildEntries(groups);
+        let allEntries = buildEntries(groups);
         let query = '';
         let activeIndex = 0;
         let multiSelected = new Set();
@@ -317,6 +368,42 @@
         const container = document.createElement('div');
         container.className = 'wbp-container';
         backdrop.appendChild(container);
+
+        // Profile tabs (only if more than 1 profile)
+        let tabsEl = null;
+        if (profiles && profiles.length > 1) {
+            tabsEl = document.createElement('div');
+            tabsEl.className = 'wbp-profile-tabs';
+            container.appendChild(tabsEl);
+            renderTabs();
+        }
+
+        function renderTabs() {
+            if (!tabsEl) return;
+            tabsEl.innerHTML = '';
+            const current = getActiveProfile();
+            for (const p of profiles) {
+                const btn = document.createElement('button');
+                btn.className = 'wbp-profile-tab' + (p === current ? ' wbp-profile-tab-active' : '');
+                btn.textContent = p;
+                btn.addEventListener('click', async () => {
+                    setActiveProfile(p);
+                    try {
+                        const newGroups = await getGroups();
+                        allEntries = buildEntries(newGroups);
+                        query = '';
+                        input.value = '';
+                        activeIndex = 0;
+                        multiSelected = new Set();
+                        renderTabs();
+                        render();
+                    } catch (err) {
+                        console.error('[WebBookmarks] Failed to switch profile:', err);
+                    }
+                });
+                tabsEl.appendChild(btn);
+            }
+        }
 
         const form = document.createElement('form');
         form.addEventListener('submit', (e) => {
@@ -589,8 +676,8 @@
                     return;
                 }
                 try {
-                    const groups = await getGroups();
-                    openPalette(groups);
+                    const [groups, profiles] = await Promise.all([getGroups(), fetchProfiles()]);
+                    openPalette(groups, profiles);
                 } catch (err) {
                     console.error('[WebBookmarks] Failed to fetch bookmarks:', err);
                     alert('[WebBookmarks] Failed to load bookmarks: ' + err.message);

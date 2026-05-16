@@ -13,4 +13,5 @@ public class WebBookmarksItem
     public bool IsVisible { get; set; }
     public string BookmarkGroup { get; set; } = string.Empty;
     public int SortOrder { get; set; }
+    public string Profile { get; set; } = "home";
 }

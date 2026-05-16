@@ -492,6 +492,7 @@
         }
 
         function close() {
+            input.blur();
             backdrop.remove();
             paletteOpen = false;
         }

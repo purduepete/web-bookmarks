@@ -73,6 +73,7 @@ export default function CommandPalette({ groups, onClose }: Props) {
     const [activeIndex, setActiveIndex] = useState(0);
     const [multiSelected, setMultiSelected] = useState<Set<number>>(new Set()); // set of filtered indices
     const isTouchDevice = useMemo(() => window.matchMedia('(hover: none)').matches, []);
+    const submitFiredRef = useRef(false);
 
     useEffect(() => {
         inputRef.current?.focus();
@@ -202,6 +203,11 @@ export default function CommandPalette({ groups, onClose }: Props) {
     }, [displayList, multiSelected, onClose]);
 
     const handleSubmit = useCallback(() => {
+        if (submitFiredRef.current) return;
+        submitFiredRef.current = true;
+        setTimeout(() => {
+            submitFiredRef.current = false;
+        }, 300);
         if (multiSelected.size > 0) {
             openMultiSelected();
         } else if (numberSelection) {
@@ -210,6 +216,20 @@ export default function CommandPalette({ groups, onClose }: Props) {
             activateEntry(displayList[activeIndex], true);
         }
     }, [multiSelected, numberSelection, displayList, activeIndex, openMultiSelected, openByNumbers, activateEntry]);
+
+    // Native keyup listener as fallback for iOS virtual keyboard
+    useEffect(() => {
+        const input = inputRef.current;
+        if (!input) return;
+        const handler = (e: KeyboardEvent) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                handleSubmit();
+            }
+        };
+        input.addEventListener('keyup', handler);
+        return () => input.removeEventListener('keyup', handler);
+    }, [handleSubmit]);
 
     const handleKeyDown = useCallback(
         (e: React.KeyboardEvent) => {
@@ -293,6 +313,21 @@ export default function CommandPalette({ groups, onClose }: Props) {
                         onChange={(e) => setQuery(e.target.value)}
                         onKeyDown={handleKeyDown}
                         enterKeyHint="go"
+                    />
+                    <button
+                        type="submit"
+                        tabIndex={-1}
+                        aria-hidden="true"
+                        style={{
+                            position: 'absolute',
+                            width: 1,
+                            height: 1,
+                            padding: 0,
+                            margin: -1,
+                            overflow: 'hidden',
+                            clip: 'rect(0,0,0,0)',
+                            border: 0,
+                        }}
                     />
                 </form>
                 <div className="palette-list" ref={listRef}>

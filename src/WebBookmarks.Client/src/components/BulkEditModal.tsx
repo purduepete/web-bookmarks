@@ -14,9 +14,11 @@ export default function BulkEditModal({ bookmarks, activeProfile, onClose, onCha
     const [selected, setSelected] = useState<Set<number>>(new Set());
     const [groups, setGroups] = useState<string[]>([]);
     const [profiles, setProfiles] = useState<string[]>([]);
-    const [action, setAction] = useState<'profile' | 'group' | 'delete' | ''>('');
+    const [action, setAction] = useState<'profile' | 'group' | 'alias' | 'visible' | 'delete' | ''>('');
+    const [targetVisible, setTargetVisible] = useState('true');
     const [targetProfile, setTargetProfile] = useState(activeProfile);
     const [targetGroup, setTargetGroup] = useState('');
+    const [targetAlias, setTargetAlias] = useState('');
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [result, setResult] = useState<string | null>(null);
@@ -107,6 +109,14 @@ export default function BulkEditModal({ bookmarks, activeProfile, onClose, onCha
                 const res = await bulkUpdateBookmarks(ids, undefined, targetGroup);
                 setResult(`Updated group on ${res.updated} bookmark${res.updated !== 1 ? 's' : ''}.`);
                 onChanged();
+            } else if (action === 'alias') {
+                const res = await bulkUpdateBookmarks(ids, undefined, undefined, targetAlias);
+                setResult(`Updated alias on ${res.updated} bookmark${res.updated !== 1 ? 's' : ''}.`);
+                onChanged();
+            } else if (action === 'visible') {
+                const res = await bulkUpdateBookmarks(ids, undefined, undefined, undefined, targetVisible === 'true');
+                setResult(`Updated visibility on ${res.updated} bookmark${res.updated !== 1 ? 's' : ''}.`);
+                onChanged();
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Operation failed');
@@ -159,9 +169,10 @@ export default function BulkEditModal({ bookmarks, activeProfile, onClose, onCha
                                 <tr>
                                     <th style={{ width: 36 }}></th>
                                     <th>Name</th>
-                                    <th>Group</th>
-                                    <th>Profile</th>
-                                    <th>Visible</th>
+                                    <th style={{ width: 120 }}>Alias</th>
+                                    <th style={{ width: 140 }}>Group</th>
+                                    <th style={{ width: 100 }}>Profile</th>
+                                    <th style={{ width: 70 }}>Visible</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -176,6 +187,7 @@ export default function BulkEditModal({ bookmarks, activeProfile, onClose, onCha
                                             />
                                         </td>
                                         <td>{b.name}</td>
+                                        <td>{b.shortcut}</td>
                                         <td>{b.bookmarkGroup}</td>
                                         <td>{b.profile}</td>
                                         <td>{b.isVisible ? 'Yes' : 'No'}</td>
@@ -196,6 +208,8 @@ export default function BulkEditModal({ bookmarks, activeProfile, onClose, onCha
                                     { value: '', label: '-- Choose --' },
                                     { value: 'profile', label: 'Change Profile' },
                                     { value: 'group', label: 'Change Group' },
+                                    { value: 'alias', label: 'Change Alias' },
+                                    { value: 'visible', label: 'Change Visible' },
                                     { value: 'delete', label: 'Delete' },
                                 ]}
                                 onChange={(v) => {
@@ -226,6 +240,27 @@ export default function BulkEditModal({ bookmarks, activeProfile, onClose, onCha
                                         ...groups.map((g) => ({ value: g, label: g })),
                                     ]}
                                     onChange={setTargetGroup}
+                                />
+                            )}
+
+                            {action === 'alias' && (
+                                <input
+                                    className="form-control form-control-sm bulk-action-target"
+                                    placeholder="Leave empty to clear"
+                                    value={targetAlias}
+                                    onChange={(e) => setTargetAlias(e.target.value)}
+                                />
+                            )}
+
+                            {action === 'visible' && (
+                                <DarkSelect
+                                    className="bulk-action-target"
+                                    value={targetVisible}
+                                    options={[
+                                        { value: 'true', label: 'Yes' },
+                                        { value: 'false', label: 'No' },
+                                    ]}
+                                    onChange={setTargetVisible}
                                 />
                             )}
 

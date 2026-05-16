@@ -100,11 +100,14 @@ export async function bulkUpdateBookmarks(
     ids: number[],
     profile?: string,
     bookmarkGroup?: string,
+    shortcut?: string,
+    isVisible?: boolean,
 ): Promise<{ updated: number }> {
+    const clearShortcut = shortcut === '' ? true : null;
     const res = await fetch(`${API_BASE}/bulk`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids, profile: profile ?? null, bookmarkGroup: bookmarkGroup ?? null }),
+        body: JSON.stringify({ ids, profile: profile ?? null, bookmarkGroup: bookmarkGroup ?? null, shortcut: shortcut || null, isVisible: isVisible ?? null, clearShortcut }),
     });
     if (!res.ok) throw new Error(`Failed to bulk update: ${res.status}`);
     return await res.json();

@@ -180,8 +180,11 @@ app.MapPut("/api/bookmarks/bulk", async (BulkUpdateRequest request, WebBookmarks
     {
         if (request.Profile is not null) item.Profile = request.Profile;
         if (request.BookmarkGroup is not null) item.BookmarkGroup = request.BookmarkGroup;
+        if (request.Shortcut is not null) item.Shortcut = request.Shortcut;
+        if (request.ClearShortcut == true) item.Shortcut = string.Empty;
+        if (request.IsVisible is not null) item.IsVisible = request.IsVisible.Value;
     }
-    await db.SaveChangesAsync();
+    var count = await db.SaveChangesAsync();
     return Results.Ok(new { updated = items.Count });
 })
     .WithName("BulkUpdateBookmarks")
@@ -202,4 +205,4 @@ app.MapPost("/api/bookmarks/bulk-delete", async (List<int> ids, WebBookmarksCont
 app.Run();
 
 record ReorderEntry(int Id, int SortOrder);
-record BulkUpdateRequest(List<int> Ids, string? Profile, string? BookmarkGroup);
+record BulkUpdateRequest(List<int> Ids, string? Profile, string? BookmarkGroup, string? Shortcut, bool? IsVisible, bool? ClearShortcut);

@@ -344,6 +344,9 @@ td.col3 {
     color: #64748b !important;
     padding: 5px 10px !important;
     border-radius: 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .btn-options:hover {
@@ -863,6 +866,9 @@ td.col3 {
 .palette-item-kind {
     font-size: 14px;
     text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .palette-item-label {

@@ -93,6 +93,10 @@ export default function App() {
     const [optionsOpen, setOptionsOpen] = useState(false);
     const optionsRef = useRef<HTMLDivElement>(null);
     const [paletteOpen, setPaletteOpen] = useState(false);
+    const [startupPaletteHiding, setStartupPaletteHiding] = useState(() => {
+        const saved = localStorage.getItem('startupMode');
+        return saved === 'palette';
+    });
 
     // Close options dropdown when clicking outside
     useEffect(() => {
@@ -106,10 +110,10 @@ export default function App() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [optionsOpen]);
 
-    // Ctrl+\ opens command palette
+    // Ctrl+/ opens command palette
     useEffect(() => {
         const handleGlobalKeyDown = (e: KeyboardEvent) => {
-            if (e.key === '\\' && (e.ctrlKey || e.metaKey)) {
+            if (e.key === '/' && (e.ctrlKey || e.metaKey)) {
                 e.preventDefault();
                 setPaletteOpen((v) => !v);
             }
@@ -385,7 +389,19 @@ export default function App() {
                             onClick={() => setOptionsOpen((v) => !v)}
                             title="Options"
                         >
-                            ⚙
+                            <svg
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                            >
+                                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                                <circle cx="12" cy="12" r="3" />
+                            </svg>
                         </button>
                         {optionsOpen && (
                             <div className="dropdown-options-menu">
@@ -459,17 +475,18 @@ export default function App() {
                     </button>
                 </div>
 
-                {displayedGroups.map((g) => (
-                    <BookmarkGroupComponent
-                        key={g.name}
-                        group={g}
-                        onEdit={openEditModal}
-                        onDelete={handleDelete}
-                        onReorder={handleReorder}
-                        conflictIds={conflictIds}
-                        editMode={editMode}
-                    />
-                ))}
+                {!startupPaletteHiding &&
+                    displayedGroups.map((g) => (
+                        <BookmarkGroupComponent
+                            key={g.name}
+                            group={g}
+                            onEdit={openEditModal}
+                            onDelete={handleDelete}
+                            onReorder={handleReorder}
+                            conflictIds={conflictIds}
+                            editMode={editMode}
+                        />
+                    ))}
             </div>
 
             {modalOpen && (
@@ -481,7 +498,15 @@ export default function App() {
                 />
             )}
 
-            {paletteOpen && <CommandPalette groups={groups} onClose={() => setPaletteOpen(false)} />}
+            {paletteOpen && (
+                <CommandPalette
+                    groups={groups}
+                    onClose={() => {
+                        setPaletteOpen(false);
+                        if (startupPaletteHiding) setStartupPaletteHiding(false);
+                    }}
+                />
+            )}
         </div>
     );
 }

@@ -117,7 +117,9 @@ export default function CommandPalette({ groups, onClose }: Props) {
     const filtered = useMemo(() => {
         const q = searchPart.trim();
         if (!q) return allEntries;
-        return allEntries.filter((e) => wildcardMatch(e.label, q) || wildcardMatch(e.secondary, q) || wildcardMatch(e.alias, q));
+        return allEntries.filter(
+            (e) => wildcardMatch(e.label, q) || wildcardMatch(e.secondary, q) || wildcardMatch(e.alias, q),
+        );
     }, [allEntries, searchPart]);
 
     const displayList = filtered;
@@ -321,7 +323,35 @@ export default function CommandPalette({ groups, onClose }: Props) {
                                     <span className="palette-item-num">
                                         {isMultiSelected ? '✓' : seq != null ? seq : ''}
                                     </span>
-                                    <span className="palette-item-kind">{entry.kind === 'group' ? '📁' : '🔖'}</span>
+                                    <span className="palette-item-kind">
+                                        {entry.kind === 'group' ? (
+                                            <svg
+                                                width="14"
+                                                height="14"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="2"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                            >
+                                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                                            </svg>
+                                        ) : (
+                                            <svg
+                                                width="14"
+                                                height="14"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="2"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                            >
+                                                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                                            </svg>
+                                        )}
+                                    </span>
                                     <span className="palette-item-label">{entry.label}</span>
                                     <span
                                         className={`palette-item-alias${entry.alias ? '' : ' palette-item-alias-empty'}`}

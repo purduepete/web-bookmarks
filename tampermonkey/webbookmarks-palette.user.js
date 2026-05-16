@@ -273,6 +273,9 @@
     // ── Palette ──────────────────────────────────────
     let paletteOpen = false;
 
+    // Pre-fetch bookmarks on page load so palette opens instantly
+    getGroups().catch(() => {});
+
     function buildEntries(groups) {
         const entries = [];
         for (const g of groups) {
@@ -568,7 +571,6 @@
         document.body.appendChild(backdrop);
         input.focus();
         render();
-
     }
 
     // ── Global hotkey: Ctrl + / (toggle) ───────────────

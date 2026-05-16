@@ -342,7 +342,7 @@
 
         const hintsEl = document.createElement('span');
         hintsEl.innerHTML =
-            '<kbd>\u2191\u2193</kbd> navigate &nbsp; <kbd>Ctrl+d/u</kbd> \u00bd page &nbsp; <kbd>Ctrl+f/b</kbd> page &nbsp; <kbd>Home/End</kbd> top/bottom &nbsp; <kbd>Ctrl+Space</kbd> select &nbsp; <kbd>Enter</kbd> open &nbsp; <kbd>Esc</kbd> close';
+            '<kbd>\u2191\u2193</kbd> navigate &nbsp; <kbd>PgDn/PgUp</kbd> page &nbsp; <kbd>Home/End</kbd> top/bottom &nbsp; <kbd>Ctrl+Space</kbd> select &nbsp; <kbd>Enter</kbd> open &nbsp; <kbd>Esc</kbd> close';
         footer.appendChild(hintsEl);
 
         const hintExtra = document.createElement('span');
@@ -581,39 +581,23 @@
                 close();
                 return;
             }
-            // Vimium-style page navigation (Ctrl+d/u/f/b, Home/End)
-            // Must be at document capture phase to beat browser's Ctrl+D/F/B/U
             const { filtered } = getFiltered();
             const maxIdx = filtered.length - 1;
-            if (e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
-                if (e.key === 'd') {
-                    e.preventDefault();
-                    e.stopImmediatePropagation();
-                    activeIndex = Math.min(activeIndex + Math.floor(PAGE_SIZE / 2), maxIdx);
-                    render();
-                    return;
-                }
-                if (e.key === 'u') {
-                    e.preventDefault();
-                    e.stopImmediatePropagation();
-                    activeIndex = Math.max(activeIndex - Math.floor(PAGE_SIZE / 2), 0);
-                    render();
-                    return;
-                }
-                if (e.key === 'f') {
-                    e.preventDefault();
-                    e.stopImmediatePropagation();
-                    activeIndex = Math.min(activeIndex + PAGE_SIZE, maxIdx);
-                    render();
-                    return;
-                }
-                if (e.key === 'b') {
-                    e.preventDefault();
-                    e.stopImmediatePropagation();
-                    activeIndex = Math.max(activeIndex - PAGE_SIZE, 0);
-                    render();
-                    return;
-                }
+            // PageDown — full page down
+            if (e.key === 'PageDown') {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                activeIndex = Math.min(activeIndex + PAGE_SIZE, maxIdx);
+                render();
+                return;
+            }
+            // PageUp — full page up
+            if (e.key === 'PageUp') {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                activeIndex = Math.max(activeIndex - PAGE_SIZE, 0);
+                render();
+                return;
             }
             // Home — jump to top
             if (e.key === 'Home') {

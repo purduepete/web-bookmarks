@@ -322,6 +322,19 @@
         });
         container.appendChild(form);
 
+        const headerBar = document.createElement('div');
+        headerBar.style.cssText = 'display:flex;align-items:center;background:#020617;border-bottom:1px solid #1e293b;';
+        container.insertBefore(headerBar, form);
+
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = '\u2715';
+        closeBtn.title = 'Close (Ctrl+Esc)';
+        closeBtn.style.cssText = 'margin-left:auto;background:none;border:none;color:#64748b;font-size:18px;cursor:pointer;padding:6px 12px;line-height:1;';
+        closeBtn.addEventListener('mouseenter', () => closeBtn.style.color = '#e0e6ed');
+        closeBtn.addEventListener('mouseleave', () => closeBtn.style.color = '#64748b');
+        closeBtn.addEventListener('click', (e) => { e.preventDefault(); close(); });
+        headerBar.appendChild(closeBtn);
+
         const input = document.createElement('input');
         input.className = 'wbp-input';
         input.placeholder = 'Search bookmarks and groups\u2026';
@@ -342,7 +355,7 @@
 
         const hintsEl = document.createElement('span');
         hintsEl.innerHTML =
-            '<kbd>\u2191\u2193</kbd> navigate &nbsp; <kbd>\u2192</kbd> expand group &nbsp; <kbd>\u2190</kbd> back &nbsp; <kbd>Ctrl+Space</kbd> select &nbsp; <kbd>Enter</kbd> open &nbsp; <kbd>Esc</kbd> close';
+            '<kbd>\u2191\u2193</kbd> navigate &nbsp; <kbd>\u2192</kbd> expand group &nbsp; <kbd>\u2190</kbd> back &nbsp; <kbd>Ctrl+Space</kbd> select &nbsp; <kbd>Enter</kbd> open &nbsp; <kbd>Esc</kbd> or <kbd>Ctrl+Esc</kbd> close';
         footer.appendChild(hintsEl);
 
         const hintExtra = document.createElement('span');
@@ -516,6 +529,12 @@
                 close();
                 return;
             }
+            // Ctrl+Escape — alternative close that bypasses Vimium
+            if (e.ctrlKey && e.key === 'Escape') {
+                e.preventDefault();
+                close();
+                return;
+            }
 
             const { filtered } = getFiltered();
             const maxIdx = filtered.length - 1;
@@ -571,8 +590,9 @@
         render();
 
         // Global capture-phase listener for Escape (keydown + keyup)
-        // Vimium extension intercepts Escape keydown to exit insert mode,
+        // Vimium intercepts Escape keydown to exit insert mode,
         // so we also listen on keyup which Vimium doesn't block.
+        // Also handles Ctrl+Escape which Vimium never intercepts.
         function onDocEscape(e) {
             if (e.key === 'Escape') {
                 e.preventDefault();

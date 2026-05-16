@@ -8,7 +8,8 @@ body {
     user-select: none;
 }
 
-input, textarea {
+input,
+textarea {
     -webkit-user-select: text;
     user-select: text;
 }
@@ -86,10 +87,18 @@ input, textarea {
         font-size: 13px !important;
         padding: 5px 8px;
     }
-    .input-group-sm .input-label-text { order: 1; }
-    .input-group-sm .form-control { order: 1; }
-    .input-group-sm .btn-palette { order: 1; }
-    .input-group-sm .dropdown-options-wrap { order: 1; }
+    .input-group-sm .input-label-text {
+        order: 1;
+    }
+    .input-group-sm .form-control {
+        order: 1;
+    }
+    .input-group-sm .btn-palette {
+        order: 1;
+    }
+    .input-group-sm .dropdown-options-wrap {
+        order: 1;
+    }
     .input-group-sm::before {
         content: '';
         flex-basis: 100%;
@@ -102,8 +111,12 @@ input, textarea {
         gap: 6px;
         justify-content: center;
     }
-    .input-group-sm .btn-new-bookmark { order: 3; }
-    .input-group-sm .btn-clear { order: 3; }
+    .input-group-sm .btn-new-bookmark {
+        order: 3;
+    }
+    .input-group-sm .btn-clear {
+        order: 3;
+    }
     .startup-mode-option {
         font-size: 11px;
     }

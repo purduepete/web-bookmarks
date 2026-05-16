@@ -200,14 +200,15 @@ export default function App() {
             // Search both groups and bookmarks
             const lower = raw.toLowerCase();
             result = result
-                .filter((g) =>
-                    g.name.toLowerCase().includes(lower) ||
-                    g.items.some(
-                        (item) =>
-                            item.name.toLowerCase().includes(lower) ||
-                            item.shortcut.toLowerCase().includes(lower) ||
-                            item.description.toLowerCase().includes(lower),
-                    ),
+                .filter(
+                    (g) =>
+                        g.name.toLowerCase().includes(lower) ||
+                        g.items.some(
+                            (item) =>
+                                item.name.toLowerCase().includes(lower) ||
+                                item.shortcut.toLowerCase().includes(lower) ||
+                                item.description.toLowerCase().includes(lower),
+                        ),
                 )
                 .map((g) => {
                     if (g.name.toLowerCase().includes(lower)) return g;
@@ -365,7 +366,16 @@ export default function App() {
                         onClick={() => setPaletteOpen(true)}
                         title="Command Palette (Ctrl+/)"
                     >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        >
                             <circle cx="10.5" cy="10.5" r="7" />
                             <line x1="15.5" y1="15.5" x2="22" y2="22" />
                         </svg>
@@ -472,12 +482,7 @@ export default function App() {
                 />
             )}
 
-            {paletteOpen && (
-                <CommandPalette
-                    groups={groups}
-                    onClose={() => setPaletteOpen(false)}
-                />
-            )}
+            {paletteOpen && <CommandPalette groups={groups} onClose={() => setPaletteOpen(false)} />}
         </div>
     );
 }

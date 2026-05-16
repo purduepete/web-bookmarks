@@ -52,7 +52,7 @@ app.MapGet("/api/bookmarks", async (bool? includeHidden, string? profile, WebBoo
     if (includeHidden != true)
         query = query.Where(b => b.IsVisible);
     if (!string.IsNullOrEmpty(profile))
-        query = query.Where(b => b.Profile == profile);
+        query = query.Where(b => b.Profile == profile || b.Profile == "all");
     return await query
         .OrderBy(b => b.BookmarkGroup)
         .ThenBy(b => b.SortOrder)
@@ -129,7 +129,7 @@ app.MapGet("/api/bookmarks/groups", async (string? profile, WebBookmarksContext 
 {
     var query = db.WebBookmarkItems.Where(b => b.IsVisible);
     if (!string.IsNullOrEmpty(profile))
-        query = query.Where(b => b.Profile == profile);
+        query = query.Where(b => b.Profile == profile || b.Profile == "all");
     return await query
         .Select(b => b.BookmarkGroup)
         .Distinct()

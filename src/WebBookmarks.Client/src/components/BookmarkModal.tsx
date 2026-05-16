@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { WebBookmarksItem } from '../types';
-import { checkAlias, createBookmark, updateBookmark, fetchGroups } from '../api';
+import { checkAlias, createBookmark, updateBookmark, fetchGroups, fetchProfiles } from '../api';
 
 interface Props {
     bookmark: WebBookmarksItem | null; // null = create mode
@@ -24,10 +24,15 @@ const emptyBookmark: Omit<WebBookmarksItem, 'id'> = {
 
 export default function BookmarkModal({ bookmark, allBookmarks, activeProfile, onClose, onSaved }: Props) {
     const isEdit = bookmark !== null;
-    const [form, setForm] = useState<Omit<WebBookmarksItem, 'id'>>(bookmark ? { ...bookmark } : { ...emptyBookmark, profile: activeProfile });
+    const [form, setForm] = useState<Omit<WebBookmarksItem, 'id'>>(
+        bookmark ? { ...bookmark } : { ...emptyBookmark, profile: activeProfile },
+    );
     const [groups, setGroups] = useState<string[]>([]);
+    const [profiles, setProfiles] = useState<string[]>([]);
     const [newGroup, setNewGroup] = useState('');
     const [useNewGroup, setUseNewGroup] = useState(false);
+    const [newProfile, setNewProfile] = useState('');
+    const [useNewProfile, setUseNewProfile] = useState(false);
     const [aliasWarning, setAliasWarning] = useState<string | null>(null);
     const [sortOrderWarning, setSortOrderWarning] = useState<string | null>(null);
     const [sortOrderText, setSortOrderText] = useState(() => String(bookmark?.sortOrder ?? 0));
@@ -42,6 +47,12 @@ export default function BookmarkModal({ bookmark, allBookmarks, activeProfile, o
             .then(setGroups)
             .catch(() => {});
     }, [activeProfile]);
+
+    useEffect(() => {
+        fetchProfiles()
+            .then(setProfiles)
+            .catch(() => {});
+    }, []);
 
     useEffect(() => {
         nameRef.current?.focus();
@@ -146,13 +157,19 @@ export default function BookmarkModal({ bookmark, allBookmarks, activeProfile, o
         setSaving(true);
 
         const finalGroup = useNewGroup ? newGroup.trim() : form.bookmarkGroup;
-        if (!form.name.trim() || !form.url.trim() || !finalGroup) {
-            setError('Name, URL, and Group are required.');
+        const finalProfile = useNewProfile ? newProfile.trim() : form.profile;
+        if (!form.name.trim() || !form.url.trim() || !finalGroup || !finalProfile) {
+            setError('Name, URL, Group, and Profile are required.');
             setSaving(false);
             return;
         }
 
-        const payload = { ...form, bookmarkGroup: finalGroup, sortOrder: Number(sortOrderText) || 0 };
+        const payload = {
+            ...form,
+            bookmarkGroup: finalGroup,
+            profile: finalProfile,
+            sortOrder: Number(sortOrderText) || 0,
+        };
 
         try {
             if (isEdit && bookmark) {
@@ -255,6 +272,43 @@ export default function BookmarkModal({ bookmark, allBookmarks, activeProfile, o
                                     onClick={() => setUseNewGroup(!useNewGroup)}
                                 >
                                     {useNewGroup ? 'Existing' : '+ New'}
+                                </button>
+                            </div>
+                        </div>
+                        <div className="modal-field">
+                            <label>Profile</label>
+                            <div className="group-select-row">
+                                {!useNewProfile ? (
+                                    <select
+                                        className="form-control form-control-sm"
+                                        value={form.profile}
+                                        onChange={(e) => handleChange('profile', e.target.value)}
+                                    >
+                                        {!profiles.includes('all') && <option value="all">all</option>}
+                                        {profiles.map((p) => (
+                                            <option key={p} value={p}>
+                                                {p}
+                                            </option>
+                                        ))}
+                                        {!profiles.includes(form.profile) && form.profile !== 'all' && (
+                                            <option value={form.profile}>{form.profile}</option>
+                                        )}
+                                    </select>
+                                ) : (
+                                    <input
+                                        className="form-control form-control-sm"
+                                        placeholder="New profile name"
+                                        value={newProfile}
+                                        onChange={(e) => setNewProfile(e.target.value)}
+                                        autoFocus
+                                    />
+                                )}
+                                <button
+                                    type="button"
+                                    className="btn-toggle-group"
+                                    onClick={() => setUseNewProfile(!useNewProfile)}
+                                >
+                                    {useNewProfile ? 'Existing' : '+ New'}
                                 </button>
                             </div>
                         </div>

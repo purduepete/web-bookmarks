@@ -296,10 +296,15 @@
                 url: API_BASE + '/profiles',
                 onload(res) {
                     if (res.status !== 200) return reject(new Error('HTTP ' + res.status));
-                    try { resolve(JSON.parse(res.responseText)); }
-                    catch (e) { reject(e); }
+                    try {
+                        resolve(JSON.parse(res.responseText));
+                    } catch (e) {
+                        reject(e);
+                    }
                 },
-                onerror(e) { reject(e); },
+                onerror(e) {
+                    reject(e);
+                },
             });
         });
     }

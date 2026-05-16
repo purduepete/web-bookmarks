@@ -793,7 +793,9 @@ td.col3 {
     border-bottom: 2px solid transparent;
     cursor: pointer;
     text-transform: capitalize;
-    transition: color 0.15s, border-color 0.15s;
+    transition:
+        color 0.15s,
+        border-color 0.15s;
 }
 
 .profile-tab:hover {

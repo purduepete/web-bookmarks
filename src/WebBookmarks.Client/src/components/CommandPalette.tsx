@@ -40,7 +40,7 @@ const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
 function openUrls(items: { name: string; url: string }[]) {
     if (items.length === 0) return;
-    if (isSafari && items.length > 2) {
+    if (isSafari && items.length > 1) {
         const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Opening bookmarks...</title>
 <style>body{font-family:-apple-system,sans-serif;background:#1a1a2e;color:#eee;padding:20px}
@@ -151,9 +151,9 @@ export default function CommandPalette({ groups, onClose }: Props) {
     }, [activeIndex]);
 
     const activateEntry = useCallback(
-        (entry: PaletteEntry) => {
+        (entry: PaletteEntry, fromSubmit = false) => {
             if (entry.kind === 'group' && entry.group) {
-                if (isTouchDevice) {
+                if (isTouchDevice && !fromSubmit) {
                     setQuery(query === entry.group.name ? '' : entry.group.name);
                     return;
                 }
@@ -200,6 +200,16 @@ export default function CommandPalette({ groups, onClose }: Props) {
             onClose(true);
         }
     }, [displayList, multiSelected, onClose]);
+
+    const handleSubmit = useCallback(() => {
+        if (multiSelected.size > 0) {
+            openMultiSelected();
+        } else if (numberSelection) {
+            openByNumbers(numberSelection);
+        } else if (displayList[activeIndex]) {
+            activateEntry(displayList[activeIndex], true);
+        }
+    }, [multiSelected, numberSelection, displayList, activeIndex, openMultiSelected, openByNumbers, activateEntry]);
 
     const handleKeyDown = useCallback(
         (e: React.KeyboardEvent) => {
@@ -248,27 +258,11 @@ export default function CommandPalette({ groups, onClose }: Props) {
                 return;
             }
             if (e.key === 'Enter') {
-                e.preventDefault();
-                if (multiSelected.size > 0) {
-                    openMultiSelected();
-                } else if (numberSelection) {
-                    openByNumbers(numberSelection);
-                } else if (displayList[activeIndex]) {
-                    activateEntry(displayList[activeIndex]);
-                }
+                // Handled by form onSubmit for reliable iOS support
+                return;
             }
         },
-        [
-            onClose,
-            displayList,
-            activeIndex,
-            query,
-            numberSelection,
-            openByNumbers,
-            activateEntry,
-            multiSelected,
-            openMultiSelected,
-        ],
+        [onClose, displayList, activeIndex, query],
     );
 
     // URL preview for the highlighted entry
@@ -285,14 +279,22 @@ export default function CommandPalette({ groups, onClose }: Props) {
     return (
         <div className="palette-backdrop" onMouseDown={() => onClose()}>
             <div className="palette-container" onMouseDown={(e) => e.stopPropagation()}>
-                <input
-                    ref={inputRef}
-                    className="palette-input"
-                    placeholder="Search bookmarks and groups…"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                />
+                <form
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        handleSubmit();
+                    }}
+                >
+                    <input
+                        ref={inputRef}
+                        className="palette-input"
+                        placeholder="Search bookmarks and groups…"
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        enterKeyHint="go"
+                    />
+                </form>
                 <div className="palette-list" ref={listRef}>
                     {displayList.length === 0 && <div className="palette-empty">No matches</div>}
                     {displayList.map((entry, i) => {

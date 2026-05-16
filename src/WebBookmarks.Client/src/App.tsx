@@ -10,7 +10,7 @@ import CommandPalette from './components/CommandPalette';
 const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
 function openUrls(items: { name: string; url: string }[]) {
-    if (isSafari && items.length > 2) {
+    if (isSafari && items.length > 1) {
         // Safari iOS limits window.open to ~1-2 per gesture.
         // Open a single helper page with links to all URLs.
         const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">

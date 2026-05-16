@@ -12,7 +12,6 @@ import {
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { BookmarkGroup as BookmarkGroupType, WebBookmarksItem } from '../types';
-import { toUpperCaseStr } from '../utils';
 
 interface Props {
     group: BookmarkGroupType;
@@ -109,7 +108,7 @@ export default function BookmarkGroup({ group, onEdit, onDelete, onReorder, conf
     return (
         <div className="mb-3" id={`group-${group.name}`}>
             <div className="group-header">
-                <span>{toUpperCaseStr(group.name)}</span>
+                <span>{group.name.toUpperCase()}</span>
                 <span className="bookmark-count">{group.items.length}</span>
             </div>
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>

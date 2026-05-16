@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { fetchBookmarks, deleteBookmark, reorderBookmarks, fetchProfiles } from './api';
 import type { WebBookmarksItem, BookmarkGroup } from './types';
-import { wildcardMatch } from './utils';
+import { wildcardMatch, openUrls } from './utils';
 
 import BookmarkGroupComponent from './components/BookmarkGroup';
 import BookmarkModal from './components/BookmarkModal';
@@ -9,37 +9,7 @@ import ImportModal from './components/ImportModal';
 import BulkEditModal from './components/BulkEditModal';
 import CommandPalette from './components/CommandPalette';
 
-const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
-function openUrls(items: { name: string; url: string }[]) {
-    if (isSafari && items.length > 1) {
-        // Safari iOS limits window.open to ~1-2 per gesture.
-        // Open a single helper page with links to all URLs.
-        const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Opening bookmarks...</title>
-<style>body{font-family:-apple-system,sans-serif;background:#1a1a2e;color:#eee;padding:20px}
-a{display:block;padding:14px;margin:8px 0;background:#16213e;color:#4fc3f7;border-radius:8px;text-decoration:none;font-size:17px}
-a:active{background:#0f3460}</style></head><body>
-<h2>Tap each to open:</h2>
-${items.map((item) => `<a href="${item.url}" target="_blank">${item.name}</a>`).join('')}
-</body></html>`;
-        const blob = new Blob([html], { type: 'text/html' });
-        const blobUrl = URL.createObjectURL(blob);
-        window.location.href = blobUrl;
-    } else {
-        let i = 0;
-        function next() {
-            if (i < items.length - 1) {
-                window.open(items[i].url, '_blank', 'noopener');
-                i++;
-                setTimeout(next, 500);
-            } else {
-                window.location.href = items[i].url;
-            }
-        }
-        next();
-    }
-}
 
 function navigateByShortcut(input: string, bookmarks: WebBookmarksItem[]): boolean {
     const trimmed = input.trim();
@@ -77,14 +47,10 @@ export default function App() {
     const [startupMode, setStartupMode] = useState<'none' | 'prompt' | 'palette'>(() => {
         const saved = localStorage.getItem('startupMode');
         if (saved === 'prompt' || saved === 'palette') return saved;
-        if (localStorage.getItem('promptEnabled') === 'true') return 'prompt';
         return 'none';
     });
     const [promptActive, setPromptActive] = useState(() => {
-        const saved = localStorage.getItem('startupMode');
-        if (saved === 'prompt') return true;
-        if (!saved && localStorage.getItem('promptEnabled') === 'true') return true;
-        return false;
+        return localStorage.getItem('startupMode') === 'prompt';
     });
     const promptShown = useRef(false);
     const bookmarkInputRef = useRef<HTMLInputElement>(null);

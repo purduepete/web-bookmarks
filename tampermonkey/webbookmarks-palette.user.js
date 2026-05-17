@@ -440,6 +440,13 @@
             }
         }
         // Actions (at the bottom)
+        entries.push({
+            kind: 'action',
+            label: 'Reload Bookmarks',
+            secondary: '',
+            alias: '',
+            action: 'reload',
+        });
         if (profiles && profiles.length > 1) {
             const current = getActiveProfile();
             for (const p of profiles) {
@@ -627,7 +634,7 @@
                               wildcardMatch(e.label, q) || wildcardMatch(e.secondary, q) || wildcardMatch(e.alias, q),
                       )
                     : allEntries;
-                // Also include bookmarks with matching shortcut for search URL support (e.g. "g hello world")
+                // Also include bookmarks with search URLs when the first word matches alias or name (e.g. "g hello world", "seek msft")
                 if (q && q.includes(' ')) {
                     var shortcutPart = q.split(/\s+/)[0].toLowerCase();
                     for (var ei = 0; ei < allEntries.length; ei++) {
@@ -636,7 +643,8 @@
                             ent.kind === 'bookmark' &&
                             ent.bookmark &&
                             ent.bookmark.urls &&
-                            (ent.alias || '').toLowerCase() === shortcutPart &&
+                            ((ent.alias || '').toLowerCase() === shortcutPart ||
+                                ent.label.toLowerCase().startsWith(shortcutPart)) &&
                             filtered.indexOf(ent) === -1
                         ) {
                             filtered.push(ent);
@@ -736,7 +744,11 @@
                     var pq = query.trim();
                     var pparts = pq.split(/\s+/);
                     var palias = (entry.bookmark.shortcut || '').trim().toLowerCase();
-                    if (palias && pparts.length > 1 && pparts[0].toLowerCase() === palias) {
+                    var pfirstWord = pparts[0].toLowerCase();
+                    if (pparts.length > 1 && (
+                        (palias && pfirstWord === palias) ||
+                        entry.bookmark.name.toLowerCase().startsWith(pfirstWord)
+                    )) {
                         previewUrl = entry.bookmark.urls.replace('{q}', encodeURIComponent(pparts.slice(1).join(' ')));
                     }
                 }
@@ -770,7 +782,11 @@
                     var bq = query.trim();
                     var bparts = bq.split(/\s+/);
                     var balias = (entry.bookmark.shortcut || '').trim().toLowerCase();
-                    if (balias && bparts.length > 1 && bparts[0].toLowerCase() === balias) {
+                    var bfirstWord = bparts[0].toLowerCase();
+                    if (
+                        bparts.length > 1 &&
+                        ((balias && bfirstWord === balias) || entry.bookmark.name.toLowerCase().startsWith(bfirstWord))
+                    ) {
                         targetUrl = entry.bookmark.urls.replace('{q}', encodeURIComponent(bparts.slice(1).join(' ')));
                     }
                 }
@@ -787,6 +803,22 @@
                     multiSelected = new Set();
                     render();
                 }
+            } else if (entry.kind === 'action' && entry.action === 'reload') {
+                cachedGroups = null;
+                cachedProfile = null;
+                lastFetch = 0;
+                getGroups()
+                    .then((newGroups) => {
+                        allEntries = buildEntries(newGroups, profiles);
+                        query = '';
+                        input.value = '';
+                        activeIndex = 0;
+                        multiSelected = new Set();
+                        render();
+                    })
+                    .catch((err) => {
+                        console.error('[WebBookmarks] Failed to reload bookmarks:', err);
+                    });
             } else if (entry.kind === 'action' && entry.action === 'select-profile') {
                 setActiveProfile(entry.actionPayload);
                 getGroups()

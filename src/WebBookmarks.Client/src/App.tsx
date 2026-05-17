@@ -21,6 +21,10 @@ function navigateByShortcut(input: string, bookmarks: WebBookmarksItem[], openIn
     if (matches.length === 0) {
         matches = bookmarks.filter((b) => b.shortcut.trim().toLowerCase().includes(shortcut));
     }
+    // Also match by name for bookmarks with search URLs (e.g. "seek msft")
+    if (matches.length === 0 && searchQuery) {
+        matches = bookmarks.filter((b) => b.urls && b.name.toLowerCase().startsWith(shortcut));
+    }
 
     if (matches.length === 0) return false;
 
@@ -55,8 +59,8 @@ export default function App() {
     const bookmarkInputRef = useRef<HTMLInputElement>(null);
     const [modalOpen, setModalOpen] = useState(false);
     const [editingBookmark, setEditingBookmark] = useState<WebBookmarksItem | null>(null);
-    const [showHidden, setShowHidden] = useState(false);
-    const [editMode, setEditMode] = useState(false);
+    const [showHidden, setShowHidden] = useState(true);
+    const [editMode, setEditMode] = useState(true);
     const [optionsOpen, setOptionsOpen] = useState(false);
     const optionsRef = useRef<HTMLDivElement>(null);
     const [paletteOpen, setPaletteOpen] = useState(false);
@@ -630,16 +634,11 @@ export default function App() {
                                 setBulkEditOpen(true);
                                 setPaletteOpen(false);
                                 break;
-                            case 'toggle-hidden':
-                                setShowHidden((v) => !v);
-                                break;
-                            case 'toggle-edit':
-                                setEditMode((v) => !v);
-                                setPaletteOpen(false);
-                                setStartupPaletteHiding(false);
-                                break;
                             case 'select-profile':
                                 if (payload) handleProfileChange(payload);
+                                break;
+                            case 'reload':
+                                loadBookmarks();
                                 break;
                             case 'show-landing':
                                 setStartupPaletteHiding(false);
@@ -648,7 +647,6 @@ export default function App() {
                                 break;
                         }
                     }}
-                    editMode={editMode}
                     profiles={profiles}
                     activeProfile={activeProfile}
                     isPaletteMode={startupMode === 'palette'}

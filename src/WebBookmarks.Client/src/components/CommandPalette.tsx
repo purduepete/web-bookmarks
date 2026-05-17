@@ -6,7 +6,6 @@ interface Props {
     groups: BookmarkGroup[];
     onClose: (navigating?: boolean) => void;
     onAction: (action: string, payload?: string) => void;
-    editMode: boolean;
     profiles: string[];
     activeProfile: string;
     isPaletteMode: boolean;
@@ -47,7 +46,6 @@ export default function CommandPalette({
     groups,
     onClose,
     onAction,
-    editMode,
     profiles,
     activeProfile,
     isPaletteMode,
@@ -94,13 +92,7 @@ export default function CommandPalette({
         entries.push({ kind: 'action', label: 'New Bookmark', secondary: '', alias: '', action: 'new-bookmark' });
         entries.push({ kind: 'action', label: 'Import Bookmarks', secondary: '', alias: '', action: 'import' });
         entries.push({ kind: 'action', label: 'Bulk Edit', secondary: '', alias: '', action: 'bulk-edit' });
-        entries.push({
-            kind: 'action',
-            label: `${editMode ? 'Disable' : 'Enable'} Edit Mode`,
-            secondary: editMode ? 'on' : 'off',
-            alias: '',
-            action: 'toggle-edit',
-        });
+        entries.push({ kind: 'action', label: 'Reload Bookmarks', secondary: '', alias: '', action: 'reload' });
         if (isPaletteMode) {
             entries.push({ kind: 'action', label: 'Show Landing', secondary: '', alias: '', action: 'show-landing' });
         }
@@ -116,7 +108,7 @@ export default function CommandPalette({
             });
         }
         return entries;
-    }, [groups, editMode, profiles, activeProfile, isPaletteMode]);
+    }, [groups, profiles, activeProfile, isPaletteMode]);
 
     // Detect if the query ends with " <numbers>" for number-selection mode
     const { searchPart, numberSelection } = useMemo(() => {
@@ -167,14 +159,14 @@ export default function CommandPalette({
         const result = allEntries.filter(
             (e) => wildcardMatch(e.label, q) || wildcardMatch(e.secondary, q) || wildcardMatch(e.alias, q),
         );
-        // Also include bookmarks with matching shortcut for search URL support (e.g. "g hello world")
+        // Also include bookmarks with search URLs when the first word matches alias or name (e.g. "g hello world", "seek msft")
         if (q.includes(' ')) {
             const shortcutPart = q.split(/\s+/)[0].toLowerCase();
             for (const e of allEntries) {
                 if (
                     e.kind === 'bookmark' &&
                     e.bookmark?.urls &&
-                    e.alias.toLowerCase() === shortcutPart &&
+                    (e.alias.toLowerCase() === shortcutPart || e.label.toLowerCase().startsWith(shortcutPart)) &&
                     !result.includes(e)
                 ) {
                     result.push(e);
@@ -218,7 +210,7 @@ export default function CommandPalette({
             if (entry.kind === 'action' && entry.action) {
                 onAction(entry.action, entry.actionPayload);
                 setQuery('');
-                onClose();
+                if (entry.action !== 'reload') onClose();
                 return;
             }
             if (entry.kind === 'group' && entry.group) {
@@ -236,7 +228,11 @@ export default function CommandPalette({
                     const q = searchPart.trim();
                     const parts = q.split(/\s+/);
                     const alias = (entry.bookmark.shortcut || '').trim().toLowerCase();
-                    if (alias && parts.length > 1 && parts[0].toLowerCase() === alias) {
+                    const firstWord = parts[0].toLowerCase();
+                    if (
+                        parts.length > 1 &&
+                        ((alias && firstWord === alias) || entry.bookmark.name.toLowerCase().startsWith(firstWord))
+                    ) {
                         targetUrl = entry.bookmark.urls.replace('{q}', encodeURIComponent(parts.slice(1).join(' ')));
                     }
                 }
@@ -396,7 +392,11 @@ export default function CommandPalette({
                 const q = searchPart.trim();
                 const parts = q.split(/\s+/);
                 const alias = (entry.bookmark.shortcut || '').trim().toLowerCase();
-                if (alias && parts.length > 1 && parts[0].toLowerCase() === alias) {
+                const firstWord = parts[0].toLowerCase();
+                if (parts.length > 1 && (
+                    (alias && firstWord === alias) ||
+                    entry.bookmark.name.toLowerCase().startsWith(firstWord)
+                )) {
                     return entry.bookmark.urls.replace('{q}', encodeURIComponent(parts.slice(1).join(' ')));
                 }
             }

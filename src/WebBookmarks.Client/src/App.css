@@ -1536,3 +1536,21 @@ select.bulk-edit-input option:checked {
         font-size: 10px;
     }
 }
+
+/* iPad-sized touch devices: make palette fill viewport with custom padding */
+@media (hover: none) and (min-width: 768px) {
+    .palette-backdrop {
+        padding: 5vh 20vw 30vh;
+        align-items: stretch;
+    }
+    .palette-container {
+        width: auto;
+        max-width: none;
+        flex: 1;
+        max-height: none;
+    }
+    .palette-list {
+        flex: 1;
+        max-height: none;
+    }
+}

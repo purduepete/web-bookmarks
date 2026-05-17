@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      1.2
+// @version      1.3
 // @description  Press Ctrl+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      https://witty-hill-00503bc10.7.azurestaticapps.net/*
@@ -769,13 +769,6 @@
                     newTab,
                 );
                 if (!newTab) close();
-                else {
-                    query = '';
-                    input.value = '';
-                    activeIndex = 0;
-                    multiSelected = new Set();
-                    render();
-                }
             } else if (entry.kind === 'bookmark' && entry.bookmark) {
                 var targetUrl = entry.bookmark.url;
                 if (entry.bookmark.urls) {
@@ -796,13 +789,6 @@
                     window.location.href = targetUrl;
                 }
                 if (!newTab) close();
-                else {
-                    query = '';
-                    input.value = '';
-                    activeIndex = 0;
-                    multiSelected = new Set();
-                    render();
-                }
             } else if (entry.kind === 'action' && entry.action === 'reload') {
                 cachedGroups = null;
                 cachedProfile = null;

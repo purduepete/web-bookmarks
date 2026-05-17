@@ -236,7 +236,6 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
                 }
             }
             if (!newTab) onClose(true);
-            else setQuery('');
         },
         [onClose, onAction, isTouchDevice, newTabMode, query, searchPart],
     );
@@ -254,7 +253,6 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
             if (toOpen.length > 0) {
                 openUrls(toOpen, newTab);
                 if (!newTab) onClose(true);
-                else setQuery('');
             }
         },
         [displayList, bookmarkNumbers, onClose, isTouchDevice, newTabMode],

@@ -522,6 +522,8 @@ td.col3 {
     transition: color 0.12s;
     display: inline-flex;
     align-items: center;
+    vertical-align: middle;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .btn-favorite:hover {

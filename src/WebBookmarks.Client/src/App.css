@@ -1485,7 +1485,9 @@ select.bulk-edit-input option:checked {
 }
 
 .palette-newtab-toggle {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     padding: 4px 12px;
     font-size: 13px;
     font-family: inherit;

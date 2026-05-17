@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      1.0
+// @version      1.1
 // @description  Press Ctrl+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      https://witty-hill-00503bc10.7.azurestaticapps.net/*
@@ -12,6 +12,8 @@
 // @grant        GM_setValue
 // @connect      webbookmarksapi.azurewebsites.net
 // @run-at       document-idle
+// @updateURL    https://raw.githubusercontent.com/purduepete/webbookmarks/main/tampermonkey/webbookmarks-palette.user.js
+// @downloadURL  https://raw.githubusercontent.com/purduepete/webbookmarks/main/tampermonkey/webbookmarks-palette.user.js
 // ==/UserScript==
 
 (function () {

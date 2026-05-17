@@ -531,12 +531,12 @@ td.col3 {
 }
 
 .btn-favorite-active {
-    color: #3b82f6;
+    color: #64748b;
 }
 
 .palette-favorite-star {
-    color: #3b82f6;
-    margin-right: 4px;
+    color: #64748b;
+    margin-right: 6px;
     font-size: 12px;
     display: inline-flex;
     align-items: center;

@@ -1507,10 +1507,17 @@ select.bulk-edit-input option:checked {
 
 @media (max-width: 768px) {
     .palette-backdrop {
-        padding-top: 6vh;
+        padding: 2.5vh 2.5vw;
+        align-items: stretch;
     }
     .palette-container {
-        max-width: 96vw;
+        width: auto;
+        max-width: none;
+        flex: 1;
+    }
+    .palette-list {
+        flex: 1;
+        max-height: none;
     }
     .palette-input {
         font-size: 16px;

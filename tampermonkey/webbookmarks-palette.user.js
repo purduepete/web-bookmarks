@@ -30,7 +30,7 @@
             justify-content: center;
             z-index: 2147483647;
             padding-top: 12vh;
-            font-family: 'Segoe UI', 'Rubik', -apple-system, sans-serif;
+            font-family: 'Rubik', sans-serif;
             font-size: 15px;
             color: #b2bac2;
         }
@@ -44,6 +44,33 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+        }
+        .wbp-search-row {
+            display: flex;
+            align-items: stretch;
+            background: #020617;
+            border-bottom: 1px solid #1e293b;
+        }
+        .wbp-search-row .wbp-input {
+            border-bottom: none;
+        }
+        .wbp-close-btn {
+            background: #0f172a;
+            border: none;
+            border-left: 1px solid #1e293b;
+            color: #64748b;
+            font-size: 16px;
+            padding: 0 14px;
+            cursor: pointer;
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .wbp-close-btn:hover {
+            color: #e0e6ed;
+            background: #1e293b;
         }
         .wbp-input {
             width: 100%;
@@ -71,7 +98,7 @@
             padding: 20px 16px;
             text-align: center;
             color: #475569;
-            font-size: 13px;
+            font-size: 14px;
         }
         .wbp-item {
             display: grid;
@@ -80,7 +107,7 @@
             gap: 10px;
             padding: 8px 16px;
             cursor: pointer;
-            font-size: 13px;
+            font-size: 15px;
             color: #b2bac2;
             transition: background 0.08s;
         }
@@ -91,7 +118,7 @@
         .wbp-item-multi.wbp-item-active { background: #1e3a5f; }
         .wbp-item-num {
             text-align: right;
-            font-size: 11px;
+            font-size: 12px;
             color: #475569;
             font-variant-numeric: tabular-nums;
         }
@@ -109,7 +136,7 @@
             font-weight: 500;
         }
         .wbp-item-secondary {
-            font-size: 11px;
+            font-size: 12px;
             color: #475569;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -117,7 +144,7 @@
             text-align: right;
         }
         .wbp-item-alias {
-            font-size: 10px;
+            font-size: 11px;
             color: #3b82f6;
             background: #172554;
             padding: 1px 6px;
@@ -165,7 +192,7 @@
             display: inline-block;
             padding: 1px 5px;
             font-size: 11px;
-            font-family: inherit;
+            font-family: 'Rubik', sans-serif;
             color: #94a3b8;
             background: #1e293b;
             border: 1px solid #334155;
@@ -173,7 +200,9 @@
         }
 
         .wbp-newtab-toggle {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
             padding: 4px 12px;
             font-size: 13px;
             font-family: inherit;
@@ -209,16 +238,24 @@
         .wbp-profile-tab:hover { color: #e0e6ed; }
         .wbp-profile-tab-active { color: #3b82f6; border-bottom-color: #3b82f6; }
         @media (max-width: 768px) {
-            .wbp-backdrop { padding-top: 6vh; }
-            .wbp-container { max-width: 96vw; }
+            .wbp-backdrop { padding: 2.5vh 2.5vw 15vh; align-items: stretch; }
+            .wbp-container { max-width: none; width: auto; flex: 1; }
+            .wbp-list { flex: 1; max-height: none; }
             .wbp-input { font-size: 16px; padding: 10px 14px; }
+            .wbp-footer { flex-direction: column; gap: 4px; text-align: center; }
             .wbp-item {
                 grid-template-columns: 20px 20px 1fr auto;
-                gap: 6px; padding: 8px 10px; font-size: 14px;
+                gap: 6px; padding: 8px 10px; font-size: 16px;
             }
             .wbp-item-secondary { display: none; }
             .wbp-item-alias { font-size: 9px; padding: 1px 4px; }
             .wbp-item-num { font-size: 10px; }
+        }
+        /* iPad-sized touch devices: make palette fill viewport with custom padding */
+        @media (hover: none) and (min-width: 768px) {
+            .wbp-backdrop { padding: 5vh 20vw 30vh; align-items: stretch; }
+            .wbp-container { width: auto; max-width: none; flex: 1; max-height: none; }
+            .wbp-list { flex: 1; max-height: none; }
         }
     `);
 
@@ -435,7 +472,37 @@
         container.className = 'wbp-container';
         backdrop.appendChild(container);
 
-        // Profile tabs (only if more than 1 profile)
+        let newTabMode = false;
+        const isTouchDevice = window.matchMedia('(hover: none)').matches;
+
+        // Search row (input + close button) — above profile tabs
+        const searchRow = document.createElement('div');
+        searchRow.className = 'wbp-search-row';
+        container.appendChild(searchRow);
+
+        const form = document.createElement('form');
+        form.style.display = 'contents';
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            handleSubmit(isTouchDevice ? newTabMode : false);
+        });
+        searchRow.appendChild(form);
+
+        const input = document.createElement('input');
+        input.className = 'wbp-input';
+        input.placeholder = 'Search\u2026 (> actions, / bookmarks, @ groups, * favorites)';
+        input.type = 'text';
+        form.appendChild(input);
+
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'wbp-close-btn';
+        closeBtn.type = 'button';
+        closeBtn.innerHTML =
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+        closeBtn.addEventListener('click', close);
+        searchRow.appendChild(closeBtn);
+
+        // Profile tabs (only if more than 1 profile) — below search row
         let tabsEl = null;
         if (profiles && profiles.length > 1) {
             tabsEl = document.createElement('div');
@@ -472,22 +539,6 @@
             }
         }
 
-        let newTabMode = false;
-        const isTouchDevice = window.matchMedia('(hover: none)').matches;
-
-        const form = document.createElement('form');
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            handleSubmit(isTouchDevice ? newTabMode : false);
-        });
-        container.appendChild(form);
-
-        const input = document.createElement('input');
-        input.className = 'wbp-input';
-        input.placeholder = 'Search\u2026 (> actions, / bookmarks, @ groups, * favorites)';
-        input.type = 'text';
-        form.appendChild(input);
-
         const listEl = document.createElement('div');
         listEl.className = 'wbp-list';
         container.appendChild(listEl);
@@ -516,7 +567,7 @@
             hintsEl.innerHTML = [
                 '<span><kbd>\u2191\u2193</kbd> navigate</span>',
                 '<span><kbd>\u2192</kbd> expand group</span>',
-                '<span><kbd>\u2190</kbd> back</span>',
+                '<span><kbd>\u2190</kbd> back/clear</span>',
                 '<span><kbd>Ctrl+Space</kbd> select</span>',
                 '<span><kbd>Enter</kbd> open</span>',
                 '<span><kbd>Ctrl+Enter</kbd> new tab</span>',
@@ -574,6 +625,22 @@
                               wildcardMatch(e.label, q) || wildcardMatch(e.secondary, q) || wildcardMatch(e.alias, q),
                       )
                     : allEntries;
+                // Also include bookmarks with matching shortcut for search URL support (e.g. "g hello world")
+                if (q && q.includes(' ')) {
+                    var shortcutPart = q.split(/\s+/)[0].toLowerCase();
+                    for (var ei = 0; ei < allEntries.length; ei++) {
+                        var ent = allEntries[ei];
+                        if (
+                            ent.kind === 'bookmark' &&
+                            ent.bookmark &&
+                            ent.bookmark.urls &&
+                            (ent.alias || '').toLowerCase() === shortcutPart &&
+                            filtered.indexOf(ent) === -1
+                        ) {
+                            filtered.push(ent);
+                        }
+                    }
+                }
             }
             return { filtered, numberSelection };
         }
@@ -625,11 +692,13 @@
 
                     const icon =
                         entry.kind === 'group' ? FOLDER_SVG : entry.kind === 'action' ? BOLT_SVG : BOOKMARK_SVG;
-                    const favStar = entry.bookmark && entry.bookmark.isFavorite ? '\u2605 ' : '';
+                    const HEART_SVG =
+                        '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" style="color:#3b82f6;vertical-align:middle;margin-right:4px"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
+                    const favIcon = entry.bookmark && entry.bookmark.isFavorite ? HEART_SVG : '';
                     row.innerHTML =
                         `<span class="wbp-item-num">${isMultiSelected ? '\u2713' : seq != null ? seq : ''}</span>` +
                         `<span class="wbp-item-kind">${icon}</span>` +
-                        `<span class="wbp-item-label">${favStar}${escapeHtml(entry.label)}</span>` +
+                        `<span class="wbp-item-label">${favIcon}${escapeHtml(entry.label)}</span>` +
                         `<span class="wbp-item-alias${entry.alias ? '' : ' wbp-item-alias-empty'}">${escapeHtml(entry.alias)}</span>` +
                         `<span class="wbp-item-secondary">${escapeHtml(entry.secondary)}</span>`;
 
@@ -660,7 +729,16 @@
             // Preview
             const entry = filtered[activeIndex];
             if (entry?.kind === 'bookmark' && entry.bookmark) {
-                previewEl.textContent = entry.bookmark.url;
+                var previewUrl = entry.bookmark.url;
+                if (entry.bookmark.urls) {
+                    var pq = query.trim();
+                    var pparts = pq.split(/\s+/);
+                    var palias = (entry.bookmark.shortcut || '').trim().toLowerCase();
+                    if (palias && pparts.length > 1 && pparts[0].toLowerCase() === palias) {
+                        previewUrl = entry.bookmark.urls.replace('{q}', encodeURIComponent(pparts.slice(1).join(' ')));
+                    }
+                }
+                previewEl.textContent = previewUrl;
             } else if (entry?.kind === 'group' && entry.group) {
                 previewEl.textContent = entry.group.items.length + ' bookmarks \u2014 Enter to open all';
             } else if (entry?.kind === 'action') {
@@ -685,10 +763,19 @@
                     render();
                 }
             } else if (entry.kind === 'bookmark' && entry.bookmark) {
+                var targetUrl = entry.bookmark.url;
+                if (entry.bookmark.urls) {
+                    var bq = query.trim();
+                    var bparts = bq.split(/\s+/);
+                    var balias = (entry.bookmark.shortcut || '').trim().toLowerCase();
+                    if (balias && bparts.length > 1 && bparts[0].toLowerCase() === balias) {
+                        targetUrl = entry.bookmark.urls.replace('{q}', encodeURIComponent(bparts.slice(1).join(' ')));
+                    }
+                }
                 if (newTab) {
-                    GM_openInTab(entry.bookmark.url, { active: true, insert: true });
+                    GM_openInTab(targetUrl, { active: true, insert: true });
                 } else {
-                    window.location.href = entry.bookmark.url;
+                    window.location.href = targetUrl;
                 }
                 if (!newTab) close();
                 else {

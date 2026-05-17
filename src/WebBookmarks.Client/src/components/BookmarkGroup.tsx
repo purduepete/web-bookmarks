@@ -56,7 +56,33 @@ function SortableRow({
                     onClick={() => onToggleFavorite(item)}
                     title={item.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
                 >
-                    {item.isFavorite ? '★' : '☆'}
+                    {item.isFavorite ? (
+                        <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            stroke="currentColor"
+                            strokeWidth="1"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        >
+                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                        </svg>
+                    ) : (
+                        <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        >
+                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                        </svg>
+                    )}
                 </button>
                 <span
                     className={`drag-handle${editMode ? '' : ' edit-hidden'}`}
@@ -64,7 +90,19 @@ function SortableRow({
                     {...(editMode ? { ...attributes, ...listeners } : {})}
                     title="Drag to reorder"
                 >
-                    ☰
+                    <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                    >
+                        <line x1="3" y1="6" x2="21" y2="6" />
+                        <line x1="3" y1="12" x2="21" y2="12" />
+                        <line x1="3" y1="18" x2="21" y2="18" />
+                    </svg>
                 </span>
                 <a href={item.url}>{item.name}</a>
             </td>
@@ -74,7 +112,20 @@ function SortableRow({
                         <span className={`shortcut-label${conflictIds.has(item.id) ? ' shortcut-conflict' : ''}`}>
                             {conflictIds.has(item.id) && (
                                 <span className="conflict-icon" title="Alias conflicts with another shortcut">
-                                    ⚠
+                                    <svg
+                                        width="12"
+                                        height="12"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    >
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                                        <line x1="12" y1="9" x2="12" y2="13" />
+                                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                                    </svg>
                                 </span>
                             )}
                             {item.shortcut}
@@ -85,14 +136,38 @@ function SortableRow({
                         onClick={() => onEdit(item)}
                         title="Edit bookmark"
                     >
-                        ✎
+                        <svg
+                            width="13"
+                            height="13"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        >
+                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                        </svg>
                     </button>
                     <button
                         className={`btn-delete-bookmark${editMode ? '' : ' edit-hidden'}`}
                         onClick={() => onDelete(item)}
                         title="Delete bookmark"
                     >
-                        ✕
+                        <svg
+                            width="13"
+                            height="13"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        >
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
                     </button>
                 </div>
             </td>

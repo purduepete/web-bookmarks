@@ -273,6 +273,18 @@ export default function App() {
         }
     }, [bookmarks]); // eslint-disable-line react-hooks/exhaustive-deps
 
+    // Re-open palette when returning via back/forward (bfcache) on iPad/Safari
+    useEffect(() => {
+        const handlePageShow = (e: PageTransitionEvent) => {
+            if (e.persisted && startupMode === 'palette') {
+                setPaletteOpen(true);
+                setStartupPaletteHiding(true);
+            }
+        };
+        window.addEventListener('pageshow', handlePageShow);
+        return () => window.removeEventListener('pageshow', handlePageShow);
+    }, [startupMode]);
+
     const handleStartupModeChange = useCallback((mode: 'none' | 'prompt' | 'palette') => {
         setStartupMode(mode);
         localStorage.setItem('startupMode', mode);

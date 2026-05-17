@@ -164,9 +164,24 @@ export default function CommandPalette({
                     (wildcardMatch(e.label, sub) || wildcardMatch(e.secondary, sub) || wildcardMatch(e.alias, sub)),
             );
         }
-        return allEntries.filter(
+        const result = allEntries.filter(
             (e) => wildcardMatch(e.label, q) || wildcardMatch(e.secondary, q) || wildcardMatch(e.alias, q),
         );
+        // Also include bookmarks with matching shortcut for search URL support (e.g. "g hello world")
+        if (q.includes(' ')) {
+            const shortcutPart = q.split(/\s+/)[0].toLowerCase();
+            for (const e of allEntries) {
+                if (
+                    e.kind === 'bookmark' &&
+                    e.bookmark?.urls &&
+                    e.alias.toLowerCase() === shortcutPart &&
+                    !result.includes(e)
+                ) {
+                    result.push(e);
+                }
+            }
+        }
+        return result;
     }, [allEntries, searchPart]);
 
     const displayList = filtered;
@@ -216,16 +231,25 @@ export default function CommandPalette({
                     newTab,
                 );
             } else if (entry.kind === 'bookmark' && entry.bookmark) {
+                let targetUrl = entry.bookmark.url;
+                if (entry.bookmark.urls) {
+                    const q = searchPart.trim();
+                    const parts = q.split(/\s+/);
+                    const alias = (entry.bookmark.shortcut || '').trim().toLowerCase();
+                    if (alias && parts.length > 1 && parts[0].toLowerCase() === alias) {
+                        targetUrl = entry.bookmark.urls.replace('{q}', encodeURIComponent(parts.slice(1).join(' ')));
+                    }
+                }
                 if (newTab) {
-                    window.open(entry.bookmark.url, '_blank', 'noopener');
+                    window.open(targetUrl, '_blank', 'noopener');
                 } else {
-                    window.location.href = entry.bookmark.url;
+                    window.location.href = targetUrl;
                 }
             }
             if (!newTab) onClose(true);
             else setQuery('');
         },
-        [onClose, onAction, isTouchDevice, newTabMode, query],
+        [onClose, onAction, isTouchDevice, newTabMode, query, searchPart],
     );
 
     const openByNumbers = useCallback(
@@ -367,11 +391,21 @@ export default function CommandPalette({
     const previewUrl = useMemo(() => {
         const entry = displayList[activeIndex];
         if (!entry) return '';
-        if (entry.kind === 'bookmark' && entry.bookmark) return entry.bookmark.url;
+        if (entry.kind === 'bookmark' && entry.bookmark) {
+            if (entry.bookmark.urls) {
+                const q = searchPart.trim();
+                const parts = q.split(/\s+/);
+                const alias = (entry.bookmark.shortcut || '').trim().toLowerCase();
+                if (alias && parts.length > 1 && parts[0].toLowerCase() === alias) {
+                    return entry.bookmark.urls.replace('{q}', encodeURIComponent(parts.slice(1).join(' ')));
+                }
+            }
+            return entry.bookmark.url;
+        }
         if (entry.kind === 'group' && entry.group) return `${entry.group.items.length} bookmarks — Enter to open all`;
         if (entry.kind === 'action') return 'Action — Enter to execute';
         return '';
-    }, [displayList, activeIndex]);
+    }, [displayList, activeIndex, searchPart]);
 
     const selectedNumbers = numberSelection;
 
@@ -383,19 +417,22 @@ export default function CommandPalette({
             }}
         >
             <div className="palette-container" onMouseDown={(e) => e.stopPropagation()}>
-                {(profiles.length > 1 || isPaletteMode) && (
-                    <div className="palette-profile-tabs">
-                        {profiles
-                            .filter((p) => p !== 'all')
-                            .map((p) => (
-                                <button
-                                    key={p}
-                                    className={`palette-profile-tab${p === activeProfile ? ' palette-profile-tab-active' : ''}`}
-                                    onClick={() => onAction('select-profile', p)}
-                                >
-                                    {p}
-                                </button>
-                            ))}
+                <form
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        handleSubmit();
+                    }}
+                >
+                    <div className="palette-search-row">
+                        <input
+                            ref={inputRef}
+                            className="palette-input"
+                            placeholder="Search… (> actions, / bookmarks, @ groups, * favorites)"
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            enterKeyHint="go"
+                        />
                         {isPaletteMode && (
                             <button
                                 type="button"
@@ -403,26 +440,22 @@ export default function CommandPalette({
                                 onClick={() => onAction('show-landing')}
                                 aria-label="Close palette"
                             >
-                                ✕
+                                <svg
+                                    width="14"
+                                    height="14"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                >
+                                    <line x1="18" y1="6" x2="6" y2="18" />
+                                    <line x1="6" y1="6" x2="18" y2="18" />
+                                </svg>
                             </button>
                         )}
                     </div>
-                )}
-                <form
-                    onSubmit={(e) => {
-                        e.preventDefault();
-                        handleSubmit();
-                    }}
-                >
-                    <input
-                        ref={inputRef}
-                        className="palette-input"
-                        placeholder="Search… (> actions, / bookmarks, @ groups, * favorites)"
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        enterKeyHint="go"
-                    />
                     <button
                         type="submit"
                         tabIndex={-1}
@@ -439,6 +472,21 @@ export default function CommandPalette({
                         }}
                     />
                 </form>
+                {(profiles.length > 1 || isPaletteMode) && (
+                    <div className="palette-profile-tabs">
+                        {profiles
+                            .filter((p) => p !== 'all')
+                            .map((p) => (
+                                <button
+                                    key={p}
+                                    className={`palette-profile-tab${p === activeProfile ? ' palette-profile-tab-active' : ''}`}
+                                    onClick={() => onAction('select-profile', p)}
+                                >
+                                    {p}
+                                </button>
+                            ))}
+                    </div>
+                )}
                 <div className="palette-list" ref={listRef}>
                     {displayList.length === 0 && <div className="palette-empty">No matches</div>}
                     {displayList.map((entry, i) => {
@@ -471,7 +519,24 @@ export default function CommandPalette({
                                     }}
                                 >
                                     <span className="palette-item-num">
-                                        {isMultiSelected ? '✓' : seq != null ? seq : ''}
+                                        {isMultiSelected ? (
+                                            <svg
+                                                width="12"
+                                                height="12"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="3"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                            >
+                                                <polyline points="20 6 9 17 4 12" />
+                                            </svg>
+                                        ) : seq != null ? (
+                                            seq
+                                        ) : (
+                                            ''
+                                        )}
                                     </span>
                                     <span className="palette-item-kind">
                                         {entry.kind === 'action' ? (
@@ -516,7 +581,20 @@ export default function CommandPalette({
                                         )}
                                     </span>
                                     <span className="palette-item-label">
-                                        {entry.bookmark?.isFavorite && <span className="palette-favorite-star">★</span>}
+                                        {entry.bookmark?.isFavorite && (
+                                            <span className="palette-favorite-star">
+                                                <svg
+                                                    width="12"
+                                                    height="12"
+                                                    viewBox="0 0 24 24"
+                                                    fill="currentColor"
+                                                    stroke="currentColor"
+                                                    strokeWidth="1"
+                                                >
+                                                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                                                </svg>
+                                            </span>
+                                        )}
                                         {entry.label}
                                     </span>
                                     <span
@@ -586,7 +664,7 @@ export default function CommandPalette({
                                 <kbd>→</kbd> expand group
                             </span>
                             <span>
-                                <kbd>←</kbd> back
+                                <kbd>←</kbd> back/clear
                             </span>
                             <span>
                                 <kbd>Ctrl+Space</kbd> select

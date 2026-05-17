@@ -45,7 +45,7 @@ export default function BookmarkModal({ bookmark, allBookmarks, activeProfile, o
     const modalRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        fetchGroups(activeProfile)
+        fetchGroups(activeProfile === 'all' ? undefined : activeProfile)
             .then(setGroups)
             .catch(() => {});
     }, [activeProfile]);
@@ -250,10 +250,7 @@ export default function BookmarkModal({ bookmark, allBookmarks, activeProfile, o
                                     <DarkSelect
                                         value={form.bookmarkGroup}
                                         placeholder="-- Select Group --"
-                                        options={[
-                                            { value: '', label: '-- Select Group --' },
-                                            ...groups.map((g) => ({ value: g, label: g })),
-                                        ]}
+                                        options={groups.map((g) => ({ value: g, label: g }))}
                                         onChange={(v) => handleChange('bookmarkGroup', v)}
                                     />
                                 ) : (

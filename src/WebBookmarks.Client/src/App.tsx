@@ -69,7 +69,14 @@ export default function App() {
     const [activeProfile, setActiveProfile] = useState<string>(() => {
         return localStorage.getItem('activeProfile') || 'home';
     });
-    const [profiles, setProfiles] = useState<string[]>([]);
+    const [profiles, setProfiles] = useState<string[]>(() => {
+        try {
+            const cached = localStorage.getItem('profiles');
+            return cached ? JSON.parse(cached) : [];
+        } catch {
+            return [];
+        }
+    });
 
     // Close options dropdown when clicking outside
     useEffect(() => {
@@ -114,7 +121,10 @@ export default function App() {
             .catch((e) => setError(e.message))
             .finally(() => setLoading(false));
         fetchProfiles()
-            .then(setProfiles)
+            .then((data) => {
+                setProfiles(data);
+                localStorage.setItem('profiles', JSON.stringify(data));
+            })
             .catch(() => {});
     }, [showHidden, activeProfile]);
 

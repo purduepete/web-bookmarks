@@ -290,7 +290,7 @@
     // ── Data ─────────────────────────────────────────
     let cachedGroups = null;
     let cachedProfile = null;
-    let cachedProfiles = null;
+    let cachedProfiles = GM_getValue('cachedProfiles', null);
     let lastFetch = 0;
     const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
@@ -361,10 +361,13 @@
         cachedGroups = [...map.entries()].map(([name, items]) => ({ name, items }));
         cachedProfile = profile;
         lastFetch = Date.now();
-        // Also pre-fetch profiles if not cached
-        if (!cachedProfiles) {
-            cachedProfiles = await fetchProfiles().catch(() => ['home']);
-        }
+        // Also fetch profiles in background and persist
+        fetchProfiles()
+            .then((p) => {
+                cachedProfiles = p;
+                GM_setValue('cachedProfiles', p);
+            })
+            .catch(() => {});
         return cachedGroups;
     }
 

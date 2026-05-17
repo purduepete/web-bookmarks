@@ -42,14 +42,7 @@ function parseNumberSelection(input: string): Set<number> | null {
     return nums.size > 0 ? nums : null;
 }
 
-export default function CommandPalette({
-    groups,
-    onClose,
-    onAction,
-    profiles,
-    activeProfile,
-    isPaletteMode,
-}: Props) {
+export default function CommandPalette({ groups, onClose, onAction, profiles, activeProfile, isPaletteMode }: Props) {
     const [query, setQuery] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
     const listRef = useRef<HTMLDivElement>(null);
@@ -393,10 +386,10 @@ export default function CommandPalette({
                 const parts = q.split(/\s+/);
                 const alias = (entry.bookmark.shortcut || '').trim().toLowerCase();
                 const firstWord = parts[0].toLowerCase();
-                if (parts.length > 1 && (
-                    (alias && firstWord === alias) ||
-                    entry.bookmark.name.toLowerCase().startsWith(firstWord)
-                )) {
+                if (
+                    parts.length > 1 &&
+                    ((alias && firstWord === alias) || entry.bookmark.name.toLowerCase().startsWith(firstWord))
+                ) {
                     return entry.bookmark.urls.replace('{q}', encodeURIComponent(parts.slice(1).join(' ')));
                 }
             }

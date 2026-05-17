@@ -745,10 +745,10 @@
                     var pparts = pq.split(/\s+/);
                     var palias = (entry.bookmark.shortcut || '').trim().toLowerCase();
                     var pfirstWord = pparts[0].toLowerCase();
-                    if (pparts.length > 1 && (
-                        (palias && pfirstWord === palias) ||
-                        entry.bookmark.name.toLowerCase().startsWith(pfirstWord)
-                    )) {
+                    if (
+                        pparts.length > 1 &&
+                        ((palias && pfirstWord === palias) || entry.bookmark.name.toLowerCase().startsWith(pfirstWord))
+                    ) {
                         previewUrl = entry.bookmark.urls.replace('{q}', encodeURIComponent(pparts.slice(1).join(' ')));
                     }
                 }

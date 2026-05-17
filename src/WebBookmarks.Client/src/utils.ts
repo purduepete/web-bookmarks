@@ -3,11 +3,16 @@ const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 export function openUrls(items: { name: string; url: string }[], openInNewTab = false) {
     if (items.length === 0) return;
     if (isSafari && items.length > 1) {
+        const selfUrl = window.location.href;
         const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Opening bookmarks...</title>
 <style>body{font-family:-apple-system,sans-serif;background:#1a1a2e;color:#eee;padding:20px}
 a{display:block;padding:14px;margin:8px 0;background:#16213e;color:#4fc3f7;border-radius:8px;text-decoration:none;font-size:17px}
-a:active{background:#0f3460}</style></head><body>
+a:active{background:#0f3460}
+.self-link{background:#0f3460;color:#93c5fd;font-weight:600}
+.divider{border:none;border-top:1px solid #334155;margin:12px 0}</style></head><body>
+<a href="${selfUrl}" class="self-link">↩ WebBookmarks</a>
+<hr class="divider">
 <h2>Tap each to open:</h2>
 ${items.map((item) => `<a href="${item.url}" target="_blank">${item.name}</a>`).join('')}
 </body></html>`;

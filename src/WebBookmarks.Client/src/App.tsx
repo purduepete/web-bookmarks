@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { fetchBookmarks, deleteBookmark, reorderBookmarks, fetchProfiles } from './api';
+import { fetchBookmarks, deleteBookmark, reorderBookmarks, fetchProfiles, toggleFavorite } from './api';
 import type { WebBookmarksItem, BookmarkGroup } from './types';
 import { wildcardMatch, openUrls } from './utils';
 
@@ -8,8 +8,6 @@ import BookmarkModal from './components/BookmarkModal';
 import ImportModal from './components/ImportModal';
 import BulkEditModal from './components/BulkEditModal';
 import CommandPalette from './components/CommandPalette';
-
-
 
 function navigateByShortcut(input: string, bookmarks: WebBookmarksItem[]): boolean {
     const trimmed = input.trim();
@@ -89,12 +87,21 @@ export default function App() {
         const handleGlobalKeyDown = (e: KeyboardEvent) => {
             if (e.key === '/' && (e.ctrlKey || e.metaKey)) {
                 e.preventDefault();
-                setPaletteOpen((v) => !v);
+                if (startupMode === 'palette') {
+                    setPaletteOpen(true);
+                    setStartupPaletteHiding(true);
+                    setEditMode(false);
+                } else {
+                    setPaletteOpen((v) => {
+                        if (v) setStartupPaletteHiding(false);
+                        return !v;
+                    });
+                }
             }
         };
         document.addEventListener('keydown', handleGlobalKeyDown);
         return () => document.removeEventListener('keydown', handleGlobalKeyDown);
-    }, []);
+    }, [startupMode]);
 
     const loadBookmarks = useCallback(() => {
         setError(null);
@@ -177,6 +184,22 @@ export default function App() {
             if (term) {
                 result = result.filter((g) => wildcardMatch(g.name, term));
             }
+        } else if (raw.startsWith('*')) {
+            // Favorites filter
+            const term = raw.slice(1);
+            result = result
+                .map((g) => ({
+                    ...g,
+                    items: g.items.filter(
+                        (item) =>
+                            item.isFavorite &&
+                            (!term ||
+                                wildcardMatch(item.name, term) ||
+                                wildcardMatch(item.shortcut, term) ||
+                                wildcardMatch(item.description, term)),
+                    ),
+                }))
+                .filter((g) => g.items.length > 0);
         } else {
             // Search both groups and bookmarks
             result = result
@@ -278,13 +301,15 @@ export default function App() {
     const handleModalClose = useCallback(() => {
         setModalOpen(false);
         setEditingBookmark(null);
-    }, []);
+        if (startupMode === 'palette') setPaletteOpen(true);
+    }, [startupMode]);
 
     const handleModalSaved = useCallback(() => {
         setModalOpen(false);
         setEditingBookmark(null);
         loadBookmarks();
-    }, [loadBookmarks]);
+        if (startupMode === 'palette') setPaletteOpen(true);
+    }, [loadBookmarks, startupMode]);
 
     const handleDelete = useCallback(
         async (item: WebBookmarksItem) => {
@@ -332,6 +357,20 @@ export default function App() {
         [groups, loadBookmarks],
     );
 
+    const handleToggleFavorite = useCallback(
+        async (item: WebBookmarksItem) => {
+            // Optimistic update
+            setBookmarks((prev) => prev.map((b) => (b.id === item.id ? { ...b, isFavorite: !b.isFavorite } : b)));
+            try {
+                await toggleFavorite(item.id);
+            } catch (e) {
+                setError(e instanceof Error ? e.message : 'Toggle favorite failed');
+                loadBookmarks();
+            }
+        },
+        [loadBookmarks],
+    );
+
     if (loading) return null;
     if (error) return <div className="loading-msg text-danger">{error}</div>;
     if (promptActive) return null;
@@ -361,7 +400,7 @@ export default function App() {
                     <input
                         ref={bookmarkInputRef}
                         className="form-control"
-                        placeholder="/ bookmarks · @ groups"
+                        placeholder="/ bookmarks · @ groups · * favorites"
                         value={searchFilter}
                         onChange={(e) => setSearchFilter(e.target.value)}
                         onKeyDown={handleSearchKeyDown}
@@ -503,6 +542,7 @@ export default function App() {
                         onEdit={openEditModal}
                         onDelete={handleDelete}
                         onReorder={handleReorder}
+                        onToggleFavorite={handleToggleFavorite}
                         conflictIds={conflictIds}
                         editMode={editMode}
                     />
@@ -522,7 +562,10 @@ export default function App() {
             {importOpen && (
                 <ImportModal
                     activeProfile={activeProfile}
-                    onClose={() => setImportOpen(false)}
+                    onClose={() => {
+                        setImportOpen(false);
+                        if (startupMode === 'palette') setPaletteOpen(true);
+                    }}
                     onImported={loadBookmarks}
                 />
             )}
@@ -531,7 +574,10 @@ export default function App() {
                 <BulkEditModal
                     bookmarks={bookmarks}
                     activeProfile={activeProfile}
-                    onClose={() => setBulkEditOpen(false)}
+                    onClose={() => {
+                        setBulkEditOpen(false);
+                        if (startupMode === 'palette') setPaletteOpen(true);
+                    }}
                     onChanged={loadBookmarks}
                 />
             )}
@@ -540,9 +586,47 @@ export default function App() {
                 <CommandPalette
                     groups={groups}
                     onClose={(navigating) => {
+                        if (startupMode === 'palette' && !navigating) return;
                         setPaletteOpen(false);
                         if (startupPaletteHiding && !navigating) setStartupPaletteHiding(false);
                     }}
+                    onAction={(action, payload) => {
+                        switch (action) {
+                            case 'new-bookmark':
+                                setEditingBookmark(null);
+                                setModalOpen(true);
+                                setPaletteOpen(false);
+                                break;
+                            case 'import':
+                                setImportOpen(true);
+                                setPaletteOpen(false);
+                                break;
+                            case 'bulk-edit':
+                                setBulkEditOpen(true);
+                                setPaletteOpen(false);
+                                break;
+                            case 'toggle-hidden':
+                                setShowHidden((v) => !v);
+                                break;
+                            case 'toggle-edit':
+                                setEditMode((v) => !v);
+                                setPaletteOpen(false);
+                                setStartupPaletteHiding(false);
+                                break;
+                            case 'select-profile':
+                                if (payload) handleProfileChange(payload);
+                                break;
+                            case 'show-landing':
+                                setStartupPaletteHiding(false);
+                                setPaletteOpen(false);
+                                setTimeout(() => bookmarkInputRef.current?.focus(), 0);
+                                break;
+                        }
+                    }}
+                    editMode={editMode}
+                    profiles={profiles}
+                    activeProfile={activeProfile}
+                    isPaletteMode={startupMode === 'palette'}
                 />
             )}
         </div>

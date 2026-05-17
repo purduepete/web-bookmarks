@@ -129,6 +129,11 @@
             justify-self: center;
         }
         .wbp-item-alias-empty { background: none; }
+        .wbp-divider {
+            height: 1px;
+            background-color: #1e293b;
+            margin: 4px 12px;
+        }
         .wbp-preview {
             width: 100%;
             white-space: nowrap;
@@ -198,6 +203,8 @@
         '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
     const BOOKMARK_SVG =
         '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>';
+    const BOLT_SVG =
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>';
 
     // ── Helpers ──────────────────────────────────────
     function wildcardMatch(text, pattern) {
@@ -338,7 +345,7 @@
     // Pre-fetch bookmarks on page load so palette opens instantly
     getGroups().catch(() => {});
 
-    function buildEntries(groups) {
+    function buildEntries(groups, profiles) {
         const entries = [];
         for (const g of groups) {
             entries.push({
@@ -360,6 +367,21 @@
                 });
             }
         }
+        // Actions (at the bottom)
+        if (profiles && profiles.length > 1) {
+            const current = getActiveProfile();
+            for (const p of profiles) {
+                if (p === 'all' || p === current) continue;
+                entries.push({
+                    kind: 'action',
+                    label: 'Profile: ' + p,
+                    secondary: '',
+                    alias: '',
+                    action: 'select-profile',
+                    actionPayload: p,
+                });
+            }
+        }
         return entries;
     }
 
@@ -367,7 +389,7 @@
         if (paletteOpen) return;
         paletteOpen = true;
 
-        let allEntries = buildEntries(groups);
+        let allEntries = buildEntries(groups, profiles);
         let query = '';
         let activeIndex = 0;
         let multiSelected = new Set();
@@ -394,6 +416,7 @@
             tabsEl.innerHTML = '';
             const current = getActiveProfile();
             for (const p of profiles) {
+                if (p === 'all') continue;
                 const btn = document.createElement('button');
                 btn.className = 'wbp-profile-tab' + (p === current ? ' wbp-profile-tab-active' : '');
                 btn.textContent = p;
@@ -401,7 +424,7 @@
                     setActiveProfile(p);
                     try {
                         const newGroups = await getGroups();
-                        allEntries = buildEntries(newGroups);
+                        allEntries = buildEntries(newGroups, profiles);
                         query = '';
                         input.value = '';
                         activeIndex = 0;
@@ -425,7 +448,7 @@
 
         const input = document.createElement('input');
         input.className = 'wbp-input';
-        input.placeholder = 'Search bookmarks and groups\u2026';
+        input.placeholder = 'Search\u2026 (> actions, / bookmarks, @ groups, * favorites)';
         input.type = 'text';
         form.appendChild(input);
 
@@ -457,11 +480,49 @@
             const searchPart = match ? match[1] : query;
             const numberSelection = match ? parseNumberSelection(match[2]) : null;
             const q = searchPart.trim();
-            const filtered = q
-                ? allEntries.filter(
-                      (e) => wildcardMatch(e.label, q) || wildcardMatch(e.secondary, q) || wildcardMatch(e.alias, q),
-                  )
-                : allEntries;
+            let filtered;
+            if (q === '>') {
+                filtered = allEntries.filter((e) => e.kind === 'action');
+            } else if (q === '/') {
+                filtered = allEntries.filter((e) => e.kind === 'bookmark');
+            } else if (q === '@') {
+                filtered = allEntries.filter((e) => e.kind === 'group');
+            } else if (q === '*') {
+                filtered = allEntries.filter((e) => e.kind === 'bookmark' && e.bookmark && e.bookmark.isFavorite);
+            } else if (q.startsWith('>')) {
+                const sub = q.slice(1).trim();
+                filtered = allEntries.filter(
+                    (e) => e.kind === 'action' && (wildcardMatch(e.label, sub) || wildcardMatch(e.secondary, sub)),
+                );
+            } else if (q.startsWith('/')) {
+                const sub = q.slice(1).trim();
+                filtered = allEntries.filter(
+                    (e) =>
+                        e.kind === 'bookmark' &&
+                        (wildcardMatch(e.label, sub) || wildcardMatch(e.secondary, sub) || wildcardMatch(e.alias, sub)),
+                );
+            } else if (q.startsWith('@')) {
+                const sub = q.slice(1).trim();
+                filtered = allEntries.filter(
+                    (e) => e.kind === 'group' && (wildcardMatch(e.label, sub) || wildcardMatch(e.secondary, sub)),
+                );
+            } else if (q.startsWith('*')) {
+                const sub = q.slice(1).trim();
+                filtered = allEntries.filter(
+                    (e) =>
+                        e.kind === 'bookmark' &&
+                        e.bookmark &&
+                        e.bookmark.isFavorite &&
+                        (wildcardMatch(e.label, sub) || wildcardMatch(e.secondary, sub) || wildcardMatch(e.alias, sub)),
+                );
+            } else {
+                filtered = q
+                    ? allEntries.filter(
+                          (e) =>
+                              wildcardMatch(e.label, q) || wildcardMatch(e.secondary, q) || wildcardMatch(e.alias, q),
+                      )
+                    : allEntries;
+            }
             return { filtered, numberSelection };
         }
 
@@ -486,8 +547,18 @@
                 empty.textContent = 'No matches';
                 listEl.appendChild(empty);
             } else {
+                let prevKind = null;
                 for (let i = 0; i < filtered.length; i++) {
                     const entry = filtered[i];
+
+                    // Divider between kind transitions
+                    if (prevKind !== null && prevKind !== entry.kind) {
+                        const divider = document.createElement('div');
+                        divider.className = 'wbp-divider';
+                        listEl.appendChild(divider);
+                    }
+                    prevKind = entry.kind;
+
                     const isActive = i === activeIndex;
                     const seq = bookmarkNumbers.get(i);
                     const isNumberSelected = seq != null && numberSelection?.has(seq);
@@ -500,10 +571,13 @@
                     if (isMultiSelected) cls += ' wbp-item-multi';
                     row.className = cls;
 
+                    const icon =
+                        entry.kind === 'group' ? FOLDER_SVG : entry.kind === 'action' ? BOLT_SVG : BOOKMARK_SVG;
+                    const favStar = entry.bookmark && entry.bookmark.isFavorite ? '\u2605 ' : '';
                     row.innerHTML =
                         `<span class="wbp-item-num">${isMultiSelected ? '\u2713' : seq != null ? seq : ''}</span>` +
-                        `<span class="wbp-item-kind">${entry.kind === 'group' ? FOLDER_SVG : BOOKMARK_SVG}</span>` +
-                        `<span class="wbp-item-label">${escapeHtml(entry.label)}</span>` +
+                        `<span class="wbp-item-kind">${icon}</span>` +
+                        `<span class="wbp-item-label">${favStar}${escapeHtml(entry.label)}</span>` +
                         `<span class="wbp-item-alias${entry.alias ? '' : ' wbp-item-alias-empty'}">${escapeHtml(entry.alias)}</span>` +
                         `<span class="wbp-item-secondary">${escapeHtml(entry.secondary)}</span>`;
 
@@ -536,6 +610,8 @@
                 previewEl.textContent = entry.bookmark.url;
             } else if (entry?.kind === 'group' && entry.group) {
                 previewEl.textContent = entry.group.items.length + ' bookmarks \u2014 Enter to open all';
+            } else if (entry?.kind === 'action') {
+                previewEl.textContent = 'Action \u2014 Enter to execute';
             } else {
                 previewEl.textContent = '';
             }
@@ -544,10 +620,26 @@
         function activateEntry(entry) {
             if (entry.kind === 'group' && entry.group) {
                 openUrls(entry.group.items.map((b) => ({ name: b.name, url: b.url })));
+                close();
             } else if (entry.kind === 'bookmark' && entry.bookmark) {
                 window.location.href = entry.bookmark.url;
+                close();
+            } else if (entry.kind === 'action' && entry.action === 'select-profile') {
+                setActiveProfile(entry.actionPayload);
+                getGroups()
+                    .then((newGroups) => {
+                        allEntries = buildEntries(newGroups, profiles);
+                        query = '';
+                        input.value = '';
+                        activeIndex = 0;
+                        multiSelected = new Set();
+                        renderTabs();
+                        render();
+                    })
+                    .catch((err) => {
+                        console.error('[WebBookmarks] Failed to switch profile:', err);
+                    });
             }
-            close();
         }
 
         function openByNumbers(filtered, bookmarkNumbers, nums) {

@@ -144,6 +144,7 @@ export default function ImportModal({ activeProfile, onClose, onImported }: Prop
             bookmarkGroup: b.folder,
             sortOrder: 0,
             profile: profile,
+            isFavorite: false,
         }));
         try {
             const result = await bulkCreateBookmarks(items);

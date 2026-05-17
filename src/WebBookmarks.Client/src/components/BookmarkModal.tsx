@@ -21,6 +21,7 @@ const emptyBookmark: Omit<WebBookmarksItem, 'id'> = {
     bookmarkGroup: '',
     sortOrder: 0,
     profile: 'home',
+    isFavorite: false,
 };
 
 export default function BookmarkModal({ bookmark, allBookmarks, activeProfile, onClose, onSaved }: Props) {

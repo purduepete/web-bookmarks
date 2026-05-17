@@ -91,6 +91,7 @@ app.MapPut("/api/bookmarks/{id:int}", async (int id, WebBookmarksItem input, Web
     item.BookmarkGroup = input.BookmarkGroup;
     item.SortOrder = input.SortOrder;
     item.Profile = input.Profile;
+    item.IsFavorite = input.IsFavorite;
 
     await db.SaveChangesAsync();
     return Results.NoContent();
@@ -183,11 +184,23 @@ app.MapPut("/api/bookmarks/bulk", async (BulkUpdateRequest request, WebBookmarks
         if (request.Shortcut is not null) item.Shortcut = request.Shortcut;
         if (request.ClearShortcut == true) item.Shortcut = string.Empty;
         if (request.IsVisible is not null) item.IsVisible = request.IsVisible.Value;
+        if (request.IsFavorite is not null) item.IsFavorite = request.IsFavorite.Value;
     }
     var count = await db.SaveChangesAsync();
     return Results.Ok(new { updated = items.Count });
 })
     .WithName("BulkUpdateBookmarks")
+    .WithOpenApi();
+
+app.MapPatch("/api/bookmarks/{id:int}/favorite", async (int id, WebBookmarksContext db) =>
+{
+    var item = await db.WebBookmarkItems.FindAsync(id);
+    if (item is null) return Results.NotFound();
+    item.IsFavorite = !item.IsFavorite;
+    await db.SaveChangesAsync();
+    return Results.Ok(new { id = item.Id, isFavorite = item.IsFavorite });
+})
+    .WithName("ToggleFavorite")
     .WithOpenApi();
 
 app.MapPost("/api/bookmarks/bulk-delete", async (List<int> ids, WebBookmarksContext db) =>
@@ -205,4 +218,4 @@ app.MapPost("/api/bookmarks/bulk-delete", async (List<int> ids, WebBookmarksCont
 app.Run();
 
 record ReorderEntry(int Id, int SortOrder);
-record BulkUpdateRequest(List<int> Ids, string? Profile, string? BookmarkGroup, string? Shortcut, bool? IsVisible, bool? ClearShortcut);
+record BulkUpdateRequest(List<int> Ids, string? Profile, string? BookmarkGroup, string? Shortcut, bool? IsVisible, bool? ClearShortcut, bool? IsFavorite);

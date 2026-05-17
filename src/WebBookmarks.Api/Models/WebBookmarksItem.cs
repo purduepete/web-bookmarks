@@ -14,4 +14,5 @@ public class WebBookmarksItem
     public string BookmarkGroup { get; set; } = string.Empty;
     public int SortOrder { get; set; }
     public string Profile { get; set; } = "home";
+    public bool IsFavorite { get; set; }
 }

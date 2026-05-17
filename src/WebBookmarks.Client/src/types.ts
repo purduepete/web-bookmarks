@@ -9,6 +9,7 @@ export interface WebBookmarksItem {
     bookmarkGroup: string;
     sortOrder: number;
     profile: string;
+    isFavorite: boolean;
 }
 
 export interface BookmarkGroup {

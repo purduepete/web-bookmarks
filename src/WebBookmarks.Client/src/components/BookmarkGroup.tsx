@@ -18,6 +18,7 @@ interface Props {
     onEdit: (item: WebBookmarksItem) => void;
     onDelete: (item: WebBookmarksItem) => void;
     onReorder: (groupName: string, activeId: number, overId: number) => void;
+    onToggleFavorite: (item: WebBookmarksItem) => void;
     conflictIds: Set<number>;
     editMode: boolean;
 }
@@ -26,12 +27,14 @@ function SortableRow({
     item,
     onEdit,
     onDelete,
+    onToggleFavorite,
     conflictIds,
     editMode,
 }: {
     item: WebBookmarksItem;
     onEdit: (item: WebBookmarksItem) => void;
     onDelete: (item: WebBookmarksItem) => void;
+    onToggleFavorite: (item: WebBookmarksItem) => void;
     conflictIds: Set<number>;
     editMode: boolean;
 }) {
@@ -48,6 +51,13 @@ function SortableRow({
     return (
         <tr ref={setNodeRef} style={style} className={item.isVisible ? '' : 'row-hidden-bookmark'}>
             <td className="col1">
+                <button
+                    className={`btn-favorite${item.isFavorite ? ' btn-favorite-active' : ''}`}
+                    onClick={() => onToggleFavorite(item)}
+                    title={item.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                >
+                    {item.isFavorite ? '★' : '☆'}
+                </button>
                 <span
                     className={`drag-handle${editMode ? '' : ' edit-hidden'}`}
                     ref={setActivatorNodeRef}
@@ -60,14 +70,16 @@ function SortableRow({
             </td>
             <td className="col3">
                 <div className="shortcut-wrap">
-                    <span className={`shortcut-label${conflictIds.has(item.id) ? ' shortcut-conflict' : ''}`}>
-                        {conflictIds.has(item.id) && (
-                            <span className="conflict-icon" title="Alias conflicts with another shortcut">
-                                ⚠
-                            </span>
-                        )}
-                        {item.shortcut}
-                    </span>
+                    {item.shortcut && (
+                        <span className={`shortcut-label${conflictIds.has(item.id) ? ' shortcut-conflict' : ''}`}>
+                            {conflictIds.has(item.id) && (
+                                <span className="conflict-icon" title="Alias conflicts with another shortcut">
+                                    ⚠
+                                </span>
+                            )}
+                            {item.shortcut}
+                        </span>
+                    )}
                     <button
                         className={`btn-edit-bookmark${editMode ? '' : ' edit-hidden'}`}
                         onClick={() => onEdit(item)}
@@ -88,7 +100,15 @@ function SortableRow({
     );
 }
 
-export default function BookmarkGroup({ group, onEdit, onDelete, onReorder, conflictIds, editMode }: Props) {
+export default function BookmarkGroup({
+    group,
+    onEdit,
+    onDelete,
+    onReorder,
+    onToggleFavorite,
+    conflictIds,
+    editMode,
+}: Props) {
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
         useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
@@ -121,6 +141,7 @@ export default function BookmarkGroup({ group, onEdit, onDelete, onReorder, conf
                                     item={item}
                                     onEdit={onEdit}
                                     onDelete={onDelete}
+                                    onToggleFavorite={onToggleFavorite}
                                     conflictIds={conflictIds}
                                     editMode={editMode}
                                 />

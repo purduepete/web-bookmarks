@@ -5,15 +5,22 @@ import { wildcardMatch, openUrls } from '../utils';
 interface Props {
     groups: BookmarkGroup[];
     onClose: (navigating?: boolean) => void;
+    onAction: (action: string, payload?: string) => void;
+    editMode: boolean;
+    profiles: string[];
+    activeProfile: string;
+    isPaletteMode: boolean;
 }
 
 interface PaletteEntry {
-    kind: 'bookmark' | 'group';
+    kind: 'bookmark' | 'group' | 'action';
     label: string;
     secondary: string;
     alias: string;
     bookmark?: WebBookmarksItem;
     group?: BookmarkGroup;
+    action?: string;
+    actionPayload?: string;
 }
 
 function parseNumberSelection(input: string): Set<number> | null {
@@ -36,8 +43,15 @@ function parseNumberSelection(input: string): Set<number> | null {
     return nums.size > 0 ? nums : null;
 }
 
-
-export default function CommandPalette({ groups, onClose }: Props) {
+export default function CommandPalette({
+    groups,
+    onClose,
+    onAction,
+    editMode,
+    profiles,
+    activeProfile,
+    isPaletteMode,
+}: Props) {
     const [query, setQuery] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
     const listRef = useRef<HTMLDivElement>(null);
@@ -50,9 +64,10 @@ export default function CommandPalette({ groups, onClose }: Props) {
         inputRef.current?.focus();
     }, []);
 
-    // Build the flat list of entries: groups first, then bookmarks (numbered)
+    // Build the flat list of entries: groups first, then bookmarks, then actions at the bottom
     const allEntries = useMemo<PaletteEntry[]>(() => {
         const entries: PaletteEntry[] = [];
+        // Groups
         for (const g of groups) {
             entries.push({
                 kind: 'group',
@@ -62,6 +77,7 @@ export default function CommandPalette({ groups, onClose }: Props) {
                 group: g,
             });
         }
+        // Bookmarks
         for (const g of groups) {
             for (const b of g.items) {
                 entries.push({
@@ -73,8 +89,33 @@ export default function CommandPalette({ groups, onClose }: Props) {
                 });
             }
         }
+        // Actions (at the bottom)
+        entries.push({ kind: 'action', label: 'New Bookmark', secondary: '', alias: '', action: 'new-bookmark' });
+        entries.push({ kind: 'action', label: 'Import Bookmarks', secondary: '', alias: '', action: 'import' });
+        entries.push({ kind: 'action', label: 'Bulk Edit', secondary: '', alias: '', action: 'bulk-edit' });
+        entries.push({
+            kind: 'action',
+            label: `${editMode ? 'Disable' : 'Enable'} Edit Mode`,
+            secondary: editMode ? 'on' : 'off',
+            alias: '',
+            action: 'toggle-edit',
+        });
+        if (isPaletteMode) {
+            entries.push({ kind: 'action', label: 'Show Landing', secondary: '', alias: '', action: 'show-landing' });
+        }
+        for (const p of profiles) {
+            if (p === 'all' || p === activeProfile) continue;
+            entries.push({
+                kind: 'action',
+                label: `Profile: ${p}`,
+                secondary: '',
+                alias: '',
+                action: 'select-profile',
+                actionPayload: p,
+            });
+        }
         return entries;
-    }, [groups]);
+    }, [groups, editMode, profiles, activeProfile, isPaletteMode]);
 
     // Detect if the query ends with " <numbers>" for number-selection mode
     const { searchPart, numberSelection } = useMemo(() => {
@@ -88,7 +129,40 @@ export default function CommandPalette({ groups, onClose }: Props) {
 
     const filtered = useMemo(() => {
         const q = searchPart.trim();
+        if (q === '>') return allEntries.filter((e) => e.kind === 'action');
+        if (q === '/') return allEntries.filter((e) => e.kind === 'bookmark');
+        if (q === '@') return allEntries.filter((e) => e.kind === 'group');
+        if (q === '*') return allEntries.filter((e) => e.kind === 'bookmark' && e.bookmark?.isFavorite);
         if (!q) return allEntries;
+        if (q.startsWith('>')) {
+            const sub = q.slice(1).trim();
+            return allEntries.filter(
+                (e) => e.kind === 'action' && (wildcardMatch(e.label, sub) || wildcardMatch(e.secondary, sub)),
+            );
+        }
+        if (q.startsWith('/')) {
+            const sub = q.slice(1).trim();
+            return allEntries.filter(
+                (e) =>
+                    e.kind === 'bookmark' &&
+                    (wildcardMatch(e.label, sub) || wildcardMatch(e.secondary, sub) || wildcardMatch(e.alias, sub)),
+            );
+        }
+        if (q.startsWith('@')) {
+            const sub = q.slice(1).trim();
+            return allEntries.filter(
+                (e) => e.kind === 'group' && (wildcardMatch(e.label, sub) || wildcardMatch(e.secondary, sub)),
+            );
+        }
+        if (q.startsWith('*')) {
+            const sub = q.slice(1).trim();
+            return allEntries.filter(
+                (e) =>
+                    e.kind === 'bookmark' &&
+                    e.bookmark?.isFavorite &&
+                    (wildcardMatch(e.label, sub) || wildcardMatch(e.secondary, sub) || wildcardMatch(e.alias, sub)),
+            );
+        }
         return allEntries.filter(
             (e) => wildcardMatch(e.label, q) || wildcardMatch(e.secondary, q) || wildcardMatch(e.alias, q),
         );
@@ -124,6 +198,12 @@ export default function CommandPalette({ groups, onClose }: Props) {
 
     const activateEntry = useCallback(
         (entry: PaletteEntry, fromSubmit = false) => {
+            if (entry.kind === 'action' && entry.action) {
+                onAction(entry.action, entry.actionPayload);
+                setQuery('');
+                onClose();
+                return;
+            }
             if (entry.kind === 'group' && entry.group) {
                 if (isTouchDevice && !fromSubmit) {
                     setQuery(query === entry.group.name ? '' : entry.group.name);
@@ -135,7 +215,7 @@ export default function CommandPalette({ groups, onClose }: Props) {
             }
             onClose(true);
         },
-        [onClose, isTouchDevice, query],
+        [onClose, onAction, isTouchDevice, query],
     );
 
     const openByNumbers = useCallback(
@@ -206,7 +286,11 @@ export default function CommandPalette({ groups, onClose }: Props) {
         (e: React.KeyboardEvent) => {
             if (e.key === 'Escape') {
                 e.preventDefault();
-                onClose();
+                if (isPaletteMode) {
+                    setQuery('');
+                } else {
+                    onClose();
+                }
                 return;
             }
             if (e.key === 'ArrowDown' || (e.ctrlKey && e.key === 'j')) {
@@ -253,7 +337,7 @@ export default function CommandPalette({ groups, onClose }: Props) {
                 return;
             }
         },
-        [onClose, displayList, activeIndex, query],
+        [onClose, isPaletteMode, displayList, activeIndex, query],
     );
 
     // URL preview for the highlighted entry
@@ -262,14 +346,35 @@ export default function CommandPalette({ groups, onClose }: Props) {
         if (!entry) return '';
         if (entry.kind === 'bookmark' && entry.bookmark) return entry.bookmark.url;
         if (entry.kind === 'group' && entry.group) return `${entry.group.items.length} bookmarks — Enter to open all`;
+        if (entry.kind === 'action') return 'Action — Enter to execute';
         return '';
     }, [displayList, activeIndex]);
 
     const selectedNumbers = numberSelection;
 
     return (
-        <div className="palette-backdrop" onMouseDown={() => onClose()}>
+        <div
+            className="palette-backdrop"
+            onMouseDown={() => {
+                if (!isPaletteMode) onClose();
+            }}
+        >
             <div className="palette-container" onMouseDown={(e) => e.stopPropagation()}>
+                {profiles.length > 1 && (
+                    <div className="palette-profile-tabs">
+                        {profiles
+                            .filter((p) => p !== 'all')
+                            .map((p) => (
+                                <button
+                                    key={p}
+                                    className={`palette-profile-tab${p === activeProfile ? ' palette-profile-tab-active' : ''}`}
+                                    onClick={() => onAction('select-profile', p)}
+                                >
+                                    {p}
+                                </button>
+                            ))}
+                    </div>
+                )}
                 <form
                     onSubmit={(e) => {
                         e.preventDefault();
@@ -279,7 +384,7 @@ export default function CommandPalette({ groups, onClose }: Props) {
                     <input
                         ref={inputRef}
                         className="palette-input"
-                        placeholder="Search bookmarks and groups…"
+                        placeholder="Search… (> actions, / bookmarks, @ groups, * favorites)"
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         onKeyDown={handleKeyDown}
@@ -308,8 +413,11 @@ export default function CommandPalette({ groups, onClose }: Props) {
                         const seq = bookmarkNumbers.get(i);
                         const isNumberSelected = seq != null && selectedNumbers?.has(seq);
                         const isMultiSelected = multiSelected.has(i);
+                        const prevKind = i > 0 ? displayList[i - 1].kind : null;
+                        const showDivider = prevKind != null && prevKind !== entry.kind;
                         return (
                             <div key={`${entry.kind}-${entry.label}-${i}`}>
+                                {showDivider && <div className="palette-divider" />}
                                 <div
                                     className={`palette-item${isActive ? ' palette-item-active' : ''}${isNumberSelected ? ' palette-item-selected' : ''}${isMultiSelected ? ' palette-item-multi' : ''}`}
                                     onMouseEnter={() => setActiveIndex(i)}
@@ -332,7 +440,20 @@ export default function CommandPalette({ groups, onClose }: Props) {
                                         {isMultiSelected ? '✓' : seq != null ? seq : ''}
                                     </span>
                                     <span className="palette-item-kind">
-                                        {entry.kind === 'group' ? (
+                                        {entry.kind === 'action' ? (
+                                            <svg
+                                                width="14"
+                                                height="14"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="2"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                            >
+                                                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                                            </svg>
+                                        ) : entry.kind === 'group' ? (
                                             <svg
                                                 width="14"
                                                 height="14"
@@ -360,7 +481,10 @@ export default function CommandPalette({ groups, onClose }: Props) {
                                             </svg>
                                         )}
                                     </span>
-                                    <span className="palette-item-label">{entry.label}</span>
+                                    <span className="palette-item-label">
+                                        {entry.bookmark?.isFavorite && <span className="palette-favorite-star">★</span>}
+                                        {entry.label}
+                                    </span>
                                     <span
                                         className={`palette-item-alias${entry.alias ? '' : ' palette-item-alias-empty'}`}
                                     >
@@ -376,7 +500,8 @@ export default function CommandPalette({ groups, onClose }: Props) {
                     {previewUrl && <div className="palette-preview">{previewUrl}</div>}
                     <span>
                         <kbd>↑↓</kbd> navigate &nbsp; <kbd>→</kbd> expand group &nbsp; <kbd>←</kbd> back &nbsp;{' '}
-                        <kbd>Ctrl+Space</kbd> select &nbsp; <kbd>Enter</kbd> open &nbsp; <kbd>Esc</kbd> close
+                        <kbd>Ctrl+Space</kbd> select &nbsp; <kbd>Enter</kbd> open &nbsp; <kbd>Esc</kbd>{' '}
+                        {isPaletteMode ? 'clear' : 'close'}
                     </span>
                     <span className="palette-footer-hint">Type a number range to open multiple (e.g. 1-5)</span>
                 </div>

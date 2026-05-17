@@ -107,7 +107,14 @@ export async function bulkUpdateBookmarks(
     const res = await fetch(`${API_BASE}/bulk`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids, profile: profile ?? null, bookmarkGroup: bookmarkGroup ?? null, shortcut: shortcut || null, isVisible: isVisible ?? null, clearShortcut }),
+        body: JSON.stringify({
+            ids,
+            profile: profile ?? null,
+            bookmarkGroup: bookmarkGroup ?? null,
+            shortcut: shortcut || null,
+            isVisible: isVisible ?? null,
+            clearShortcut,
+        }),
     });
     if (!res.ok) throw new Error(`Failed to bulk update: ${res.status}`);
     return await res.json();
@@ -120,5 +127,13 @@ export async function bulkDeleteBookmarks(ids: number[]): Promise<{ deleted: num
         body: JSON.stringify(ids),
     });
     if (!res.ok) throw new Error(`Failed to bulk delete: ${res.status}`);
+    return await res.json();
+}
+
+export async function toggleFavorite(id: number): Promise<{ id: number; isFavorite: boolean }> {
+    const res = await fetch(`${API_BASE}/${id}/favorite`, {
+        method: 'PATCH',
+    });
+    if (!res.ok) throw new Error(`Failed to toggle favorite: ${res.status}`);
     return await res.json();
 }

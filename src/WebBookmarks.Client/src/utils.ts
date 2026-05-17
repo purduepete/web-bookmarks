@@ -11,7 +11,7 @@ a{display:block;padding:14px;margin:8px 0;background:#16213e;color:#4fc3f7;borde
 a:active{background:#0f3460}
 .self-link{background:#0f3460;color:#93c5fd;font-weight:600}
 .divider{border:none;border-top:1px solid #334155;margin:12px 0}</style></head><body>
-<a href="${selfUrl}" class="self-link">↩ WebBookmarks</a>
+<a href="${selfUrl}" class="self-link">WebBookmarks</a>
 <hr class="divider">
 <h2>Tap each to open:</h2>
 ${items.map((item) => `<a href="${item.url}" target="_blank">${item.name}</a>`).join('')}

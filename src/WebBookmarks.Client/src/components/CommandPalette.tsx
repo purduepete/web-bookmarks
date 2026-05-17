@@ -360,7 +360,7 @@ export default function CommandPalette({
             }}
         >
             <div className="palette-container" onMouseDown={(e) => e.stopPropagation()}>
-                {profiles.length > 1 && (
+                {(profiles.length > 1 || isPaletteMode) && (
                     <div className="palette-profile-tabs">
                         {profiles
                             .filter((p) => p !== 'all')
@@ -373,6 +373,16 @@ export default function CommandPalette({
                                     {p}
                                 </button>
                             ))}
+                        {isPaletteMode && (
+                            <button
+                                type="button"
+                                className="palette-close-btn"
+                                onClick={() => onAction('show-landing')}
+                                aria-label="Close palette"
+                            >
+                                ✕
+                            </button>
+                        )}
                     </div>
                 )}
                 <form

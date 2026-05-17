@@ -1279,6 +1279,27 @@ select.bulk-edit-input option:checked {
     caret-color: #3b82f6;
 }
 
+.palette-close-btn {
+    background: none;
+    border: none;
+    border-left: 1px solid #1e293b;
+    color: #64748b;
+    font-size: 16px;
+    padding: 0 14px;
+    cursor: pointer;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: #0f172a;
+}
+
+.palette-close-btn:hover {
+    color: #e0e6ed;
+    background: #1e293b;
+}
+
 .palette-input::placeholder {
     color: #475569;
 }

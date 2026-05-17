@@ -4,6 +4,7 @@
 // @version      1.0
 // @description  Press Ctrl+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
+// @exclude      https://witty-hill-00503bc10.7.azurestaticapps.net/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
 // @grant        GM_openInTab

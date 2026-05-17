@@ -12,6 +12,8 @@
 // @grant        GM_setValue
 // @connect      webbookmarksapi.azurewebsites.net
 // @run-at       document-idle
+// @updateURL    https://gist.githubusercontent.com/purduepete/7e7bb1d0855d688bf683069e786ac524/raw/webbookmarks-palette.user.js
+// @downloadURL  https://gist.githubusercontent.com/purduepete/7e7bb1d0855d688bf683069e786ac524/raw/webbookmarks-palette.user.js
 // ==/UserScript==
 
 (function () {

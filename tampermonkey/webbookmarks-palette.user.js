@@ -147,12 +147,18 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 2px;
+            gap: 6px;
             padding: 8px 16px;
             border-top: 1px solid #1e293b;
             font-size: 12px;
             color: #475569;
             text-align: center;
+        }
+        .wbp-shortcuts {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px 12px;
         }
         .wbp-footer kbd {
             display: inline-block;
@@ -164,7 +170,7 @@
             border: 1px solid #334155;
             border-radius: 3px;
         }
-        .wbp-footer-hint { font-style: italic; }
+
         .wbp-newtab-toggle {
             display: inline-block;
             padding: 4px 12px;
@@ -501,16 +507,20 @@
             });
             footer.appendChild(toggleBtn);
         } else {
-            const hintsEl = document.createElement('span');
-            hintsEl.innerHTML =
-                '<kbd>\u2191\u2193</kbd> navigate &nbsp; <kbd>\u2192</kbd> expand group &nbsp; <kbd>\u2190</kbd> back &nbsp; <kbd>Ctrl+Space</kbd> select &nbsp; <kbd>Enter</kbd> open &nbsp; <kbd>Ctrl+Enter</kbd> new tab &nbsp; <kbd>Ctrl+/</kbd> close';
+            const hintsEl = document.createElement('div');
+            hintsEl.className = 'wbp-shortcuts';
+            hintsEl.innerHTML = [
+                '<span><kbd>\u2191\u2193</kbd> navigate</span>',
+                '<span><kbd>\u2192</kbd> expand group</span>',
+                '<span><kbd>\u2190</kbd> back</span>',
+                '<span><kbd>Ctrl+Space</kbd> select</span>',
+                '<span><kbd>Enter</kbd> open</span>',
+                '<span><kbd>Ctrl+Enter</kbd> new tab</span>',
+                '<span><kbd>Ctrl+/</kbd> close</span>',
+                '<span><kbd>1-5</kbd> open by number</span>',
+            ].join('');
             footer.appendChild(hintsEl);
         }
-
-        const hintExtra = document.createElement('span');
-        hintExtra.className = 'wbp-footer-hint';
-        hintExtra.textContent = 'Type a number range to open multiple (e.g. 1-5)';
-        footer.appendChild(hintExtra);
 
         // ── State helpers ──
         function getFiltered() {
@@ -663,7 +673,13 @@
                     newTab,
                 );
                 if (!newTab) close();
-                else { query = ''; input.value = ''; activeIndex = 0; multiSelected = new Set(); render(); }
+                else {
+                    query = '';
+                    input.value = '';
+                    activeIndex = 0;
+                    multiSelected = new Set();
+                    render();
+                }
             } else if (entry.kind === 'bookmark' && entry.bookmark) {
                 if (newTab) {
                     GM_openInTab(entry.bookmark.url, { active: true, insert: true });
@@ -671,7 +687,13 @@
                     window.location.href = entry.bookmark.url;
                 }
                 if (!newTab) close();
-                else { query = ''; input.value = ''; activeIndex = 0; multiSelected = new Set(); render(); }
+                else {
+                    query = '';
+                    input.value = '';
+                    activeIndex = 0;
+                    multiSelected = new Set();
+                    render();
+                }
             } else if (entry.kind === 'action' && entry.action === 'select-profile') {
                 setActiveProfile(entry.actionPayload);
                 getGroups()
@@ -701,7 +723,13 @@
             if (toOpen.length > 0) {
                 openUrls(toOpen, newTab);
                 if (!newTab) close();
-                else { query = ''; input.value = ''; activeIndex = 0; multiSelected = new Set(); render(); }
+                else {
+                    query = '';
+                    input.value = '';
+                    activeIndex = 0;
+                    multiSelected = new Set();
+                    render();
+                }
             }
         }
 
@@ -718,7 +746,13 @@
             if (toOpen.length > 0) {
                 openUrls(toOpen, newTab);
                 if (!newTab) close();
-                else { query = ''; input.value = ''; activeIndex = 0; multiSelected = new Set(); render(); }
+                else {
+                    query = '';
+                    input.value = '';
+                    activeIndex = 0;
+                    multiSelected = new Set();
+                    render();
+                }
             }
         }
 

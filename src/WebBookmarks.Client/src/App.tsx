@@ -308,15 +308,13 @@ export default function App() {
     const handleModalClose = useCallback(() => {
         setModalOpen(false);
         setEditingBookmark(null);
-        if (startupMode === 'palette') setPaletteOpen(true);
-    }, [startupMode]);
+    }, []);
 
     const handleModalSaved = useCallback(() => {
         setModalOpen(false);
         setEditingBookmark(null);
         loadBookmarks();
-        if (startupMode === 'palette') setPaletteOpen(true);
-    }, [loadBookmarks, startupMode]);
+    }, [loadBookmarks]);
 
     const handleDelete = useCallback(
         async (item: WebBookmarksItem) => {
@@ -571,7 +569,6 @@ export default function App() {
                     activeProfile={activeProfile}
                     onClose={() => {
                         setImportOpen(false);
-                        if (startupMode === 'palette') setPaletteOpen(true);
                     }}
                     onImported={loadBookmarks}
                 />
@@ -583,7 +580,6 @@ export default function App() {
                     activeProfile={activeProfile}
                     onClose={() => {
                         setBulkEditOpen(false);
-                        if (startupMode === 'palette') setPaletteOpen(true);
                     }}
                     onChanged={loadBookmarks}
                 />

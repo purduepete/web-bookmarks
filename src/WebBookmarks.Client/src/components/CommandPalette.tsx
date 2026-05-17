@@ -543,13 +543,33 @@ export default function CommandPalette({
                             </button>
                         </span>
                     ) : (
-                        <span>
-                            <kbd>↑↓</kbd> navigate &nbsp; <kbd>→</kbd> expand group &nbsp; <kbd>←</kbd> back &nbsp;{' '}
-                            <kbd>Ctrl+Space</kbd> select &nbsp; <kbd>Enter</kbd> open &nbsp; <kbd>Ctrl+Enter</kbd> new
-                            tab &nbsp; <kbd>Esc</kbd> {isPaletteMode ? 'clear' : 'close'}
-                        </span>
+                        <div className="palette-shortcuts">
+                            <span>
+                                <kbd>↑↓</kbd> navigate
+                            </span>
+                            <span>
+                                <kbd>→</kbd> expand group
+                            </span>
+                            <span>
+                                <kbd>←</kbd> back
+                            </span>
+                            <span>
+                                <kbd>Ctrl+Space</kbd> select
+                            </span>
+                            <span>
+                                <kbd>Enter</kbd> open
+                            </span>
+                            <span>
+                                <kbd>Ctrl+Enter</kbd> new tab
+                            </span>
+                            <span>
+                                <kbd>Esc</kbd> {isPaletteMode ? 'clear' : 'close'}
+                            </span>
+                            <span>
+                                <kbd>1-5</kbd> open by number
+                            </span>
+                        </div>
                     )}
-                    <span className="palette-footer-hint">Type a number range to open multiple (e.g. 1-5)</span>
                 </div>
             </div>
         </div>

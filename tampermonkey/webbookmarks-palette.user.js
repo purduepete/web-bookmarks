@@ -165,6 +165,23 @@
             border-radius: 3px;
         }
         .wbp-footer-hint { font-style: italic; }
+        .wbp-newtab-toggle {
+            display: inline-block;
+            padding: 4px 12px;
+            font-size: 13px;
+            font-family: inherit;
+            font-weight: 500;
+            color: #94a3b8;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .wbp-newtab-toggle-active {
+            color: #3b82f6;
+            background: #172554;
+            border-color: #3b82f6;
+        }
         .wbp-profile-tabs {
             display: flex;
             border-bottom: 1px solid #1e293b;
@@ -247,15 +264,21 @@
         return d.innerHTML;
     }
 
-    function openUrls(items) {
+    function openUrls(items, newTab) {
         if (items.length === 0) return;
-        // Use Tampermonkey's GM_openInTab — it has elevated privileges and
-        // is not subject to the browser's popup blocker.
-        for (let i = 0; i < items.length - 1; i++) {
-            GM_openInTab(items[i].url, { active: false, insert: true });
+        if (newTab) {
+            for (const item of items) {
+                GM_openInTab(item.url, { active: true, insert: true });
+            }
+        } else {
+            // Use Tampermonkey's GM_openInTab — it has elevated privileges and
+            // is not subject to the browser's popup blocker.
+            for (let i = 0; i < items.length - 1; i++) {
+                GM_openInTab(items[i].url, { active: false, insert: true });
+            }
+            // Navigate current tab to the last URL
+            window.location.href = items[items.length - 1].url;
         }
-        // Navigate current tab to the last URL
-        window.location.href = items[items.length - 1].url;
     }
 
     // ── Data ─────────────────────────────────────────
@@ -439,10 +462,13 @@
             }
         }
 
+        let newTabMode = false;
+        const isTouchDevice = window.matchMedia('(hover: none)').matches;
+
         const form = document.createElement('form');
         form.addEventListener('submit', (e) => {
             e.preventDefault();
-            handleSubmit();
+            handleSubmit(isTouchDevice ? newTabMode : false);
         });
         container.appendChild(form);
 
@@ -464,10 +490,22 @@
         previewEl.className = 'wbp-preview';
         footer.appendChild(previewEl);
 
-        const hintsEl = document.createElement('span');
-        hintsEl.innerHTML =
-            '<kbd>\u2191\u2193</kbd> navigate &nbsp; <kbd>\u2192</kbd> expand group &nbsp; <kbd>\u2190</kbd> back &nbsp; <kbd>Ctrl+Space</kbd> select &nbsp; <kbd>Enter</kbd> open &nbsp; <kbd>Ctrl+/</kbd> close';
-        footer.appendChild(hintsEl);
+        if (isTouchDevice) {
+            const toggleBtn = document.createElement('button');
+            toggleBtn.className = 'wbp-newtab-toggle';
+            toggleBtn.textContent = '\u2192 Same tab';
+            toggleBtn.addEventListener('click', () => {
+                newTabMode = !newTabMode;
+                toggleBtn.textContent = newTabMode ? '\u2197 New tab' : '\u2192 Same tab';
+                toggleBtn.className = 'wbp-newtab-toggle' + (newTabMode ? ' wbp-newtab-toggle-active' : '');
+            });
+            footer.appendChild(toggleBtn);
+        } else {
+            const hintsEl = document.createElement('span');
+            hintsEl.innerHTML =
+                '<kbd>\u2191\u2193</kbd> navigate &nbsp; <kbd>\u2192</kbd> expand group &nbsp; <kbd>\u2190</kbd> back &nbsp; <kbd>Ctrl+Space</kbd> select &nbsp; <kbd>Enter</kbd> open &nbsp; <kbd>Ctrl+Enter</kbd> new tab &nbsp; <kbd>Ctrl+/</kbd> close';
+            footer.appendChild(hintsEl);
+        }
 
         const hintExtra = document.createElement('span');
         hintExtra.className = 'wbp-footer-hint';
@@ -585,15 +623,16 @@
                         activeIndex = i;
                         render();
                     });
-                    row.addEventListener('click', () => {
+                    row.addEventListener('click', (ev) => {
+                        const nt = isTouchDevice ? newTabMode : ev.ctrlKey || ev.metaKey;
                         if (multiSelected.size > 0) {
                             if (multiSelected.has(i)) multiSelected.delete(i);
                             else multiSelected.add(i);
                             render();
                         } else if (numberSelection) {
-                            openByNumbers(filtered, bookmarkNumbers, numberSelection);
+                            openByNumbers(filtered, bookmarkNumbers, numberSelection, nt);
                         } else {
-                            activateEntry(entry);
+                            activateEntry(entry, nt);
                         }
                     });
                     listEl.appendChild(row);
@@ -617,13 +656,22 @@
             }
         }
 
-        function activateEntry(entry) {
+        function activateEntry(entry, newTab) {
             if (entry.kind === 'group' && entry.group) {
-                openUrls(entry.group.items.map((b) => ({ name: b.name, url: b.url })));
-                close();
+                openUrls(
+                    entry.group.items.map((b) => ({ name: b.name, url: b.url })),
+                    newTab,
+                );
+                if (!newTab) close();
+                else { query = ''; input.value = ''; activeIndex = 0; multiSelected = new Set(); render(); }
             } else if (entry.kind === 'bookmark' && entry.bookmark) {
-                window.location.href = entry.bookmark.url;
-                close();
+                if (newTab) {
+                    GM_openInTab(entry.bookmark.url, { active: true, insert: true });
+                } else {
+                    window.location.href = entry.bookmark.url;
+                }
+                if (!newTab) close();
+                else { query = ''; input.value = ''; activeIndex = 0; multiSelected = new Set(); render(); }
             } else if (entry.kind === 'action' && entry.action === 'select-profile') {
                 setActiveProfile(entry.actionPayload);
                 getGroups()
@@ -642,7 +690,7 @@
             }
         }
 
-        function openByNumbers(filtered, bookmarkNumbers, nums) {
+        function openByNumbers(filtered, bookmarkNumbers, nums, newTab) {
             const toOpen = [];
             for (const [idx, seq] of bookmarkNumbers) {
                 if (nums.has(seq) && filtered[idx]?.bookmark) {
@@ -651,12 +699,13 @@
                 }
             }
             if (toOpen.length > 0) {
-                openUrls(toOpen);
-                close();
+                openUrls(toOpen, newTab);
+                if (!newTab) close();
+                else { query = ''; input.value = ''; activeIndex = 0; multiSelected = new Set(); render(); }
             }
         }
 
-        function openMultiSelected(filtered) {
+        function openMultiSelected(filtered, newTab) {
             const toOpen = [];
             for (const idx of multiSelected) {
                 const entry = filtered[idx];
@@ -667,20 +716,21 @@
                 }
             }
             if (toOpen.length > 0) {
-                openUrls(toOpen);
-                close();
+                openUrls(toOpen, newTab);
+                if (!newTab) close();
+                else { query = ''; input.value = ''; activeIndex = 0; multiSelected = new Set(); render(); }
             }
         }
 
-        function handleSubmit() {
+        function handleSubmit(newTab) {
             const { filtered, numberSelection } = getFiltered();
             const bookmarkNumbers = getBookmarkNumbers(filtered);
             if (multiSelected.size > 0) {
-                openMultiSelected(filtered);
+                openMultiSelected(filtered, newTab);
             } else if (numberSelection) {
-                openByNumbers(filtered, bookmarkNumbers, numberSelection);
+                openByNumbers(filtered, bookmarkNumbers, numberSelection, newTab);
             } else if (filtered[activeIndex]) {
-                activateEntry(filtered[activeIndex]);
+                activateEntry(filtered[activeIndex], newTab);
             }
         }
 
@@ -753,6 +803,11 @@
                 if (multiSelected.has(activeIndex)) multiSelected.delete(activeIndex);
                 else multiSelected.add(activeIndex);
                 render();
+                return;
+            }
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                handleSubmit(true);
                 return;
             }
         });

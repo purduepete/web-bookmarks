@@ -58,6 +58,7 @@ export default function CommandPalette({
     const [activeIndex, setActiveIndex] = useState(0);
     const [multiSelected, setMultiSelected] = useState<Set<number>>(new Set()); // set of filtered indices
     const isTouchDevice = useMemo(() => window.matchMedia('(hover: none)').matches, []);
+    const [newTabMode, setNewTabMode] = useState(false);
     const submitFiredRef = useRef(false);
 
     useEffect(() => {
@@ -197,7 +198,8 @@ export default function CommandPalette({
     }, [activeIndex]);
 
     const activateEntry = useCallback(
-        (entry: PaletteEntry, fromSubmit = false) => {
+        (entry: PaletteEntry, fromSubmit = false, newTabArg = false) => {
+            const newTab = isTouchDevice ? newTabMode : newTabArg;
             if (entry.kind === 'action' && entry.action) {
                 onAction(entry.action, entry.actionPayload);
                 setQuery('');
@@ -209,17 +211,26 @@ export default function CommandPalette({
                     setQuery(query === entry.group.name ? '' : entry.group.name);
                     return;
                 }
-                openUrls(entry.group.items.map((b) => ({ name: b.name, url: b.url })));
+                openUrls(
+                    entry.group.items.map((b) => ({ name: b.name, url: b.url })),
+                    newTab,
+                );
             } else if (entry.kind === 'bookmark' && entry.bookmark) {
-                window.location.href = entry.bookmark.url;
+                if (newTab) {
+                    window.open(entry.bookmark.url, '_blank', 'noopener');
+                } else {
+                    window.location.href = entry.bookmark.url;
+                }
             }
-            onClose(true);
+            if (!newTab) onClose(true);
+            else setQuery('');
         },
-        [onClose, onAction, isTouchDevice, query],
+        [onClose, onAction, isTouchDevice, newTabMode, query],
     );
 
     const openByNumbers = useCallback(
-        (nums: Set<number>) => {
+        (nums: Set<number>, newTabArg = false) => {
+            const newTab = isTouchDevice ? newTabMode : newTabArg;
             const toOpen: { name: string; url: string }[] = [];
             for (const [idx, seq] of bookmarkNumbers) {
                 if (nums.has(seq) && displayList[idx]?.bookmark) {
@@ -228,45 +239,53 @@ export default function CommandPalette({
                 }
             }
             if (toOpen.length > 0) {
-                openUrls(toOpen);
+                openUrls(toOpen, newTab);
+                if (!newTab) onClose(true);
+                else setQuery('');
+            }
+        },
+        [displayList, bookmarkNumbers, onClose, isTouchDevice, newTabMode],
+    );
+
+    const openMultiSelected = useCallback(
+        (newTabArg = false) => {
+            const newTab = isTouchDevice ? newTabMode : newTabArg;
+            const toOpen: { name: string; url: string }[] = [];
+            for (const idx of multiSelected) {
+                const entry = displayList[idx];
+                if (entry?.kind === 'bookmark' && entry.bookmark) {
+                    toOpen.push({ name: entry.bookmark.name, url: entry.bookmark.url });
+                } else if (entry?.kind === 'group' && entry.group) {
+                    for (const b of entry.group.items) {
+                        toOpen.push({ name: b.name, url: b.url });
+                    }
+                }
+            }
+            if (toOpen.length > 0) {
+                openUrls(toOpen, newTab);
                 onClose(true);
             }
         },
-        [displayList, bookmarkNumbers, onClose],
+        [displayList, multiSelected, onClose, isTouchDevice, newTabMode],
     );
 
-    const openMultiSelected = useCallback(() => {
-        const toOpen: { name: string; url: string }[] = [];
-        for (const idx of multiSelected) {
-            const entry = displayList[idx];
-            if (entry?.kind === 'bookmark' && entry.bookmark) {
-                toOpen.push({ name: entry.bookmark.name, url: entry.bookmark.url });
-            } else if (entry?.kind === 'group' && entry.group) {
-                for (const b of entry.group.items) {
-                    toOpen.push({ name: b.name, url: b.url });
-                }
+    const handleSubmit = useCallback(
+        (newTab = false) => {
+            if (submitFiredRef.current) return;
+            submitFiredRef.current = true;
+            setTimeout(() => {
+                submitFiredRef.current = false;
+            }, 300);
+            if (multiSelected.size > 0) {
+                openMultiSelected(newTab);
+            } else if (numberSelection) {
+                openByNumbers(numberSelection, newTab);
+            } else if (displayList[activeIndex]) {
+                activateEntry(displayList[activeIndex], true, newTab);
             }
-        }
-        if (toOpen.length > 0) {
-            openUrls(toOpen);
-            onClose(true);
-        }
-    }, [displayList, multiSelected, onClose]);
-
-    const handleSubmit = useCallback(() => {
-        if (submitFiredRef.current) return;
-        submitFiredRef.current = true;
-        setTimeout(() => {
-            submitFiredRef.current = false;
-        }, 300);
-        if (multiSelected.size > 0) {
-            openMultiSelected();
-        } else if (numberSelection) {
-            openByNumbers(numberSelection);
-        } else if (displayList[activeIndex]) {
-            activateEntry(displayList[activeIndex], true);
-        }
-    }, [multiSelected, numberSelection, displayList, activeIndex, openMultiSelected, openByNumbers, activateEntry]);
+        },
+        [multiSelected, numberSelection, displayList, activeIndex, openMultiSelected, openByNumbers, activateEntry],
+    );
 
     // Native keyup listener as fallback for iOS virtual keyboard
     useEffect(() => {
@@ -275,7 +294,7 @@ export default function CommandPalette({
         const handler = (e: KeyboardEvent) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                handleSubmit();
+                handleSubmit(e.ctrlKey || e.metaKey);
             }
         };
         input.addEventListener('keyup', handler);
@@ -333,7 +352,11 @@ export default function CommandPalette({
                 return;
             }
             if (e.key === 'Enter') {
-                // Handled by form onSubmit for reliable iOS support
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    handleSubmit(true);
+                }
+                // Otherwise handled by form onSubmit for reliable iOS support
                 return;
             }
         },
@@ -431,7 +454,8 @@ export default function CommandPalette({
                                 <div
                                     className={`palette-item${isActive ? ' palette-item-active' : ''}${isNumberSelected ? ' palette-item-selected' : ''}${isMultiSelected ? ' palette-item-multi' : ''}`}
                                     onMouseEnter={() => setActiveIndex(i)}
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                        const newTab = e.ctrlKey || e.metaKey;
                                         if (multiSelected.size > 0) {
                                             setMultiSelected((prev) => {
                                                 const next = new Set(prev);
@@ -440,9 +464,9 @@ export default function CommandPalette({
                                                 return next;
                                             });
                                         } else if (numberSelection) {
-                                            openByNumbers(numberSelection);
+                                            openByNumbers(numberSelection, newTab);
                                         } else {
-                                            activateEntry(entry);
+                                            activateEntry(entry, false, newTab);
                                         }
                                     }}
                                 >
@@ -508,11 +532,23 @@ export default function CommandPalette({
                 </div>
                 <div className="palette-footer">
                     {previewUrl && <div className="palette-preview">{previewUrl}</div>}
-                    <span>
-                        <kbd>↑↓</kbd> navigate &nbsp; <kbd>→</kbd> expand group &nbsp; <kbd>←</kbd> back &nbsp;{' '}
-                        <kbd>Ctrl+Space</kbd> select &nbsp; <kbd>Enter</kbd> open &nbsp; <kbd>Esc</kbd>{' '}
-                        {isPaletteMode ? 'clear' : 'close'}
-                    </span>
+                    {isTouchDevice ? (
+                        <span>
+                            <button
+                                type="button"
+                                className={`palette-newtab-toggle${newTabMode ? ' palette-newtab-toggle-active' : ''}`}
+                                onClick={() => setNewTabMode((v) => !v)}
+                            >
+                                {newTabMode ? '↗ New tab' : '→ Same tab'}
+                            </button>
+                        </span>
+                    ) : (
+                        <span>
+                            <kbd>↑↓</kbd> navigate &nbsp; <kbd>→</kbd> expand group &nbsp; <kbd>←</kbd> back &nbsp;{' '}
+                            <kbd>Ctrl+Space</kbd> select &nbsp; <kbd>Enter</kbd> open &nbsp; <kbd>Ctrl+Enter</kbd> new
+                            tab &nbsp; <kbd>Esc</kbd> {isPaletteMode ? 'clear' : 'close'}
+                        </span>
+                    )}
                     <span className="palette-footer-hint">Type a number range to open multiple (e.g. 1-5)</span>
                 </div>
             </div>

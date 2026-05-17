@@ -1481,6 +1481,25 @@ select.bulk-edit-input option:checked {
     font-style: italic;
 }
 
+.palette-newtab-toggle {
+    display: inline-block;
+    padding: 4px 12px;
+    font-size: 13px;
+    font-family: inherit;
+    font-weight: 500;
+    color: #94a3b8;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.palette-newtab-toggle-active {
+    color: #3b82f6;
+    background: #172554;
+    border-color: #3b82f6;
+}
+
 @media (max-width: 768px) {
     .palette-backdrop {
         padding-top: 6vh;

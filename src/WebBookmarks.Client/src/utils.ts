@@ -1,6 +1,6 @@
 const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
-export function openUrls(items: { name: string; url: string }[]) {
+export function openUrls(items: { name: string; url: string }[], openInNewTab = false) {
     if (items.length === 0) return;
     if (isSafari && items.length > 1) {
         const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -13,6 +13,12 @@ ${items.map((item) => `<a href="${item.url}" target="_blank">${item.name}</a>`).
 </body></html>`;
         const blob = new Blob([html], { type: 'text/html' });
         window.location.href = URL.createObjectURL(blob);
+    } else if (openInNewTab) {
+        let win: Window | null = null;
+        for (const item of items) {
+            win = window.open(item.url, '_blank', 'noopener');
+        }
+        win?.focus();
     } else {
         let i = 0;
         function next() {

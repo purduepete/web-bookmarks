@@ -9,7 +9,7 @@ import ImportModal from './components/ImportModal';
 import BulkEditModal from './components/BulkEditModal';
 import CommandPalette from './components/CommandPalette';
 
-function navigateByShortcut(input: string, bookmarks: WebBookmarksItem[]): boolean {
+function navigateByShortcut(input: string, bookmarks: WebBookmarksItem[], openInNewTab = false): boolean {
     const trimmed = input.trim();
     if (!trimmed) return false;
 
@@ -29,6 +29,7 @@ function navigateByShortcut(input: string, bookmarks: WebBookmarksItem[]): boole
             name: m.name,
             url: searchQuery && m.urls ? m.urls.replace('{q}', encodeURIComponent(searchQuery)) : m.url,
         })),
+        openInNewTab,
     );
     return true;
 }
@@ -272,14 +273,20 @@ export default function App() {
         localStorage.setItem('activeProfile', profile);
     }, []);
 
-    const openFilteredBookmarks = useCallback(() => {
-        openUrls(displayedGroups.flatMap((g) => g.items).map((item) => ({ name: item.name, url: item.url })));
-    }, [displayedGroups]);
+    const openFilteredBookmarks = useCallback(
+        (newTab = false) => {
+            openUrls(
+                displayedGroups.flatMap((g) => g.items).map((item) => ({ name: item.name, url: item.url })),
+                newTab,
+            );
+        },
+        [displayedGroups],
+    );
 
     const handleSearchKeyDown = useCallback(
         (e: React.KeyboardEvent<HTMLInputElement>) => {
             if (e.key === 'Enter' && searchFilter.trim()) {
-                openFilteredBookmarks();
+                openFilteredBookmarks(e.ctrlKey || e.metaKey);
             } else if (e.key === 'Escape') {
                 e.preventDefault();
                 setSearchFilter('');

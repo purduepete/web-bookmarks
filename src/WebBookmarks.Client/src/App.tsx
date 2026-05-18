@@ -40,10 +40,18 @@ function navigateByShortcut(input: string, bookmarks: WebBookmarksItem[], openIn
 
 export default function App() {
     const [bookmarks, setBookmarks] = useState<WebBookmarksItem[]>(() => {
-        const cached = localStorage.getItem('bookmarks');
-        return cached ? JSON.parse(cached) : [];
+        const profile = localStorage.getItem('activeProfile') || 'home';
+        try {
+            const cached = localStorage.getItem(`bookmarks_${profile}`) || localStorage.getItem('bookmarks');
+            return cached ? JSON.parse(cached) : [];
+        } catch {
+            return [];
+        }
     });
-    const [loading, setLoading] = useState(() => !localStorage.getItem('bookmarks'));
+    const [loading, setLoading] = useState(() => {
+        const profile = localStorage.getItem('activeProfile') || 'home';
+        return !localStorage.getItem(`bookmarks_${profile}`) && !localStorage.getItem('bookmarks');
+    });
     const [error, setError] = useState<string | null>(null);
 
     const [searchFilter, setSearchFilter] = useState('');
@@ -82,6 +90,21 @@ export default function App() {
         }
     });
 
+    function getLocalBookmarks(profile: string): WebBookmarksItem[] | null {
+        try {
+            const cached = localStorage.getItem(`bookmarks_${profile}`);
+            return cached ? JSON.parse(cached) : null;
+        } catch {
+            return null;
+        }
+    }
+
+    function setLocalBookmarks(profile: string, data: WebBookmarksItem[]) {
+        localStorage.setItem(`bookmarks_${profile}`, JSON.stringify(data));
+        // Also keep legacy key for backwards compat
+        localStorage.setItem('bookmarks', JSON.stringify(data));
+    }
+
     // Close options dropdown when clicking outside
     useEffect(() => {
         if (!optionsOpen) return;
@@ -117,10 +140,14 @@ export default function App() {
 
     const loadBookmarks = useCallback(() => {
         setError(null);
+        // Immediately show locally cached bookmarks for this profile
+        const local = getLocalBookmarks(activeProfile);
+        if (local) setBookmarks(local);
+        // Fetch fresh data in background
         fetchBookmarks(showHidden, activeProfile)
             .then((data) => {
                 setBookmarks(data);
-                localStorage.setItem('bookmarks', JSON.stringify(data));
+                setLocalBookmarks(activeProfile, data);
             })
             .catch((e) => setError(e.message))
             .finally(() => setLoading(false));

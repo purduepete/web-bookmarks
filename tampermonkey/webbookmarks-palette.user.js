@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      1.4
+// @version      1.5
 // @description  Press Ctrl+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      https://witty-hill-00503bc10.7.azurestaticapps.net/*
@@ -102,6 +102,17 @@
             color: #475569;
             font-size: 14px;
         }
+        .wbp-loading {
+            padding: 20px 16px;
+            text-align: center;
+            color: #64748b;
+            font-size: 14px;
+        }
+        @keyframes wbp-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .wbp-loading { animation: wbp-pulse 1.2s ease-in-out infinite; }
         .wbp-item {
             display: grid;
             grid-template-columns: 28px 22px 1fr 70px 120px;
@@ -340,10 +351,29 @@
 
     function setActiveProfile(profile) {
         GM_setValue('activeProfile', profile);
-        // Invalidate cache when profile changes
+        // Invalidate in-memory cache when profile changes
         cachedGroups = null;
         cachedProfile = null;
         cachedProfiles = null;
+    }
+
+    function getLocalBookmarks(profile) {
+        return GM_getValue('bookmarks_' + profile, null);
+    }
+
+    function setLocalBookmarks(profile, items) {
+        GM_setValue('bookmarks_' + profile, items);
+    }
+
+    function itemsToGroups(items) {
+        const map = new Map();
+        for (const b of items) {
+            if (!b.isVisible) continue;
+            const g = b.bookmarkGroup || 'Ungrouped';
+            if (!map.has(g)) map.set(g, []);
+            map.get(g).push(b);
+        }
+        return [...map.entries()].map(([name, items]) => ({ name, items }));
     }
 
     function fetchBookmarks(profile) {
@@ -391,14 +421,8 @@
         const profile = getActiveProfile();
         if (cachedGroups && cachedProfile === profile && Date.now() - lastFetch < CACHE_TTL) return cachedGroups;
         const items = await fetchBookmarks(profile);
-        const map = new Map();
-        for (const b of items) {
-            if (!b.isVisible) continue;
-            const g = b.bookmarkGroup || 'Ungrouped';
-            if (!map.has(g)) map.set(g, []);
-            map.get(g).push(b);
-        }
-        cachedGroups = [...map.entries()].map(([name, items]) => ({ name, items }));
+        setLocalBookmarks(profile, items);
+        cachedGroups = itemsToGroups(items);
         cachedProfile = profile;
         lastFetch = Date.now();
         // Also fetch profiles in background and persist
@@ -464,11 +488,12 @@
         return entries;
     }
 
-    function openPalette(groups, profiles) {
+    function openPalette(groups, profiles, isLoading) {
         if (paletteOpen) return;
         paletteOpen = true;
 
-        let allEntries = buildEntries(groups, profiles);
+        let allEntries = groups ? buildEntries(groups, profiles) : [];
+        let loading = isLoading || false;
         let query = '';
         let activeIndex = 0;
         let multiSelected = new Set();
@@ -670,7 +695,12 @@
             if (activeIndex >= filtered.length) activeIndex = Math.max(0, filtered.length - 1);
 
             listEl.innerHTML = '';
-            if (filtered.length === 0) {
+            if (loading) {
+                const loadingEl = document.createElement('div');
+                loadingEl.className = 'wbp-loading';
+                loadingEl.textContent = 'Loading bookmarks\u2026';
+                listEl.appendChild(loadingEl);
+            } else if (filtered.length === 0) {
                 const empty = document.createElement('div');
                 empty.className = 'wbp-empty';
                 empty.textContent = 'No matches';
@@ -961,6 +991,31 @@
         document.body.appendChild(backdrop);
         input.focus();
         render();
+
+        // Return a handle to populate data after open
+        return {
+            setData(newGroups, newProfiles) {
+                profiles = newProfiles;
+                allEntries = buildEntries(newGroups, newProfiles);
+                loading = false;
+                if (tabsEl) renderTabs();
+                else if (newProfiles && newProfiles.length > 1) {
+                    tabsEl = document.createElement('div');
+                    tabsEl.className = 'wbp-profile-tabs';
+                    container.insertBefore(tabsEl, listEl);
+                    renderTabs();
+                }
+                render();
+            },
+            setError(msg) {
+                loading = false;
+                listEl.innerHTML = '';
+                const el = document.createElement('div');
+                el.className = 'wbp-empty';
+                el.textContent = 'Failed to load: ' + msg;
+                listEl.appendChild(el);
+            }
+        };
     }
 
     // ── Global hotkey: Ctrl + / (toggle) ───────────────
@@ -978,14 +1033,41 @@
                     paletteOpen = false;
                     return;
                 }
+
+                const profile = getActiveProfile();
+                const profiles = cachedProfiles || ['home'];
+
+                // If in-memory cache is warm, open instantly
+                if (cachedGroups && cachedProfile === profile && Date.now() - lastFetch < CACHE_TTL) {
+                    openPalette(cachedGroups, profiles, false);
+                    return;
+                }
+
+                // Try local storage for instant display, then refresh from API
+                const localItems = getLocalBookmarks(profile);
+                if (localItems) {
+                    const localGroups = itemsToGroups(localItems);
+                    const handle = openPalette(localGroups, profiles, false);
+                    // Refresh in background
+                    getGroups()
+                        .then((freshGroups) => {
+                            const freshProfiles = cachedProfiles || profiles;
+                            if (paletteOpen) handle.setData(freshGroups, freshProfiles);
+                        })
+                        .catch(() => {}); // stale data is fine
+                    return;
+                }
+
+                // No local data — show loading state
+                const handle = openPalette(null, null, true);
                 try {
                     const groups = await getGroups();
-                    const profiles = cachedProfiles || (await fetchProfiles().catch(() => ['home']));
-                    cachedProfiles = profiles;
-                    openPalette(groups, profiles);
+                    const freshProfiles = cachedProfiles || (await fetchProfiles().catch(() => ['home']));
+                    cachedProfiles = freshProfiles;
+                    if (paletteOpen) handle.setData(groups, freshProfiles);
                 } catch (err) {
                     console.error('[WebBookmarks] Failed to fetch bookmarks:', err);
-                    alert('[WebBookmarks] Failed to load bookmarks: ' + err.message);
+                    if (paletteOpen) handle.setError(err.message);
                 }
             }
         },

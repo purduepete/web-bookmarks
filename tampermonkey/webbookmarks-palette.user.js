@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      1.5
+// @version      1.6
 // @description  Press Ctrl+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      https://witty-hill-00503bc10.7.azurestaticapps.net/*
@@ -446,7 +446,7 @@
         for (const g of groups) {
             entries.push({
                 kind: 'group',
-                label: g.name,
+                label: g.name || '',
                 secondary: g.items.length + ' bookmark' + (g.items.length !== 1 ? 's' : ''),
                 alias: '',
                 group: g,
@@ -456,8 +456,8 @@
             for (const b of g.items) {
                 entries.push({
                     kind: 'bookmark',
-                    label: b.name,
-                    secondary: b.bookmarkGroup,
+                    label: b.name || '',
+                    secondary: b.bookmarkGroup || '',
                     alias: b.shortcut || '',
                     bookmark: b,
                 });
@@ -777,7 +777,7 @@
                     var pfirstWord = pparts[0].toLowerCase();
                     if (
                         pparts.length > 1 &&
-                        ((palias && pfirstWord === palias) || entry.bookmark.name.toLowerCase().startsWith(pfirstWord))
+                        ((palias && pfirstWord === palias) || (entry.bookmark.name || '').toLowerCase().startsWith(pfirstWord))
                     ) {
                         previewUrl = entry.bookmark.urls.replace('{q}', encodeURIComponent(pparts.slice(1).join(' ')));
                     }
@@ -808,7 +808,7 @@
                     var bfirstWord = bparts[0].toLowerCase();
                     if (
                         bparts.length > 1 &&
-                        ((balias && bfirstWord === balias) || entry.bookmark.name.toLowerCase().startsWith(bfirstWord))
+                        ((balias && bfirstWord === balias) || (entry.bookmark.name || '').toLowerCase().startsWith(bfirstWord))
                     ) {
                         targetUrl = entry.bookmark.urls.replace('{q}', encodeURIComponent(bparts.slice(1).join(' ')));
                     }

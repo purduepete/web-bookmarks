@@ -16,7 +16,16 @@ export async function fetchBookmarks(includeHidden = false, profile?: string): P
         try {
             const res = await fetch(url);
             if (!res.ok) throw new Error(`Failed to fetch bookmarks: ${res.status}`);
-            return await res.json();
+            const data: unknown[] = await res.json();
+            return data.map((raw: any) => ({
+                ...raw,
+                name: raw.name ?? '',
+                shortcut: raw.shortcut ?? '',
+                description: raw.description ?? '',
+                url: raw.url ?? '',
+                bookmarkGroup: raw.bookmarkGroup ?? '',
+                profile: raw.profile ?? '',
+            })) as WebBookmarksItem[];
         } catch (e) {
             lastError = e instanceof Error ? e : new Error(String(e));
             if (attempt < MAX_RETRIES - 1) {

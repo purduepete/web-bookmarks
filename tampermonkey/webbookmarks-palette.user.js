@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      3.2
+// @version      3.3
 // @description  Press Ctrl+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      https://witty-hill-00503bc10.7.azurestaticapps.net/*
@@ -37,7 +37,7 @@
             color: #b2bac2;
         }
         .wbp-container {
-            width: 560px;
+            width: 900px;
             max-width: 94vw;
             background: #0f172a;
             border: 1px solid #1e293b;
@@ -466,6 +466,13 @@
         // Actions (at the bottom)
         entries.push({
             kind: 'action',
+            label: 'Remove Paywall',
+            secondary: '',
+            alias: '',
+            action: 'remove-paywall',
+        });
+        entries.push({
+            kind: 'action',
             label: 'Reload Bookmarks',
             secondary: '',
             alias: '',
@@ -819,6 +826,9 @@
                     window.location.href = targetUrl;
                 }
                 if (!newTab) close();
+            } else if (entry.kind === 'action' && entry.action === 'remove-paywall') {
+                window.location.href = 'https://removepaywalls.com/' + window.location.href;
+                close();
             } else if (entry.kind === 'action' && entry.action === 'reload') {
                 cachedGroups = null;
                 cachedProfile = null;

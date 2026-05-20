@@ -1270,7 +1270,7 @@ select.bulk-edit-input option:checked {
 }
 
 .palette-container {
-    width: 560px;
+    width: 900px;
     max-width: 94vw;
     background: #0f172a;
     border: 1px solid #1e293b;

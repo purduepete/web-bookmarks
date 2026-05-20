@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      3.7
+// @version      3.8
 // @description  Press Ctrl+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -18,26 +18,8 @@
 (function () {
     'use strict';
 
-    const WEB_APP_ORIGIN = 'https://witty-hill-00503bc10.7.azurestaticapps.net';
-
-    // ── Sync from web app localStorage on visit ──────
-    if (location.origin === WEB_APP_ORIGIN) {
-        function syncToGM() {
-            try {
-                const dp = localStorage.getItem('disabledProfiles');
-                if (dp !== null) GM_setValue('disabledProfiles', JSON.parse(dp));
-                const ap = localStorage.getItem('activeProfile');
-                if (ap !== null) GM_setValue('activeProfile', ap);
-            } catch (e) { /* ignore */ }
-        }
-        // Sync immediately, on changes, and before leaving
-        syncToGM();
-        window.addEventListener('beforeunload', syncToGM);
-        // Re-sync periodically to catch React state changes written to localStorage
-        setInterval(syncToGM, 2000);
-        // Don't show palette on the web app (it has its own)
-        return;
-    }
+    // Don't show palette on the web app (it has its own)
+    if (location.origin === 'https://witty-hill-00503bc10.7.azurestaticapps.net') return;
 
     const API_BASE = 'https://webbookmarksapi.azurewebsites.net/api/bookmarks';
 

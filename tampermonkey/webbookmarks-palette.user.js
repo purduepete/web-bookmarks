@@ -1,9 +1,14 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      4.0
+// @version      4.1
 // @description  Press Ctrl+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
+// @exclude      http://192.168.50.100:3002/*
+// @exclude      https://192.168.50.100:3000/*
+// @exclude      http://192.168.50.101:3002/*
+// @exclude      https://192.168.50.101:3000/*
+// @exclude      https://www.jimlertech.net/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
 // @grant        GM_openInTab

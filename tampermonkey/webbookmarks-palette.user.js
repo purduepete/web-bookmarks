@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      3.9
+// @version      4.0
 // @description  Press Ctrl+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -281,6 +281,8 @@
         '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>';
     const BOLT_SVG =
         '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>';
+    const HEART_SVG =
+        '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" style="color:#64748b;vertical-align:middle;margin-right:6px"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
 
     // ── Helpers ──────────────────────────────────────
     function wildcardMatch(text, pattern) {
@@ -356,7 +358,6 @@
         // Invalidate in-memory cache when profile changes
         cachedGroups = null;
         cachedProfile = null;
-        cachedProfiles = null;
     }
 
     function getDisabledProfiles() {
@@ -631,7 +632,7 @@
                 '<span><kbd>Ctrl+Space</kbd> select</span>',
                 '<span><kbd>Enter</kbd> open</span>',
                 '<span><kbd>Ctrl+Enter</kbd> new tab</span>',
-                '<span><kbd>Ctrl+/</kbd> close</span>',
+                '<span><kbd>Esc</kbd> close</span>',
                 '<span><kbd>1-5</kbd> open by number</span>',
             ].join('');
             footer.appendChild(hintsEl);
@@ -758,8 +759,6 @@
 
                     const icon =
                         entry.kind === 'group' ? FOLDER_SVG : entry.kind === 'action' ? BOLT_SVG : BOOKMARK_SVG;
-                    const HEART_SVG =
-                        '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" style="color:#64748b;vertical-align:middle;margin-right:6px"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
                     const favIcon = entry.bookmark && entry.bookmark.isFavorite ? HEART_SVG : '';
                     row.innerHTML =
                         `<span class="wbp-item-num">${isMultiSelected ? '\u2713' : seq != null ? seq : ''}</span>` +

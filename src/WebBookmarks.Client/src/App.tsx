@@ -485,7 +485,7 @@ export default function App() {
                     />
                     <button
                         className="btn-palette input-group-text"
-                        onClick={() => setPaletteOpen(true)}
+                        onClick={() => { setPaletteOpen(true); setStartupPaletteHiding(true); }}
                         title="Command Palette (Ctrl+/)"
                     >
                         <svg

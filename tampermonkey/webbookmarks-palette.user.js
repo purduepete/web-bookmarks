@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      3.4
+// @version      3.5
 // @description  Press Ctrl+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -22,14 +22,19 @@
 
     // ── Sync from web app localStorage on visit ──────
     if (location.origin === WEB_APP_ORIGIN) {
-        try {
-            const dp = localStorage.getItem('disabledProfiles');
-            if (dp !== null) GM_setValue('disabledProfiles', JSON.parse(dp));
-            const ap = localStorage.getItem('activeProfile');
-            if (ap !== null) GM_setValue('activeProfile', ap);
-        } catch (e) {
-            console.error('[WebBookmarks] Sync error:', e);
+        function syncToGM() {
+            try {
+                const dp = localStorage.getItem('disabledProfiles');
+                if (dp !== null) GM_setValue('disabledProfiles', JSON.parse(dp));
+                const ap = localStorage.getItem('activeProfile');
+                if (ap !== null) GM_setValue('activeProfile', ap);
+            } catch (e) {
+                console.error('[WebBookmarks] Sync error:', e);
+            }
         }
+        // Sync on load (captures previous changes) and before leaving (captures this session's changes)
+        syncToGM();
+        window.addEventListener('beforeunload', syncToGM);
         // Don't show palette on the web app (it has its own)
         return;
     }

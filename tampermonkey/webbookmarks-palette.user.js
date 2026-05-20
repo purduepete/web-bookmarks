@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      3.8
+// @version      3.9
 // @description  Press Ctrl+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -503,8 +503,8 @@
                 entries.push({
                     kind: 'action',
                     label: disabled.has(p) ? 'Show Profile: ' + p : 'Hide Profile: ' + p,
-                    secondary: disabled.has(p) ? 'currently hidden' : 'currently visible',
-                    alias: 'toggle visibility ' + p,
+                    secondary: disabled.has(p) ? 'hidden' : 'visible',
+                    alias: '',
                     action: 'toggle-profile-visibility',
                     actionPayload: p,
                 });

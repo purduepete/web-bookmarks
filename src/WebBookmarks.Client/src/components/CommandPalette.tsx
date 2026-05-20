@@ -428,7 +428,14 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
                             <button
                                 type="button"
                                 className="palette-close-btn"
-                                onClick={() => onAction('show-landing')}
+                                onClick={() => {
+                                    if (isTouchDevice) {
+                                        setQuery('');
+                                        inputRef.current?.focus();
+                                    } else {
+                                        onAction('show-landing');
+                                    }
+                                }}
                                 aria-label="Close palette"
                             >
                                 <svg

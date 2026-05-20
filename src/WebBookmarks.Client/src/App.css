@@ -434,6 +434,14 @@ td.col3 {
     margin: 4px 0;
 }
 
+.dropdown-options-heading {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: #64748b;
+    padding: 4px 10px 2px;
+    letter-spacing: 0.04em;
+}
+
 /* ── Edit-mode hidden (preserve space) ───────────── */
 
 .edit-hidden {

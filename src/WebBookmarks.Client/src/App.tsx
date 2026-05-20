@@ -89,6 +89,24 @@ export default function App() {
             return [];
         }
     });
+    const [disabledProfiles, setDisabledProfiles] = useState<Set<string>>(() => {
+        try {
+            const cached = localStorage.getItem('disabledProfiles');
+            return cached ? new Set(JSON.parse(cached)) : new Set();
+        } catch {
+            return new Set();
+        }
+    });
+
+    function toggleDisabledProfile(profile: string) {
+        setDisabledProfiles((prev) => {
+            const next = new Set(prev);
+            if (next.has(profile)) next.delete(profile);
+            else next.add(profile);
+            localStorage.setItem('disabledProfiles', JSON.stringify([...next]));
+            return next;
+        });
+    }
 
     function getLocalBookmarks(profile: string): WebBookmarksItem[] | null {
         try {
@@ -438,17 +456,19 @@ export default function App() {
             <div className="header-spacer" />
 
             <div id="colMain" style={startupPaletteHiding ? { display: 'none' } : undefined}>
-                {profiles.length > 1 && (
+                {profiles.filter((p) => !disabledProfiles.has(p)).length > 1 && (
                     <div className="profile-tabs">
-                        {profiles.map((p) => (
-                            <button
-                                key={p}
-                                className={`profile-tab${p === activeProfile ? ' profile-tab-active' : ''}`}
-                                onClick={() => handleProfileChange(p)}
-                            >
-                                {p}
-                            </button>
-                        ))}
+                        {profiles
+                            .filter((p) => !disabledProfiles.has(p))
+                            .map((p) => (
+                                <button
+                                    key={p}
+                                    className={`profile-tab${p === activeProfile ? ' profile-tab-active' : ''}`}
+                                    onClick={() => handleProfileChange(p)}
+                                >
+                                    {p}
+                                </button>
+                            ))}
                     </div>
                 )}
                 <div className="input-group input-group-sm mb-3">
@@ -541,6 +561,25 @@ export default function App() {
                                 >
                                     Bulk Edit
                                 </button>
+                                {profiles.filter((p) => p !== 'all').length > 1 && (
+                                    <>
+                                        <div className="dropdown-options-divider" />
+                                        <div className="dropdown-options-heading">Profiles</div>
+                                        {profiles
+                                            .filter((p) => p !== 'all')
+                                            .map((p) => (
+                                                <label key={p} className="dropdown-options-item">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="form-check-input mt-0 me-1"
+                                                        checked={!disabledProfiles.has(p)}
+                                                        onChange={() => toggleDisabledProfile(p)}
+                                                    />
+                                                    {p}
+                                                </label>
+                                            ))}
+                                    </>
+                                )}
                             </div>
                         )}
                     </div>
@@ -674,7 +713,7 @@ export default function App() {
                                 break;
                         }
                     }}
-                    profiles={profiles}
+                    profiles={profiles.filter((p) => !disabledProfiles.has(p))}
                     activeProfile={activeProfile}
                     isPaletteMode={startupMode === 'palette'}
                 />

@@ -1,10 +1,9 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      3.3
+// @version      3.4
 // @description  Press Ctrl+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
-// @exclude      https://witty-hill-00503bc10.7.azurestaticapps.net/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
 // @grant        GM_openInTab
@@ -18,6 +17,22 @@
 
 (function () {
     'use strict';
+
+    const WEB_APP_ORIGIN = 'https://witty-hill-00503bc10.7.azurestaticapps.net';
+
+    // ── Sync from web app localStorage on visit ──────
+    if (location.origin === WEB_APP_ORIGIN) {
+        try {
+            const dp = localStorage.getItem('disabledProfiles');
+            if (dp !== null) GM_setValue('disabledProfiles', JSON.parse(dp));
+            const ap = localStorage.getItem('activeProfile');
+            if (ap !== null) GM_setValue('activeProfile', ap);
+        } catch (e) {
+            console.error('[WebBookmarks] Sync error:', e);
+        }
+        // Don't show palette on the web app (it has its own)
+        return;
+    }
 
     const API_BASE = 'https://webbookmarksapi.azurewebsites.net/api/bookmarks';
 
@@ -357,6 +372,10 @@
         cachedProfiles = null;
     }
 
+    function getDisabledProfiles() {
+        return new Set(GM_getValue('disabledProfiles', []));
+    }
+
     function getLocalBookmarks(profile) {
         return GM_getValue('bookmarks_' + profile, null);
     }
@@ -480,8 +499,9 @@
         });
         if (profiles && profiles.length > 1) {
             const current = getActiveProfile();
+            const disabled = getDisabledProfiles();
             for (const p of profiles) {
-                if (p === 'all' || p === current) continue;
+                if (p === 'all' || p === current || disabled.has(p)) continue;
                 entries.push({
                     kind: 'action',
                     label: 'Profile: ' + p,
@@ -556,8 +576,9 @@
             if (!tabsEl) return;
             tabsEl.innerHTML = '';
             const current = getActiveProfile();
+            const disabled = getDisabledProfiles();
             for (const p of profiles) {
-                if (p === 'all') continue;
+                if (p === 'all' || disabled.has(p)) continue;
                 const btn = document.createElement('button');
                 btn.className = 'wbp-profile-tab' + (p === current ? ' wbp-profile-tab-active' : '');
                 btn.textContent = p;
@@ -784,7 +805,8 @@
                     var pfirstWord = pparts[0].toLowerCase();
                     if (
                         pparts.length > 1 &&
-                        ((palias && pfirstWord === palias) || (entry.bookmark.name || '').toLowerCase().startsWith(pfirstWord))
+                        ((palias && pfirstWord === palias) ||
+                            (entry.bookmark.name || '').toLowerCase().startsWith(pfirstWord))
                     ) {
                         previewUrl = entry.bookmark.urls.replace('{q}', encodeURIComponent(pparts.slice(1).join(' ')));
                     }
@@ -815,7 +837,8 @@
                     var bfirstWord = bparts[0].toLowerCase();
                     if (
                         bparts.length > 1 &&
-                        ((balias && bfirstWord === balias) || (entry.bookmark.name || '').toLowerCase().startsWith(bfirstWord))
+                        ((balias && bfirstWord === balias) ||
+                            (entry.bookmark.name || '').toLowerCase().startsWith(bfirstWord))
                     ) {
                         targetUrl = entry.bookmark.urls.replace('{q}', encodeURIComponent(bparts.slice(1).join(' ')));
                     }
@@ -1024,7 +1047,7 @@
                 el.className = 'wbp-empty';
                 el.textContent = 'Failed to load: ' + msg;
                 listEl.appendChild(el);
-            }
+            },
         };
     }
 

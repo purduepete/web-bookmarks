@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      3.6
+// @version      3.7
 // @description  Press Ctrl+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -516,6 +516,17 @@
                     actionPayload: p,
                 });
             }
+            for (const p of profiles) {
+                if (p === 'all') continue;
+                entries.push({
+                    kind: 'action',
+                    label: disabled.has(p) ? 'Show Profile: ' + p : 'Hide Profile: ' + p,
+                    secondary: disabled.has(p) ? 'currently hidden' : 'currently visible',
+                    alias: 'toggle visibility ' + p,
+                    action: 'toggle-profile-visibility',
+                    actionPayload: p,
+                });
+            }
         }
         return entries;
     }
@@ -888,6 +899,18 @@
                     .catch((err) => {
                         console.error('[WebBookmarks] Failed to switch profile:', err);
                     });
+            } else if (entry.kind === 'action' && entry.action === 'toggle-profile-visibility') {
+                const disabled = getDisabledProfiles();
+                if (disabled.has(entry.actionPayload)) disabled.delete(entry.actionPayload);
+                else disabled.add(entry.actionPayload);
+                GM_setValue('disabledProfiles', [...disabled]);
+                allEntries = buildEntries(cachedGroups || [], profiles);
+                query = '';
+                input.value = '';
+                activeIndex = 0;
+                multiSelected = new Set();
+                renderTabs();
+                render();
             }
         }
 

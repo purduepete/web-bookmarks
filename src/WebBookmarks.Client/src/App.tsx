@@ -74,6 +74,7 @@ export default function App() {
     const [paletteOpen, setPaletteOpen] = useState(false);
     const [importOpen, setImportOpen] = useState(false);
     const [bulkEditOpen, setBulkEditOpen] = useState(false);
+    const modalFromPaletteRef = useRef(false);
     const [startupPaletteHiding, setStartupPaletteHiding] = useState(() => {
         const saved = localStorage.getItem('startupMode');
         return saved === 'palette';
@@ -379,12 +380,20 @@ export default function App() {
     const handleModalClose = useCallback(() => {
         setModalOpen(false);
         setEditingBookmark(null);
+        if (modalFromPaletteRef.current) {
+            modalFromPaletteRef.current = false;
+            setPaletteOpen(true);
+        }
     }, []);
 
     const handleModalSaved = useCallback(() => {
         setModalOpen(false);
         setEditingBookmark(null);
         loadBookmarks();
+        if (modalFromPaletteRef.current) {
+            modalFromPaletteRef.current = false;
+            setPaletteOpen(true);
+        }
     }, [loadBookmarks]);
 
     const handleDelete = useCallback(
@@ -693,6 +702,10 @@ export default function App() {
                     activeProfile={activeProfile}
                     onClose={() => {
                         setImportOpen(false);
+                        if (modalFromPaletteRef.current) {
+                            modalFromPaletteRef.current = false;
+                            setPaletteOpen(true);
+                        }
                     }}
                     onImported={loadBookmarks}
                 />
@@ -704,6 +717,10 @@ export default function App() {
                     activeProfile={activeProfile}
                     onClose={() => {
                         setBulkEditOpen(false);
+                        if (modalFromPaletteRef.current) {
+                            modalFromPaletteRef.current = false;
+                            setPaletteOpen(true);
+                        }
                     }}
                     onChanged={loadBookmarks}
                 />
@@ -723,14 +740,17 @@ export default function App() {
                                 setEditingBookmark(null);
                                 setModalOpen(true);
                                 setPaletteOpen(false);
+                                modalFromPaletteRef.current = true;
                                 break;
                             case 'import':
                                 setImportOpen(true);
                                 setPaletteOpen(false);
+                                modalFromPaletteRef.current = true;
                                 break;
                             case 'bulk-edit':
                                 setBulkEditOpen(true);
                                 setPaletteOpen(false);
+                                modalFromPaletteRef.current = true;
                                 break;
                             case 'select-profile':
                                 if (payload) handleProfileChange(payload);

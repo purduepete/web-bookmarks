@@ -200,6 +200,12 @@ export default function App() {
             .sort((a, b) => a.name.localeCompare(b.name));
     }, [bookmarks]);
 
+    const paletteGroups: BookmarkGroup[] = useMemo(() => {
+        return groups
+            .map((g) => ({ ...g, items: g.items.filter((b) => b.isVisible) }))
+            .filter((g) => g.items.length > 0);
+    }, [groups]);
+
     const conflictIds = useMemo(() => {
         const ids = new Set<number>();
         for (let i = 0; i < bookmarks.length; i++) {
@@ -728,7 +734,7 @@ export default function App() {
 
             {paletteOpen && (
                 <CommandPalette
-                    groups={groups}
+                    groups={paletteGroups}
                     onClose={(navigating) => {
                         if (startupMode === 'palette' && !navigating) return;
                         setPaletteOpen(false);

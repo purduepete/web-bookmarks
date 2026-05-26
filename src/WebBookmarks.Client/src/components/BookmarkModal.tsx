@@ -9,6 +9,7 @@ interface Props {
     activeProfile: string;
     onClose: () => void;
     onSaved: () => void;
+    prefill?: Partial<Omit<WebBookmarksItem, 'id'>> | null;
 }
 
 const emptyBookmark: Omit<WebBookmarksItem, 'id'> = {
@@ -24,10 +25,10 @@ const emptyBookmark: Omit<WebBookmarksItem, 'id'> = {
     isFavorite: false,
 };
 
-export default function BookmarkModal({ bookmark, allBookmarks, activeProfile, onClose, onSaved }: Props) {
+export default function BookmarkModal({ bookmark, allBookmarks, activeProfile, onClose, onSaved, prefill }: Props) {
     const isEdit = bookmark !== null;
     const [form, setForm] = useState<Omit<WebBookmarksItem, 'id'>>(
-        bookmark ? { ...bookmark } : { ...emptyBookmark, profile: activeProfile },
+        bookmark ? { ...bookmark } : { ...emptyBookmark, profile: activeProfile, ...(prefill || {}) },
     );
     const [groups, setGroups] = useState<string[]>([]);
     const [profiles, setProfiles] = useState<string[]>([]);

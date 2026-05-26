@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      4.6
+// @version      4.7
 // @description  Press Ctrl+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
@@ -27,6 +27,7 @@
     if (location.origin === 'https://witty-hill-00503bc10.7.azurestaticapps.net') return;
 
     const API_BASE = 'https://webbookmarksapi.azurewebsites.net/api/bookmarks';
+    const APP_URL = 'https://witty-hill-00503bc10.7.azurestaticapps.net';
 
     // ── CSS ──────────────────────────────────────────
     GM_addStyle(`
@@ -387,44 +388,6 @@
         });
     }
 
-    // ── Quick-add current page ────────────────────────────────────────────
-    function quickAddCurrentPage(profile) {
-        const item = {
-            name: (document.title || location.hostname).slice(0, 100),
-            shortcut: '',
-            description: '',
-            url: location.href,
-            urls: '',
-            isVisible: true,
-            bookmarkGroup: 'Quick Adds',
-            sortOrder: 0,
-            profile: profile,
-            isFavorite: false,
-        };
-        return new Promise((resolve, reject) => {
-            GM_xmlhttpRequest({
-                method: 'POST',
-                url: API_BASE,
-                headers: { 'Content-Type': 'application/json' },
-                data: JSON.stringify(item),
-                onload(res) {
-                    if (res.status >= 200 && res.status < 300) {
-                        try {
-                            resolve(JSON.parse(res.responseText));
-                        } catch (e) {
-                            resolve(item);
-                        }
-                    } else {
-                        reject(new Error('HTTP ' + res.status));
-                    }
-                },
-                onerror(e) {
-                    reject(e);
-                },
-            });
-        });
-    }
-
     function openUrls(items, newTab) {
         if (items.length === 0) return;
         if (newTab) {
@@ -595,10 +558,10 @@
         // Actions (at the bottom)
         entries.push({
             kind: 'action',
-            label: 'Add Current Page',
+            label: 'Add Current Page…',
             secondary: (document.title || location.hostname).slice(0, 60),
             alias: 'add new save +',
-            action: 'quick-add',
+            action: 'new-bookmark',
         });
         entries.push({
             kind: 'action',
@@ -1023,20 +986,9 @@
                 if (newTab) GM_openInTab(u, { active: true, insert: true });
                 else window.location.href = u;
                 if (!newTab) close();
-            } else if (entry.kind === 'action' && entry.action === 'quick-add') {
-                showToast('Saving…');
-                quickAddCurrentPage(currentProfile)
-                    .then((saved) => {
-                        showToast('Saved to ' + currentProfile + ' / Quick Adds');
-                        // Invalidate cache so next palette open reflects the new bookmark
-                        cachedGroups = null;
-                        cachedProfile = null;
-                        lastFetch = 0;
-                    })
-                    .catch((err) => {
-                        console.error('[WebBookmarks] Quick-add failed:', err);
-                        showToast('Save failed: ' + (err && err.message ? err.message : 'unknown'));
-                    });
+            } else if (entry.kind === 'action' && entry.action === 'new-bookmark') {
+                openNewBookmarkDialog(currentProfile);
+                close();
             } else if (entry.kind === 'action' && entry.action === 'cheatsheet') {
                 showCheatsheet();
             } else if (entry.kind === 'action' && entry.action === 'remove-paywall') {
@@ -1200,7 +1152,7 @@
             ['1-9 (then Enter)', 'Open by number(s) — e.g. "foo 1,3-5"'],
             ['Ctrl+C', 'Copy URL of selected entry'],
             ['Ctrl+Shift+C', 'Copy as Markdown link'],
-            ['Ctrl+N', 'Quick-add current page'],
+            ['Ctrl+N', 'Open New Bookmark dialog for current page'],
             ['Ctrl+`', 'Cycle through profiles'],
             ['Ctrl+/', 'Toggle palette (outside palette)'],
             ['F1', 'Show this cheatsheet'],
@@ -1306,18 +1258,8 @@
             }
             if (e.key === 'n' && e.ctrlKey && !e.shiftKey && !e.altKey) {
                 e.preventDefault();
-                showToast('Saving\u2026');
-                quickAddCurrentPage(getActiveProfile())
-                    .then(() => {
-                        showToast('Saved to ' + getActiveProfile() + ' / Quick Adds');
-                        cachedGroups = null;
-                        cachedProfile = null;
-                        lastFetch = 0;
-                    })
-                    .catch((err) => {
-                        console.error('[WebBookmarks] Quick-add failed:', err);
-                        showToast('Save failed: ' + (err && err.message ? err.message : 'unknown'));
-                    });
+                openNewBookmarkDialog(getActiveProfile());
+                close();
                 return;
             }
 

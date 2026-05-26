@@ -67,6 +67,7 @@ export default function App() {
     const bookmarkInputRef = useRef<HTMLInputElement>(null);
     const [modalOpen, setModalOpen] = useState(false);
     const [editingBookmark, setEditingBookmark] = useState<WebBookmarksItem | null>(null);
+    const [prefillData, setPrefillData] = useState<Partial<WebBookmarksItem> | null>(null);
     const [showHidden, setShowHidden] = useState(true);
     const [editMode, setEditMode] = useState(true);
     const [optionsOpen, setOptionsOpen] = useState(false);
@@ -180,6 +181,33 @@ export default function App() {
         document.addEventListener('keydown', handleGlobalKeyDown);
         return () => document.removeEventListener('keydown', handleGlobalKeyDown);
     }, [startupMode]);
+
+    // On mount: open the New Bookmark modal pre-filled if URL has ?new=1 (used by Tampermonkey)
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('new') !== '1') return;
+        const url = params.get('url') || '';
+        const name = params.get('name') || '';
+        const description = params.get('desc') || '';
+        const profile = params.get('profile') || '';
+        const group = params.get('group') || '';
+        if (profile && profile !== activeProfileRef.current) {
+            setActiveProfile(profile);
+            localStorage.setItem('activeProfile', profile);
+        }
+        setPrefillData({
+            url,
+            name,
+            description,
+            profile: profile || activeProfileRef.current,
+            bookmarkGroup: group,
+        });
+        setEditingBookmark(null);
+        setModalOpen(true);
+        // Clean URL so reloads don't reopen the dialog
+        const clean = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, '', clean);
+    }, []);
 
     const loadBookmarks = useCallback(() => {
         setError(null);
@@ -399,6 +427,7 @@ export default function App() {
 
     const openCreateModal = useCallback(() => {
         setEditingBookmark(null);
+        setPrefillData(null);
         setModalOpen(true);
     }, []);
 
@@ -410,6 +439,7 @@ export default function App() {
     const handleModalClose = useCallback(() => {
         setModalOpen(false);
         setEditingBookmark(null);
+        setPrefillData(null);
         if (modalFromPaletteRef.current) {
             modalFromPaletteRef.current = false;
             setPaletteOpen(true);
@@ -419,6 +449,7 @@ export default function App() {
     const handleModalSaved = useCallback(() => {
         setModalOpen(false);
         setEditingBookmark(null);
+        setPrefillData(null);
         loadBookmarks();
         if (modalFromPaletteRef.current) {
             modalFromPaletteRef.current = false;
@@ -724,6 +755,7 @@ export default function App() {
                     activeProfile={activeProfile}
                     onClose={handleModalClose}
                     onSaved={handleModalSaved}
+                    prefill={prefillData}
                 />
             )}
 
@@ -768,6 +800,7 @@ export default function App() {
                         switch (action) {
                             case 'new-bookmark':
                                 setEditingBookmark(null);
+                                setPrefillData(null);
                                 setModalOpen(true);
                                 setPaletteOpen(false);
                                 modalFromPaletteRef.current = true;

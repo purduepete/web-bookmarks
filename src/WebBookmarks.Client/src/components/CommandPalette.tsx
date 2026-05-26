@@ -592,7 +592,11 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
                 if (!isPaletteMode) onClose();
             }}
         >
-            <div className="palette-container" style={{ position: 'relative' }} onMouseDown={(e) => e.stopPropagation()}>
+            <div
+                className="palette-container"
+                style={{ position: 'relative', minHeight: cheatsheetOpen ? 'min(70vh, 560px)' : undefined }}
+                onMouseDown={(e) => e.stopPropagation()}
+            >
                 <form
                     onSubmit={(e) => {
                         e.preventDefault();

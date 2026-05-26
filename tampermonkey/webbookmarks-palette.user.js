@@ -388,6 +388,17 @@
         });
     }
 
+    // ── Open New Bookmark dialog in the web app ─────────────────────────
+    function openNewBookmarkDialog(profile) {
+        const params = new URLSearchParams({
+            new: '1',
+            url: location.href,
+            name: (document.title || location.hostname).slice(0, 100),
+        });
+        if (profile) params.set('profile', profile);
+        GM_openInTab(APP_URL + '/?' + params.toString(), { active: true, insert: true });
+    }
+
     function openUrls(items, newTab) {
         if (items.length === 0) return;
         if (newTab) {

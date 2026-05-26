@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      4.8.1
+// @version      4.8.2
 // @description  Press Ctrl+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
@@ -1230,10 +1230,12 @@
             cheatsheetEl.appendChild(grid);
             cheatsheetEl.addEventListener('click', hideCheatsheet);
             container.style.position = 'relative';
+            container.style.minHeight = 'min(70vh, 560px)';
             container.appendChild(cheatsheetEl);
         }
         function hideCheatsheet() {
             if (cheatsheetEl) cheatsheetEl.style.display = 'none';
+            container.style.minHeight = '';
         }
         function cheatsheetVisible() {
             return cheatsheetEl && cheatsheetEl.style.display !== 'none';

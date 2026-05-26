@@ -1456,6 +1456,7 @@ select.bulk-edit-input option:checked {
 .palette-item-secondary {
     font-size: 12px;
     color: #475569;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1471,6 +1472,8 @@ select.bulk-edit-input option:checked {
     font-family: monospace;
     text-align: center;
     white-space: nowrap;
+    min-width: 0;
+    max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     justify-self: center;

@@ -181,7 +181,7 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
         entries.push({ kind: 'action', label: 'Import Bookmarks', secondary: '', alias: '', action: 'import' });
         entries.push({ kind: 'action', label: 'Bulk Edit', secondary: '', alias: '', action: 'bulk-edit' });
         entries.push({ kind: 'action', label: 'Reload Bookmarks', secondary: '', alias: '', action: 'reload' });
-        entries.push({ kind: 'action', label: 'Copy as Markdown link', secondary: 'of highlighted bookmark', alias: 'copy markdown clipboard link', action: 'copy-markdown' });
+        entries.push({ kind: 'action', label: 'Copy as Markdown link', secondary: 'of highlighted bookmark', alias: 'copy', action: 'copy-markdown' });
         entries.push({ kind: 'action', label: 'Keyboard Shortcuts', secondary: 'press F1', alias: 'help shortcuts cheatsheet', action: 'cheatsheet' });
         if (isPaletteMode) {
             entries.push({ kind: 'action', label: 'Show Landing', secondary: '', alias: '', action: 'show-landing' });

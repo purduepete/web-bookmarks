@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      4.8
+// @version      4.8.1
 // @description  Press Ctrl+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
@@ -159,6 +159,7 @@
         .wbp-item-secondary {
             font-size: 12px;
             color: #475569;
+            min-width: 0;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -173,6 +174,8 @@
             font-family: monospace;
             text-align: center;
             white-space: nowrap;
+            min-width: 0;
+            max-width: 100%;
             overflow: hidden;
             text-overflow: ellipsis;
             justify-self: center;
@@ -592,7 +595,7 @@
             kind: 'action',
             label: 'Copy as Markdown link',
             secondary: 'of highlighted bookmark',
-            alias: 'copy markdown clipboard link',
+            alias: 'copy',
             action: 'copy-markdown',
         });
         entries.push({
@@ -1179,7 +1182,6 @@
             ['Ctrl+Enter', 'Open in new tab'],
             ['Ctrl+Space', 'Toggle multi-select'],
             ['1-9 (then Enter)', 'Open by number(s) — e.g. "foo 1,3-5"'],
-            ['Ctrl+N', 'Open New Bookmark dialog for current page'],
             ['Ctrl+`', 'Cycle through profiles'],
             ['Ctrl+/', 'Toggle palette (outside palette)'],
             ['F1', 'Show this cheatsheet'],
@@ -1264,12 +1266,6 @@
                 e.preventDefault();
                 if (cheatsheetVisible()) hideCheatsheet();
                 else showCheatsheet();
-                return;
-            }
-            if (e.key === 'n' && e.ctrlKey && !e.shiftKey && !e.altKey) {
-                e.preventDefault();
-                openNewBookmarkDialog(getActiveProfile());
-                close();
                 return;
             }
 

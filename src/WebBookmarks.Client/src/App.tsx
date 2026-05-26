@@ -64,6 +64,7 @@ export default function App() {
         return localStorage.getItem('startupMode') === 'prompt';
     });
     const promptShown = useRef(false);
+    const skipStartupOverlay = useRef(false);
     const bookmarkInputRef = useRef<HTMLInputElement>(null);
     const [modalOpen, setModalOpen] = useState(false);
     const [editingBookmark, setEditingBookmark] = useState<WebBookmarksItem | null>(null);
@@ -186,6 +187,10 @@ export default function App() {
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         if (params.get('new') !== '1') return;
+        skipStartupOverlay.current = true;
+        promptShown.current = true; // suppress startup prompt/palette
+        setPromptActive(false);
+        setStartupPaletteHiding(false);
         const url = params.get('url') || '';
         const name = params.get('name') || '';
         const description = params.get('desc') || '';
@@ -372,6 +377,7 @@ export default function App() {
     useEffect(() => {
         if (bookmarks.length > 0 && !promptShown.current) {
             promptShown.current = true;
+            if (skipStartupOverlay.current) return;
             if (startupMode === 'prompt') {
                 showPromptLoop();
             } else if (startupMode === 'palette') {

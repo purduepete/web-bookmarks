@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      4.8.2
+// @version      4.8.3
 // @description  Press Ctrl+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
@@ -1192,6 +1192,7 @@
             ['* <query>', 'Search favorites only'],
         ];
         function showCheatsheet() {
+            setTimeout(() => input.focus(), 0);
             if (cheatsheetEl) {
                 cheatsheetEl.style.display = 'flex';
                 return;

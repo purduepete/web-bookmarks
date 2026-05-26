@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      4.7.1
+// @version      4.8
 // @description  Press Ctrl+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
@@ -590,6 +590,13 @@
         });
         entries.push({
             kind: 'action',
+            label: 'Copy as Markdown link',
+            secondary: 'of highlighted bookmark',
+            alias: 'copy markdown clipboard link',
+            action: 'copy-markdown',
+        });
+        entries.push({
+            kind: 'action',
             label: 'Keyboard Shortcuts',
             secondary: 'press F1',
             alias: 'help ? shortcuts',
@@ -633,6 +640,7 @@
         let query = '';
         let activeIndex = 0;
         let multiSelected = new Set();
+        let lastBookmark = null;
 
         // ── DOM ──
         const backdrop = document.createElement('div');
@@ -937,6 +945,7 @@
             // Preview
             const entry = filtered[activeIndex];
             if (entry?.kind === 'bookmark' && entry.bookmark) {
+                lastBookmark = entry.bookmark;
                 var previewUrl = entry.bookmark.url;
                 if (entry.bookmark.urls) {
                     var pq = query.trim();
@@ -1002,6 +1011,15 @@
                 close();
             } else if (entry.kind === 'action' && entry.action === 'cheatsheet') {
                 showCheatsheet();
+            } else if (entry.kind === 'action' && entry.action === 'copy-markdown') {
+                if (!lastBookmark) {
+                    showToast('Highlight a bookmark first');
+                    return;
+                }
+                const bm = lastBookmark;
+                copyText('[' + (bm.name || '') + '](' + bm.url + ')').then((ok) =>
+                    showToast(ok ? 'Copied: ' + (bm.name || '') : 'Copy failed'),
+                );
             } else if (entry.kind === 'action' && entry.action === 'remove-paywall') {
                 window.location.href = 'https://removepaywalls.com/' + window.location.href;
                 close();
@@ -1161,8 +1179,6 @@
             ['Ctrl+Enter', 'Open in new tab'],
             ['Ctrl+Space', 'Toggle multi-select'],
             ['1-9 (then Enter)', 'Open by number(s) — e.g. "foo 1,3-5"'],
-            ['Ctrl+C', 'Copy URL of selected entry'],
-            ['Ctrl+Shift+C', 'Copy as Markdown link'],
             ['Ctrl+N', 'Open New Bookmark dialog for current page'],
             ['Ctrl+`', 'Cycle through profiles'],
             ['Ctrl+/', 'Toggle palette (outside palette)'],
@@ -1249,23 +1265,6 @@
                 if (cheatsheetVisible()) hideCheatsheet();
                 else showCheatsheet();
                 return;
-            }
-            if (e.key === 'c' && e.ctrlKey && !e.altKey) {
-                const { filtered } = getFiltered();
-                const entry = filtered[activeIndex];
-                if (entry && entry.kind === 'bookmark' && entry.bookmark) {
-                    e.preventDefault();
-                    const url = entry.bookmark.url;
-                    const name = entry.bookmark.name || '';
-                    if (e.shiftKey) {
-                        copyText('[' + name + '](' + url + ')').then((ok) =>
-                            showToast(ok ? 'Copied markdown link' : 'Copy failed'),
-                        );
-                    } else {
-                        copyText(url).then((ok) => showToast(ok ? 'Copied URL' : 'Copy failed'));
-                    }
-                    return;
-                }
             }
             if (e.key === 'n' && e.ctrlKey && !e.shiftKey && !e.altKey) {
                 e.preventDefault();

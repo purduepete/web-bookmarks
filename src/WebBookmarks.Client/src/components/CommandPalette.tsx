@@ -118,6 +118,7 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
     const [toast, setToast] = useState<string | null>(null);
     const toastTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const [cheatsheetOpen, setCheatsheetOpen] = useState(false);
+    const lastBookmarkRef = useRef<WebBookmarksItem | null>(null);
     const showToast = useCallback((msg: string) => {
         setToast(msg);
         if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
@@ -180,6 +181,7 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
         entries.push({ kind: 'action', label: 'Import Bookmarks', secondary: '', alias: '', action: 'import' });
         entries.push({ kind: 'action', label: 'Bulk Edit', secondary: '', alias: '', action: 'bulk-edit' });
         entries.push({ kind: 'action', label: 'Reload Bookmarks', secondary: '', alias: '', action: 'reload' });
+        entries.push({ kind: 'action', label: 'Copy as Markdown link', secondary: 'of highlighted bookmark', alias: 'copy markdown clipboard link', action: 'copy-markdown' });
         entries.push({ kind: 'action', label: 'Keyboard Shortcuts', secondary: 'press F1', alias: 'help shortcuts cheatsheet', action: 'cheatsheet' });
         if (isPaletteMode) {
             entries.push({ kind: 'action', label: 'Show Landing', secondary: '', alias: '', action: 'show-landing' });
@@ -319,7 +321,12 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
         if (!container) return;
         const item = container.children[activeIndex] as HTMLElement | undefined;
         item?.scrollIntoView({ block: 'nearest' });
-    }, [activeIndex]);
+        // Track most-recently-highlighted bookmark so the Copy-as-Markdown action knows what to copy
+        const entry = filtered[activeIndex];
+        if (entry?.kind === 'bookmark' && entry.bookmark) {
+            lastBookmarkRef.current = entry.bookmark;
+        }
+    }, [activeIndex, filtered]);
 
     const activateEntry = useCallback(
         (entry: PaletteEntry, fromSubmit = false, newTabArg = false) => {
@@ -334,6 +341,17 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
                 }
                 if (entry.action === 'cheatsheet') {
                     setCheatsheetOpen(true);
+                    return;
+                }
+                if (entry.action === 'copy-markdown') {
+                    const bm = lastBookmarkRef.current;
+                    if (!bm) {
+                        showToast('Highlight a bookmark first');
+                        return;
+                    }
+                    void copyText(`[${bm.name}](${bm.url})`).then((ok) =>
+                        showToast(ok ? `Copied: ${bm.name}` : 'Copy failed'),
+                    );
                     return;
                 }
                 onAction(entry.action, entry.actionPayload);
@@ -472,27 +490,6 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
                 setCheatsheetOpen((v) => !v);
                 return;
             }
-            // Copy URL / Copy as Markdown for the active entry
-            if (e.key === 'c' && e.ctrlKey && !e.altKey) {
-                const entry = displayList[activeIndex];
-                if (!entry) return;
-                let url = '';
-                let name = '';
-                if (entry.kind === 'bookmark' && entry.bookmark) {
-                    url = entry.bookmark.url;
-                    name = entry.bookmark.name;
-                }
-                if (!url) return;
-                e.preventDefault();
-                if (e.shiftKey) {
-                    void copyText(`[${name}](${url})`).then((ok) =>
-                        showToast(ok ? 'Copied markdown link' : 'Copy failed'),
-                    );
-                } else {
-                    void copyText(url).then((ok) => showToast(ok ? 'Copied URL' : 'Copy failed'));
-                }
-                return;
-            }
             if (e.key === 'ArrowDown' || (e.ctrlKey && e.key === 'j')) {
                 e.preventDefault();
                 setActiveIndex((i) => Math.min(i + 1, displayList.length - 1));
@@ -578,8 +575,6 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
         { keys: 'Ctrl+Enter', desc: 'Open in new tab' },
         { keys: 'Ctrl+Space', desc: 'Toggle multi-select' },
         { keys: '1-9 (then Enter)', desc: 'Open by number(s) — e.g. "foo 1,3-5"' },
-        { keys: 'Ctrl+C', desc: 'Copy URL of selected entry' },
-        { keys: 'Ctrl+Shift+C', desc: 'Copy as Markdown link' },
         { keys: 'Ctrl+`', desc: 'Cycle through profiles' },
         { keys: 'Ctrl+/', desc: 'Toggle palette (outside palette)' },
         { keys: 'F1', desc: 'Show this cheatsheet' },

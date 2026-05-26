@@ -65,6 +65,13 @@ export default function App() {
     });
     const promptShown = useRef(false);
     const skipStartupOverlay = useRef(false);
+    const [newBookmarkOnly, setNewBookmarkOnly] = useState(() => {
+        try {
+            return new URLSearchParams(window.location.search).get('new') === '1';
+        } catch {
+            return false;
+        }
+    });
     const bookmarkInputRef = useRef<HTMLInputElement>(null);
     const [modalOpen, setModalOpen] = useState(false);
     const [editingBookmark, setEditingBookmark] = useState<WebBookmarksItem | null>(null);
@@ -446,6 +453,7 @@ export default function App() {
         setModalOpen(false);
         setEditingBookmark(null);
         setPrefillData(null);
+        setNewBookmarkOnly(false);
         if (modalFromPaletteRef.current) {
             modalFromPaletteRef.current = false;
             setPaletteOpen(true);
@@ -456,6 +464,7 @@ export default function App() {
         setModalOpen(false);
         setEditingBookmark(null);
         setPrefillData(null);
+        setNewBookmarkOnly(false);
         loadBookmarks();
         if (modalFromPaletteRef.current) {
             modalFromPaletteRef.current = false;
@@ -531,7 +540,7 @@ export default function App() {
         <div className="app-body">
             <div className="header-spacer" />
 
-            <div id="colMain" style={startupPaletteHiding ? { display: 'none' } : undefined}>
+            <div id="colMain" style={(startupPaletteHiding || newBookmarkOnly) ? { display: 'none' } : undefined}>
                 {profiles.filter((p) => !disabledProfiles.has(p)).length > 1 && (
                     <div className="profile-tabs">
                         {profiles

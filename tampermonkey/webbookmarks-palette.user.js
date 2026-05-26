@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      4.1
+// @version      4.6
 // @description  Press Ctrl+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
@@ -330,6 +330,101 @@
         return d.innerHTML;
     }
 
+    // ── MRU ──────────────────────────────────────────────────
+    const MRU_LIMIT = 5;
+    const MRU_MAX_ENTRIES = 50;
+    function mruKey(profile) {
+        return 'mru_' + profile;
+    }
+    function getMru(profile) {
+        return GM_getValue(mruKey(profile), []) || [];
+    }
+    function recordMru(profile, id) {
+        if (!id) return;
+        const list = getMru(profile);
+        const idx = list.findIndex((e) => e.id === id);
+        const now = Date.now();
+        if (idx >= 0) {
+            list[idx].count += 1;
+            list[idx].ts = now;
+        } else {
+            list.push({ id, count: 1, ts: now });
+        }
+        list.sort((a, b) => b.ts - a.ts || b.count - a.count);
+        if (list.length > MRU_MAX_ENTRIES) list.length = MRU_MAX_ENTRIES;
+        GM_setValue(mruKey(profile), list);
+    }
+
+    // ── Google search ─────────────────────────────────────────
+    const GOOGLE_URL = 'https://www.google.com/search?q=';
+
+    // ── Clipboard ───────────────────────────────────────────────
+    function copyText(text) {
+        return new Promise((resolve) => {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(
+                    () => resolve(true),
+                    () => fallback(),
+                );
+            } else {
+                fallback();
+            }
+            function fallback() {
+                try {
+                    const ta = document.createElement('textarea');
+                    ta.value = text;
+                    ta.style.position = 'fixed';
+                    ta.style.opacity = '0';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    resolve(true);
+                } catch (_e) {
+                    resolve(false);
+                }
+            }
+        });
+    }
+
+    // ── Quick-add current page ────────────────────────────────────────────
+    function quickAddCurrentPage(profile) {
+        const item = {
+            name: (document.title || location.hostname).slice(0, 100),
+            shortcut: '',
+            description: '',
+            url: location.href,
+            urls: '',
+            isVisible: true,
+            bookmarkGroup: 'Quick Adds',
+            sortOrder: 0,
+            profile: profile,
+            isFavorite: false,
+        };
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method: 'POST',
+                url: API_BASE,
+                headers: { 'Content-Type': 'application/json' },
+                data: JSON.stringify(item),
+                onload(res) {
+                    if (res.status >= 200 && res.status < 300) {
+                        try {
+                            resolve(JSON.parse(res.responseText));
+                        } catch (e) {
+                            resolve(item);
+                        }
+                    } else {
+                        reject(new Error('HTTP ' + res.status));
+                    }
+                },
+                onerror(e) {
+                    reject(e);
+                },
+            });
+        });
+    }
+
     function openUrls(items, newTab) {
         if (items.length === 0) return;
         if (newTab) {
@@ -455,6 +550,28 @@
 
     function buildEntries(groups, profiles) {
         const entries = [];
+        // Recents (only visible when query is empty; getFiltered strips them otherwise)
+        {
+            const profile = getActiveProfile();
+            const mru = getMru(profile);
+            const bmById = new Map();
+            for (const g of groups) for (const b of g.items) bmById.set(b.id, b);
+            let added = 0;
+            for (const m of mru) {
+                const b = bmById.get(m.id);
+                if (!b) continue;
+                entries.push({
+                    kind: 'bookmark',
+                    label: b.name || '',
+                    secondary: b.bookmarkGroup || '',
+                    alias: b.shortcut || '',
+                    bookmark: b,
+                    isRecent: true,
+                });
+                added++;
+                if (added >= MRU_LIMIT) break;
+            }
+        }
         for (const g of groups) {
             entries.push({
                 kind: 'group',
@@ -478,6 +595,13 @@
         // Actions (at the bottom)
         entries.push({
             kind: 'action',
+            label: 'Add Current Page',
+            secondary: (document.title || location.hostname).slice(0, 60),
+            alias: 'add new save +',
+            action: 'quick-add',
+        });
+        entries.push({
+            kind: 'action',
             label: 'Remove Paywall',
             secondary: '',
             alias: '',
@@ -489,6 +613,13 @@
             secondary: '',
             alias: '',
             action: 'reload',
+        });
+        entries.push({
+            kind: 'action',
+            label: 'Keyboard Shortcuts',
+            secondary: 'press F1',
+            alias: 'help ? shortcuts',
+            action: 'cheatsheet',
         });
         if (profiles && profiles.length > 1) {
             const current = getActiveProfile();
@@ -649,35 +780,55 @@
             const searchPart = match ? match[1] : query;
             const numberSelection = match ? parseNumberSelection(match[2]) : null;
             const q = searchPart.trim();
+            // Recents only show on empty query
+            const source = q ? allEntries.filter((e) => !e.isRecent) : allEntries;
             let filtered;
+            // Google explicit search: prefix "?"
+            if (q.startsWith('?')) {
+                const sub = q.slice(1).trim();
+                if (!sub) return { filtered: source, numberSelection };
+                return {
+                    filtered: [
+                        {
+                            kind: 'action',
+                            label: 'Search Google: ' + sub,
+                            secondary: 'Google',
+                            alias: '',
+                            action: 'google-search',
+                            actionPayload: sub,
+                        },
+                    ],
+                    numberSelection,
+                };
+            }
             if (q === '>') {
-                filtered = allEntries.filter((e) => e.kind === 'action');
+                filtered = source.filter((e) => e.kind === 'action');
             } else if (q === '/') {
-                filtered = allEntries.filter((e) => e.kind === 'bookmark');
+                filtered = source.filter((e) => e.kind === 'bookmark');
             } else if (q === '@') {
-                filtered = allEntries.filter((e) => e.kind === 'group');
+                filtered = source.filter((e) => e.kind === 'group');
             } else if (q === '*') {
-                filtered = allEntries.filter((e) => e.kind === 'bookmark' && e.bookmark && e.bookmark.isFavorite);
+                filtered = source.filter((e) => e.kind === 'bookmark' && e.bookmark && e.bookmark.isFavorite);
             } else if (q.startsWith('>')) {
                 const sub = q.slice(1).trim();
-                filtered = allEntries.filter(
+                filtered = source.filter(
                     (e) => e.kind === 'action' && (wildcardMatch(e.label, sub) || wildcardMatch(e.secondary, sub)),
                 );
             } else if (q.startsWith('/')) {
                 const sub = q.slice(1).trim();
-                filtered = allEntries.filter(
+                filtered = source.filter(
                     (e) =>
                         e.kind === 'bookmark' &&
                         (wildcardMatch(e.label, sub) || wildcardMatch(e.secondary, sub) || wildcardMatch(e.alias, sub)),
                 );
             } else if (q.startsWith('@')) {
                 const sub = q.slice(1).trim();
-                filtered = allEntries.filter(
+                filtered = source.filter(
                     (e) => e.kind === 'group' && (wildcardMatch(e.label, sub) || wildcardMatch(e.secondary, sub)),
                 );
             } else if (q.startsWith('*')) {
                 const sub = q.slice(1).trim();
-                filtered = allEntries.filter(
+                filtered = source.filter(
                     (e) =>
                         e.kind === 'bookmark' &&
                         e.bookmark &&
@@ -686,16 +837,16 @@
                 );
             } else {
                 filtered = q
-                    ? allEntries.filter(
+                    ? source.filter(
                           (e) =>
                               wildcardMatch(e.label, q) || wildcardMatch(e.secondary, q) || wildcardMatch(e.alias, q),
                       )
-                    : allEntries;
+                    : source;
                 // Also include bookmarks with search URLs when the first word matches alias or name (e.g. "g hello world", "seek msft")
                 if (q && q.includes(' ')) {
                     var shortcutPart = q.split(/\s+/)[0].toLowerCase();
-                    for (var ei = 0; ei < allEntries.length; ei++) {
-                        var ent = allEntries[ei];
+                    for (var ei = 0; ei < source.length; ei++) {
+                        var ent = source[ei];
                         if (
                             ent.kind === 'bookmark' &&
                             ent.bookmark &&
@@ -708,6 +859,19 @@
                         }
                     }
                 }
+            }
+            // Google fallback when nothing matched
+            if (q && filtered.length === 0) {
+                filtered = [
+                    {
+                        kind: 'action',
+                        label: 'Search Google: ' + q,
+                        secondary: 'No bookmark matches \u2014 search the web',
+                        alias: '',
+                        action: 'google-search',
+                        actionPayload: q,
+                    },
+                ];
             }
             return { filtered, numberSelection };
         }
@@ -824,7 +988,9 @@
         }
 
         function activateEntry(entry, newTab) {
+            const currentProfile = getActiveProfile();
             if (entry.kind === 'group' && entry.group) {
+                for (const b of entry.group.items) recordMru(currentProfile, b.id);
                 openUrls(
                     entry.group.items.map((b) => ({ name: b.name, url: b.url })),
                     newTab,
@@ -845,12 +1011,34 @@
                         targetUrl = entry.bookmark.urls.replace('{q}', encodeURIComponent(bparts.slice(1).join(' ')));
                     }
                 }
+                recordMru(currentProfile, entry.bookmark.id);
                 if (newTab) {
                     GM_openInTab(targetUrl, { active: true, insert: true });
                 } else {
                     window.location.href = targetUrl;
                 }
                 if (!newTab) close();
+            } else if (entry.kind === 'action' && entry.action === 'google-search') {
+                const u = GOOGLE_URL + encodeURIComponent(entry.actionPayload || '');
+                if (newTab) GM_openInTab(u, { active: true, insert: true });
+                else window.location.href = u;
+                if (!newTab) close();
+            } else if (entry.kind === 'action' && entry.action === 'quick-add') {
+                showToast('Saving…');
+                quickAddCurrentPage(currentProfile)
+                    .then((saved) => {
+                        showToast('Saved to ' + currentProfile + ' / Quick Adds');
+                        // Invalidate cache so next palette open reflects the new bookmark
+                        cachedGroups = null;
+                        cachedProfile = null;
+                        lastFetch = 0;
+                    })
+                    .catch((err) => {
+                        console.error('[WebBookmarks] Quick-add failed:', err);
+                        showToast('Save failed: ' + (err && err.message ? err.message : 'unknown'));
+                    });
+            } else if (entry.kind === 'action' && entry.action === 'cheatsheet') {
+                showCheatsheet();
             } else if (entry.kind === 'action' && entry.action === 'remove-paywall') {
                 window.location.href = 'https://removepaywalls.com/' + window.location.href;
                 close();
@@ -901,10 +1089,12 @@
         }
 
         function openByNumbers(filtered, bookmarkNumbers, nums, newTab) {
+            const currentProfile = getActiveProfile();
             const toOpen = [];
             for (const [idx, seq] of bookmarkNumbers) {
                 if (nums.has(seq) && filtered[idx]?.bookmark) {
                     const bm = filtered[idx].bookmark;
+                    recordMru(currentProfile, bm.id);
                     toOpen.push({ name: bm.name, url: bm.url });
                 }
             }
@@ -922,13 +1112,18 @@
         }
 
         function openMultiSelected(filtered, newTab) {
+            const currentProfile = getActiveProfile();
             const toOpen = [];
             for (const idx of multiSelected) {
                 const entry = filtered[idx];
                 if (entry?.kind === 'bookmark' && entry.bookmark) {
+                    recordMru(currentProfile, entry.bookmark.id);
                     toOpen.push({ name: entry.bookmark.name, url: entry.bookmark.url });
                 } else if (entry?.kind === 'group' && entry.group) {
-                    for (const b of entry.group.items) toOpen.push({ name: b.name, url: b.url });
+                    for (const b of entry.group.items) {
+                        recordMru(currentProfile, b.id);
+                        toOpen.push({ name: b.name, url: b.url });
+                    }
                 }
             }
             if (toOpen.length > 0) {
@@ -961,6 +1156,108 @@
             paletteOpen = false;
         }
 
+        // ── Toast ──
+        let toastEl = null;
+        let toastTimer = null;
+        function showToast(msg) {
+            if (!toastEl) {
+                toastEl = document.createElement('div');
+                toastEl.style.cssText = [
+                    'position:absolute',
+                    'bottom:60px',
+                    'left:50%',
+                    'transform:translateX(-50%)',
+                    'background:#1e293b',
+                    'color:#e0e6ed',
+                    'padding:8px 14px',
+                    'border-radius:4px',
+                    'font-size:13px',
+                    'box-shadow:0 4px 12px rgba(0,0,0,0.5)',
+                    'border:1px solid #334155',
+                    'z-index:20',
+                    'pointer-events:none',
+                ].join(';');
+                container.style.position = 'relative';
+                container.appendChild(toastEl);
+            }
+            toastEl.textContent = msg;
+            toastEl.style.display = 'block';
+            if (toastTimer) clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                if (toastEl) toastEl.style.display = 'none';
+            }, 1800);
+        }
+
+        // ── Cheatsheet ──
+        let cheatsheetEl = null;
+        const cheatsheetItems = [
+            ['↑ ↓', 'Navigate'],
+            ['→', 'Expand selected group'],
+            ['← / Esc', 'Back / clear / close'],
+            ['Enter', 'Open'],
+            ['Ctrl+Enter', 'Open in new tab'],
+            ['Ctrl+Space', 'Toggle multi-select'],
+            ['1-9 (then Enter)', 'Open by number(s) — e.g. "foo 1,3-5"'],
+            ['Ctrl+C', 'Copy URL of selected entry'],
+            ['Ctrl+Shift+C', 'Copy as Markdown link'],
+            ['Ctrl+N', 'Quick-add current page'],
+            ['Ctrl+`', 'Cycle through profiles'],
+            ['Ctrl+/', 'Toggle palette (outside palette)'],
+            ['F1', 'Show this cheatsheet'],
+            ['? <query>', 'Search Google'],
+            ['> <query>', 'Search actions only'],
+            ['/ <query>', 'Search bookmarks only'],
+            ['@ <query>', 'Search groups only'],
+            ['* <query>', 'Search favorites only'],
+        ];
+        function showCheatsheet() {
+            if (cheatsheetEl) {
+                cheatsheetEl.style.display = 'flex';
+                return;
+            }
+            cheatsheetEl = document.createElement('div');
+            cheatsheetEl.style.cssText = [
+                'position:absolute',
+                'inset:0',
+                'background:rgba(2,6,23,0.96)',
+                'z-index:10',
+                'padding:20px 24px',
+                'overflow-y:auto',
+                'display:flex',
+                'flex-direction:column',
+                'gap:12px',
+            ].join(';');
+            const header = document.createElement('div');
+            header.style.cssText =
+                'display:flex;justify-content:space-between;align-items:center;color:#e0e6ed;font-size:14px;font-weight:600';
+            header.innerHTML =
+                '<span>Keyboard Shortcuts</span><span style="color:#64748b;font-size:12px">Click anywhere or press Esc to close</span>';
+            cheatsheetEl.appendChild(header);
+            const grid = document.createElement('div');
+            grid.style.cssText =
+                'display:grid;grid-template-columns:220px 1fr;row-gap:6px;column-gap:16px;font-size:13px';
+            for (const [k, d] of cheatsheetItems) {
+                const a = document.createElement('div');
+                a.style.cssText = 'color:#94a3b8;font-family:monospace';
+                a.textContent = k;
+                const b = document.createElement('div');
+                b.style.cssText = 'color:#b2bac2';
+                b.textContent = d;
+                grid.appendChild(a);
+                grid.appendChild(b);
+            }
+            cheatsheetEl.appendChild(grid);
+            cheatsheetEl.addEventListener('click', hideCheatsheet);
+            container.style.position = 'relative';
+            container.appendChild(cheatsheetEl);
+        }
+        function hideCheatsheet() {
+            if (cheatsheetEl) cheatsheetEl.style.display = 'none';
+        }
+        function cheatsheetVisible() {
+            return cheatsheetEl && cheatsheetEl.style.display !== 'none';
+        }
+
         // ── Events ──
         backdrop.addEventListener('mousedown', (e) => {
             if (e.target === backdrop) close();
@@ -977,7 +1274,50 @@
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 e.preventDefault();
+                if (cheatsheetVisible()) {
+                    hideCheatsheet();
+                    return;
+                }
                 close();
+                return;
+            }
+            if (e.key === 'F1') {
+                e.preventDefault();
+                if (cheatsheetVisible()) hideCheatsheet();
+                else showCheatsheet();
+                return;
+            }
+            if (e.key === 'c' && e.ctrlKey && !e.altKey) {
+                const { filtered } = getFiltered();
+                const entry = filtered[activeIndex];
+                if (entry && entry.kind === 'bookmark' && entry.bookmark) {
+                    e.preventDefault();
+                    const url = entry.bookmark.url;
+                    const name = entry.bookmark.name || '';
+                    if (e.shiftKey) {
+                        copyText('[' + name + '](' + url + ')').then((ok) =>
+                            showToast(ok ? 'Copied markdown link' : 'Copy failed'),
+                        );
+                    } else {
+                        copyText(url).then((ok) => showToast(ok ? 'Copied URL' : 'Copy failed'));
+                    }
+                    return;
+                }
+            }
+            if (e.key === 'n' && e.ctrlKey && !e.shiftKey && !e.altKey) {
+                e.preventDefault();
+                showToast('Saving\u2026');
+                quickAddCurrentPage(getActiveProfile())
+                    .then(() => {
+                        showToast('Saved to ' + getActiveProfile() + ' / Quick Adds');
+                        cachedGroups = null;
+                        cachedProfile = null;
+                        lastFetch = 0;
+                    })
+                    .catch((err) => {
+                        console.error('[WebBookmarks] Quick-add failed:', err);
+                        showToast('Save failed: ' + (err && err.message ? err.message : 'unknown'));
+                    });
                 return;
             }
 
@@ -1025,6 +1365,31 @@
                 if (multiSelected.has(activeIndex)) multiSelected.delete(activeIndex);
                 else multiSelected.add(activeIndex);
                 render();
+                return;
+            }
+            if (e.key === '`' && e.ctrlKey) {
+                const disabled = getDisabledProfiles();
+                const visible = (profiles || []).filter((p) => p !== 'all' && !disabled.has(p));
+                if (visible.length < 2) return;
+                e.preventDefault();
+                const current = getActiveProfile();
+                const idx = visible.indexOf(current);
+                const delta = e.shiftKey ? -1 : 1;
+                const nextProfile = visible[(idx + delta + visible.length) % visible.length];
+                setActiveProfile(nextProfile);
+                getGroups()
+                    .then((newGroups) => {
+                        allEntries = buildEntries(newGroups, profiles);
+                        query = '';
+                        input.value = '';
+                        activeIndex = 0;
+                        multiSelected = new Set();
+                        renderTabs();
+                        render();
+                    })
+                    .catch((err) => {
+                        console.error('[WebBookmarks] Failed to switch profile:', err);
+                    });
                 return;
             }
             if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {

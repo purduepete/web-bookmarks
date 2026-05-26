@@ -136,7 +136,19 @@ export default function App() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [optionsOpen]);
 
-    // Ctrl+/ opens command palette
+    // Ctrl+/ opens command palette; Ctrl+` cycles profiles
+    const profilesRef = useRef(profiles);
+    const disabledProfilesRef = useRef(disabledProfiles);
+    const activeProfileRef = useRef(activeProfile);
+    useEffect(() => {
+        profilesRef.current = profiles;
+    }, [profiles]);
+    useEffect(() => {
+        disabledProfilesRef.current = disabledProfiles;
+    }, [disabledProfiles]);
+    useEffect(() => {
+        activeProfileRef.current = activeProfile;
+    }, [activeProfile]);
     useEffect(() => {
         const handleGlobalKeyDown = (e: KeyboardEvent) => {
             if (e.key === '/' && (e.ctrlKey || e.metaKey)) {
@@ -151,6 +163,18 @@ export default function App() {
                         return !v;
                     });
                 }
+                return;
+            }
+            if (e.key === '`' && e.ctrlKey) {
+                const visible = profilesRef.current.filter((p) => p !== 'all' && !disabledProfilesRef.current.has(p));
+                if (visible.length < 2) return;
+                e.preventDefault();
+                const idx = visible.indexOf(activeProfileRef.current);
+                const delta = e.shiftKey ? -1 : 1;
+                const next = visible[(idx + delta + visible.length) % visible.length];
+                activeProfileRef.current = next;
+                setActiveProfile(next);
+                localStorage.setItem('activeProfile', next);
             }
         };
         document.addEventListener('keydown', handleGlobalKeyDown);

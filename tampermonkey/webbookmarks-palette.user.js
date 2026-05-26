@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      4.8.3
+// @version      4.8.4
 // @description  Press Ctrl+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
@@ -1174,6 +1174,15 @@
 
         // ── Cheatsheet ──
         let cheatsheetEl = null;
+        const cheatsheetKeyHandler = (e) => {
+            if (!cheatsheetVisible()) return;
+            if (e.key === 'Escape' || e.key === 'F1') {
+                e.preventDefault();
+                e.stopPropagation();
+                hideCheatsheet();
+                setTimeout(() => input.focus(), 0);
+            }
+        };
         const cheatsheetItems = [
             ['↑ ↓', 'Navigate'],
             ['→', 'Expand selected group'],
@@ -1192,6 +1201,7 @@
             ['* <query>', 'Search favorites only'],
         ];
         function showCheatsheet() {
+            document.addEventListener('keydown', cheatsheetKeyHandler, true);
             setTimeout(() => input.focus(), 0);
             if (cheatsheetEl) {
                 cheatsheetEl.style.display = 'flex';
@@ -1235,6 +1245,7 @@
             container.appendChild(cheatsheetEl);
         }
         function hideCheatsheet() {
+            document.removeEventListener('keydown', cheatsheetKeyHandler, true);
             if (cheatsheetEl) cheatsheetEl.style.display = 'none';
             container.style.minHeight = '';
         }

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      4.9.11
+// @version      4.9.12
 // @description  Press Ctrl+Alt+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
@@ -865,7 +865,9 @@
                             e.kind === 'bookmark' &&
                             e.bookmark &&
                             e.bookmark.isFavorite &&
-                            (wildcardMatch(e.label, sub) || wildcardMatch(e.secondary, sub) || wildcardMatch(e.alias, sub)),
+                            (wildcardMatch(e.label, sub) ||
+                                wildcardMatch(e.secondary, sub) ||
+                                wildcardMatch(e.alias, sub)),
                     )
                     .sort((a, b) => a.label.localeCompare(b.label));
             } else {
@@ -1286,13 +1288,14 @@
             cheatsheetEl.appendChild(header);
             const grid = document.createElement('div');
             grid.style.cssText =
-                'display:grid;grid-template-columns:220px 1fr;row-gap:6px;column-gap:16px;font-size:13px';
+                'display:grid;grid-template-columns:220px 1fr;row-gap:6px;column-gap:16px;font-size:13px;align-items:baseline';
             for (const [k, d] of cheatsheetItems) {
                 const a = document.createElement('div');
-                a.style.cssText = 'color:#94a3b8;font-family:monospace';
+                a.style.cssText =
+                    'margin:0;padding:0;line-height:1.5;color:#94a3b8;font-family:monospace;font-size:13px;text-align:left;white-space:nowrap';
                 a.textContent = k;
                 const b = document.createElement('div');
-                b.style.cssText = 'color:#b2bac2';
+                b.style.cssText = 'margin:0;padding:0;line-height:1.5;color:#b2bac2;font-size:13px;text-align:left';
                 b.textContent = d;
                 grid.appendChild(a);
                 grid.appendChild(b);

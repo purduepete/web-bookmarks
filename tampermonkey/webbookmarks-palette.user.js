@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      4.9.2
-// @description  Press Ctrl+/ on any page to open the WebBookmarks command palette
+// @version      4.9.3
+// @description  Press Ctrl+Alt+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
 // @exclude      https://192.168.50.100:3000/*
@@ -231,6 +231,7 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            text-align: center;
             font-size: 11px;
             color: #3b82f6;
             margin-bottom: 4px;
@@ -1228,7 +1229,7 @@
             ['Ctrl+Space', 'Toggle multi-select'],
             ['#1-9 (then Enter)', 'Open by number(s) — e.g. "#1,3-5" or "git #2"'],
             ['Ctrl+`', 'Cycle through profiles'],
-            ['Ctrl+/', 'Toggle palette (outside palette)'],
+            ['Ctrl+Alt+/', 'Toggle palette (outside palette)'],
             ['F1', 'Show this cheatsheet'],
             ['? <query>', 'Search Google'],
             ['> <query>', 'Search actions only'],
@@ -1428,16 +1429,16 @@
         };
     }
 
-    // ── Global hotkey: Ctrl + / (toggle) ───────────────
+    // ── Global hotkey: Ctrl + Alt + / (toggle) ───────────────
     document.addEventListener(
         'keydown',
         async (e) => {
             const isSlash = e.code === 'Slash' || e.key === '/' || e.key === '\u00F7';
-            if (e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey && isSlash) {
+            if (e.ctrlKey && e.altKey && !e.shiftKey && !e.metaKey && isSlash) {
                 e.preventDefault();
                 e.stopImmediatePropagation();
                 if (paletteOpen) {
-                    // Close palette on second Ctrl+/
+                    // Close palette on second Ctrl+Alt+/
                     const backdrop = document.querySelector('.wbp-backdrop');
                     if (backdrop) backdrop.remove();
                     paletteOpen = false;

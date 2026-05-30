@@ -204,7 +204,13 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
             },
         ];
         if (isPaletteMode) {
-            actions.push({ kind: 'action', label: 'Open Landing Page', secondary: '', alias: '', action: 'show-landing' });
+            actions.push({
+                kind: 'action',
+                label: 'Open Landing Page',
+                secondary: '',
+                alias: '',
+                action: 'show-landing',
+            });
         }
         actions.sort((a, b) => a.label.localeCompare(b.label));
         entries.push(...actions);

@@ -14,8 +14,9 @@ env:
     API_APP_NAME: webbookmarksapi
 
 jobs:
-    build-api:
+    deploy-api:
         runs-on: ubuntu-latest
+        environment: production
         steps:
             - uses: actions/checkout@v4
 
@@ -26,45 +27,6 @@ jobs:
 
             - name: Restore & Build API
               run: dotnet publish src/WebBookmarks.Api/WebBookmarks.Api.csproj -c Release -o ./api-publish
-
-            - name: Upload API artifact
-              uses: actions/upload-artifact@v4
-              with:
-                  name: api
-                  path: ./api-publish
-
-    build-client:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4
-
-            - name: Setup Node.js
-              uses: actions/setup-node@v4
-              with:
-                  node-version: '20'
-
-            - name: Install & Build Client
-              working-directory: src/WebBookmarks.Client
-              run: |
-                  npm ci
-                  npm run build
-
-            - name: Upload Client artifact
-              uses: actions/upload-artifact@v4
-              with:
-                  name: client
-                  path: src/WebBookmarks.Client/dist
-
-    deploy-api:
-        needs: build-api
-        runs-on: ubuntu-latest
-        environment: production
-        steps:
-            - name: Download API artifact
-              uses: actions/download-artifact@v4
-              with:
-                  name: api
-                  path: ./api-publish
 
             - name: Login to Azure
               uses: azure/login@v2
@@ -80,17 +42,21 @@ jobs:
                   package: ./api-publish
 
     deploy-client:
-        needs: build-client
         runs-on: ubuntu-latest
         environment: production
         steps:
             - uses: actions/checkout@v4
 
-            - name: Download Client artifact
-              uses: actions/download-artifact@v4
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
               with:
-                  name: client
-                  path: src/WebBookmarks.Client/dist
+                  node-version: '20'
+
+            - name: Install & Build Client
+              working-directory: src/WebBookmarks.Client
+              run: |
+                  npm ci
+                  npm run build
 
             - name: Deploy to Static Web Apps
               uses: Azure/static-web-apps-deploy@v1

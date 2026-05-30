@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      4.9.10
+// @version      4.9.11
 // @description  Press Ctrl+Alt+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
@@ -1081,8 +1081,9 @@
                 window.location.href = 'https://removepaywalls.com/' + window.location.href;
                 close();
             } else if (entry.kind === 'action' && entry.action === 'open-landing') {
-                if (newTab) GM_openInTab(APP_URL, { active: true, insert: true });
-                else window.location.href = APP_URL;
+                const landingUrl = APP_URL + '?landing=1';
+                if (newTab) GM_openInTab(landingUrl, { active: true, insert: true });
+                else window.location.href = landingUrl;
                 if (!newTab) close();
             } else if (entry.kind === 'action' && entry.action === 'reload') {
                 cachedGroups = null;

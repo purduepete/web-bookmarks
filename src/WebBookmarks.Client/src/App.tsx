@@ -57,12 +57,21 @@ export default function App() {
     const [error, setError] = useState<string | null>(null);
 
     const [searchFilter, setSearchFilter] = useState('');
+    const forceLanding = (() => {
+        try {
+            return new URLSearchParams(window.location.search).get('landing') === '1';
+        } catch {
+            return false;
+        }
+    })();
     const [startupMode, setStartupMode] = useState<'none' | 'prompt' | 'palette'>(() => {
+        if (forceLanding) return 'none';
         const saved = localStorage.getItem('startupMode');
         if (saved === 'prompt' || saved === 'palette') return saved;
         return 'none';
     });
     const [promptActive, setPromptActive] = useState(() => {
+        if (forceLanding) return false;
         return localStorage.getItem('startupMode') === 'prompt';
     });
     const [promptModalOpen, setPromptModalOpen] = useState(false);
@@ -89,6 +98,7 @@ export default function App() {
     const [bulkEditOpen, setBulkEditOpen] = useState(false);
     const modalFromPaletteRef = useRef(false);
     const [startupPaletteHiding, setStartupPaletteHiding] = useState(() => {
+        if (forceLanding) return false;
         const saved = localStorage.getItem('startupMode');
         return saved === 'palette';
     });

@@ -176,40 +176,44 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
                 });
             }
         }
-        // Actions (at the bottom)
-        entries.push({
-            kind: 'action',
-            label: 'New Bookmark',
-            secondary: '',
-            alias: 'add new +',
-            action: 'new-bookmark',
-        });
-        entries.push({ kind: 'action', label: 'Import Bookmarks', secondary: '', alias: '', action: 'import' });
-        entries.push({ kind: 'action', label: 'Bulk Edit', secondary: '', alias: '', action: 'bulk-edit' });
-        entries.push({ kind: 'action', label: 'Reload Bookmarks', secondary: '', alias: '', action: 'reload' });
-        entries.push({
-            kind: 'action',
-            label: 'Copy as Markdown link',
-            secondary: 'of highlighted bookmark',
-            alias: 'copy',
-            action: 'copy-markdown',
-        });
-        entries.push({
-            kind: 'action',
-            label: 'Keyboard Shortcuts',
-            secondary: 'press F1',
-            alias: 'help shortcuts cheatsheet',
-            action: 'cheatsheet',
-        });
+        // Actions (at the bottom, sorted alphabetically by label)
+        const actions: PaletteEntry[] = [
+            {
+                kind: 'action',
+                label: 'New Bookmark',
+                secondary: '',
+                alias: 'add new +',
+                action: 'new-bookmark',
+            },
+            { kind: 'action', label: 'Import Bookmarks', secondary: '', alias: '', action: 'import' },
+            { kind: 'action', label: 'Bulk Edit', secondary: '', alias: '', action: 'bulk-edit' },
+            { kind: 'action', label: 'Reload Bookmarks', secondary: '', alias: '', action: 'reload' },
+            {
+                kind: 'action',
+                label: 'Copy as Markdown link',
+                secondary: 'of highlighted bookmark',
+                alias: 'copy',
+                action: 'copy-markdown',
+            },
+            {
+                kind: 'action',
+                label: 'Keyboard Shortcuts',
+                secondary: 'press F1',
+                alias: 'help shortcuts cheatsheet',
+                action: 'cheatsheet',
+            },
+        ];
         if (isPaletteMode) {
-            entries.push({ kind: 'action', label: 'Show Landing', secondary: '', alias: '', action: 'show-landing' });
+            actions.push({ kind: 'action', label: 'Open Landing Page', secondary: '', alias: '', action: 'show-landing' });
         }
+        actions.sort((a, b) => a.label.localeCompare(b.label));
+        entries.push(...actions);
         return entries;
     }, [groups, profiles, activeProfile, isPaletteMode]);
 
     // Detect if the query ends with " <numbers>" for number-selection mode
     const { searchPart, numberSelection } = useMemo(() => {
-        const match = query.match(/^(.*?)#([\d,\s\-]+)$/);
+        const match = query.match(/^(.*?)\s+([\d,\s\-]+)$/);
         if (match) {
             const sel = parseNumberSelection(match[2]);
             return { searchPart: match[1], numberSelection: sel };
@@ -240,7 +244,10 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
         if (q === '>') return source.filter((e) => e.kind === 'action');
         if (q === '/') return source.filter((e) => e.kind === 'bookmark');
         if (q === '@') return source.filter((e) => e.kind === 'group');
-        if (q === '*') return source.filter((e) => e.kind === 'bookmark' && e.bookmark?.isFavorite);
+        if (q === '*')
+            return source
+                .filter((e) => e.kind === 'bookmark' && e.bookmark?.isFavorite)
+                .sort((a, b) => a.label.localeCompare(b.label));
         let result: PaletteEntry[];
         if (q.startsWith('>')) {
             const sub = q.slice(1).trim();
@@ -261,12 +268,14 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
             );
         } else if (q.startsWith('*')) {
             const sub = q.slice(1).trim();
-            result = source.filter(
-                (e) =>
-                    e.kind === 'bookmark' &&
-                    e.bookmark?.isFavorite &&
-                    (wildcardMatch(e.label, sub) || wildcardMatch(e.secondary, sub) || wildcardMatch(e.alias, sub)),
-            );
+            result = source
+                .filter(
+                    (e) =>
+                        e.kind === 'bookmark' &&
+                        e.bookmark?.isFavorite &&
+                        (wildcardMatch(e.label, sub) || wildcardMatch(e.secondary, sub) || wildcardMatch(e.alias, sub)),
+                )
+                .sort((a, b) => a.label.localeCompare(b.label));
         } else {
             result = source.filter(
                 (e) => wildcardMatch(e.label, q) || wildcardMatch(e.secondary, q) || wildcardMatch(e.alias, q),
@@ -302,23 +311,19 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
         return result;
     }, [allEntries, searchPart]);
 
-    // Number bookmarks sequentially across the full filtered list, then — when a
-    // number selection is active — show only the matching bookmarks (preserving
-    // their original numbers so opening by number still resolves correctly).
-    const { displayList, bookmarkNumbers } = useMemo(() => {
+    const displayList = filtered;
+
+    // Sequential 1-based numbering for bookmarks in the display list
+    const bookmarkNumbers = useMemo(() => {
+        const map = new Map<number, number>();
         let seq = 1;
-        const withSeq = filtered.map((entry) => ({
-            entry,
-            seq: entry.kind === 'bookmark' ? seq++ : null,
-        }));
-        const visible = numberSelection ? withSeq.filter((x) => x.seq != null && numberSelection.has(x.seq)) : withSeq;
-        const list = visible.map((x) => x.entry);
-        const numbers = new Map<number, number>();
-        visible.forEach((x, i) => {
-            if (x.seq != null) numbers.set(i, x.seq);
-        });
-        return { displayList: list, bookmarkNumbers: numbers };
-    }, [filtered, numberSelection]);
+        for (let i = 0; i < displayList.length; i++) {
+            if (displayList[i].kind === 'bookmark') {
+                map.set(i, seq++);
+            }
+        }
+        return map;
+    }, [displayList]);
 
     // Reset active index and clear multi-select when list changes
     useEffect(() => {
@@ -597,7 +602,7 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
         { keys: 'Enter', desc: 'Open' },
         { keys: 'Ctrl+Enter', desc: 'Open in new tab' },
         { keys: 'Ctrl+Space', desc: 'Toggle multi-select' },
-        { keys: '#1-9 (then Enter)', desc: 'Open by number(s) — e.g. "#1,3-5" or "git #2"' },
+        { keys: '1-9 (then Enter)', desc: 'Open by number(s) — e.g. "foo 1,3-5"' },
         { keys: 'Ctrl+`', desc: 'Cycle through profiles' },
         { keys: 'Ctrl+/', desc: 'Toggle palette (outside palette)' },
         { keys: 'F1', desc: 'Show this cheatsheet' },
@@ -889,7 +894,7 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
                                 <kbd>Esc</kbd> {isPaletteMode ? 'clear' : 'close'}
                             </span>
                             <span>
-                                <kbd>#1-5</kbd> open by number
+                                <kbd>1-5</kbd> open by number
                             </span>
                         </div>
                     )}

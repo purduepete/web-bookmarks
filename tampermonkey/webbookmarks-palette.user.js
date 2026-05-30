@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      4.9.5
+// @version      4.9.10
 // @description  Press Ctrl+Alt+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
@@ -218,7 +218,7 @@
             max-width: 100%;
             overflow: hidden;
             text-overflow: ellipsis;
-            justify-self: center;
+            justify-self: end;
         }
         .wbp-item-alias-empty { background: none; }
         .wbp-divider {
@@ -614,42 +614,53 @@
                 });
             }
         }
-        // Actions (at the bottom)
-        entries.push({
-            kind: 'action',
-            label: 'Add Current Page…',
-            secondary: (document.title || location.hostname).slice(0, 60),
-            alias: 'add new save +',
-            action: 'new-bookmark',
-        });
-        entries.push({
-            kind: 'action',
-            label: 'Remove Paywall',
-            secondary: '',
-            alias: '',
-            action: 'remove-paywall',
-        });
-        entries.push({
-            kind: 'action',
-            label: 'Reload Bookmarks',
-            secondary: '',
-            alias: '',
-            action: 'reload',
-        });
-        entries.push({
-            kind: 'action',
-            label: 'Copy as Markdown link',
-            secondary: 'of highlighted bookmark',
-            alias: 'copy',
-            action: 'copy-markdown',
-        });
-        entries.push({
-            kind: 'action',
-            label: 'Keyboard Shortcuts',
-            secondary: 'press F1',
-            alias: 'help ? shortcuts',
-            action: 'cheatsheet',
-        });
+        // Actions (at the bottom, sorted alphabetically by label)
+        const actions = [
+            {
+                kind: 'action',
+                label: 'Add Current Page…',
+                secondary: (document.title || location.hostname).slice(0, 60),
+                alias: 'add new save +',
+                action: 'new-bookmark',
+            },
+            {
+                kind: 'action',
+                label: 'Remove Paywall',
+                secondary: '',
+                alias: '',
+                action: 'remove-paywall',
+            },
+            {
+                kind: 'action',
+                label: 'Open Landing Page',
+                secondary: APP_URL.replace(/^https?:\/\//, ''),
+                alias: 'home landing start',
+                action: 'open-landing',
+            },
+            {
+                kind: 'action',
+                label: 'Reload Bookmarks',
+                secondary: '',
+                alias: '',
+                action: 'reload',
+            },
+            {
+                kind: 'action',
+                label: 'Copy as Markdown link',
+                secondary: 'of highlighted bookmark',
+                alias: 'copy',
+                action: 'copy-markdown',
+            },
+            {
+                kind: 'action',
+                label: 'Keyboard Shortcuts',
+                secondary: 'press F1',
+                alias: 'help ? shortcuts',
+                action: 'cheatsheet',
+            },
+        ];
+        actions.sort((a, b) => a.label.localeCompare(b.label));
+        entries.push(...actions);
         if (profiles && profiles.length > 1) {
             const disabled = getDisabledProfiles();
             for (const p of profiles) {
@@ -787,14 +798,14 @@
                 '<span><kbd>Enter</kbd> open</span>',
                 '<span><kbd>Ctrl+Enter</kbd> new tab</span>',
                 '<span><kbd>Esc</kbd> close</span>',
-                '<span><kbd>#1-5</kbd> open by number</span>',
+                '<span><kbd>1-5</kbd> open by number</span>',
             ].join('');
             footer.appendChild(hintsEl);
         }
 
         // ── State helpers ──
         function getFiltered() {
-            const match = query.match(/^(.*?)#([\d,\s\-]+)$/);
+            const match = query.match(/^(.*?)\s+([\d,\s\-]+)$/);
             const searchPart = match ? match[1] : query;
             const numberSelection = match ? parseNumberSelection(match[2]) : null;
             const q = searchPart.trim();
@@ -826,7 +837,9 @@
             } else if (q === '@') {
                 filtered = source.filter((e) => e.kind === 'group');
             } else if (q === '*') {
-                filtered = source.filter((e) => e.kind === 'bookmark' && e.bookmark && e.bookmark.isFavorite);
+                filtered = source
+                    .filter((e) => e.kind === 'bookmark' && e.bookmark && e.bookmark.isFavorite)
+                    .sort((a, b) => a.label.localeCompare(b.label));
             } else if (q.startsWith('>')) {
                 const sub = q.slice(1).trim();
                 filtered = source.filter(
@@ -846,13 +859,15 @@
                 );
             } else if (q.startsWith('*')) {
                 const sub = q.slice(1).trim();
-                filtered = source.filter(
-                    (e) =>
-                        e.kind === 'bookmark' &&
-                        e.bookmark &&
-                        e.bookmark.isFavorite &&
-                        (wildcardMatch(e.label, sub) || wildcardMatch(e.secondary, sub) || wildcardMatch(e.alias, sub)),
-                );
+                filtered = source
+                    .filter(
+                        (e) =>
+                            e.kind === 'bookmark' &&
+                            e.bookmark &&
+                            e.bookmark.isFavorite &&
+                            (wildcardMatch(e.label, sub) || wildcardMatch(e.secondary, sub) || wildcardMatch(e.alias, sub)),
+                    )
+                    .sort((a, b) => a.label.localeCompare(b.label));
             } else {
                 filtered = q
                     ? source.filter(
@@ -900,9 +915,7 @@
                 entry,
                 seq: entry.kind === 'bookmark' ? seq++ : null,
             }));
-            const visible = numberSelection
-                ? withSeq.filter((x) => x.seq != null && numberSelection.has(x.seq))
-                : withSeq;
+            const visible = withSeq;
             const displayList = visible.map((x) => x.entry);
             const bookmarkNumbers = new Map();
             visible.forEach((x, i) => {
@@ -1067,6 +1080,10 @@
             } else if (entry.kind === 'action' && entry.action === 'remove-paywall') {
                 window.location.href = 'https://removepaywalls.com/' + window.location.href;
                 close();
+            } else if (entry.kind === 'action' && entry.action === 'open-landing') {
+                if (newTab) GM_openInTab(APP_URL, { active: true, insert: true });
+                else window.location.href = APP_URL;
+                if (!newTab) close();
             } else if (entry.kind === 'action' && entry.action === 'reload') {
                 cachedGroups = null;
                 cachedProfile = null;
@@ -1231,7 +1248,7 @@
             ['Enter', 'Open'],
             ['Ctrl+Enter', 'Open in new tab'],
             ['Ctrl+Space', 'Toggle multi-select'],
-            ['#1-9 (then Enter)', 'Open by number(s) — e.g. "#1,3-5" or "git #2"'],
+            ['1-9 (then Enter)', 'Open by number(s) — e.g. "foo 1,3-5"'],
             ['Ctrl+`', 'Cycle through profiles'],
             ['Ctrl+Alt+/', 'Toggle palette (outside palette)'],
             ['F1', 'Show this cheatsheet'],

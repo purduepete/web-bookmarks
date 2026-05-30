@@ -1498,7 +1498,7 @@ select.bulk-edit-input option:checked {
     max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
-    justify-self: center;
+    justify-self: end;
 }
 
 .palette-item-alias-empty {

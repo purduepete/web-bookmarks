@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      4.9.4
+// @version      4.9.5
 // @description  Press Ctrl+Alt+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
@@ -252,6 +252,9 @@
             flex-wrap: wrap;
             justify-content: center;
             gap: 8px 12px;
+            font-size: 12px;
+        }
+        .wbp-shortcuts span {
             font-size: 12px;
         }
         .wbp-footer kbd {

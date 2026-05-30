@@ -604,7 +604,7 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
         { keys: 'Ctrl+Space', desc: 'Toggle multi-select' },
         { keys: '1-9 (then Enter)', desc: 'Open by number(s) — e.g. "foo 1,3-5"' },
         { keys: 'Ctrl+`', desc: 'Cycle through profiles' },
-        { keys: 'Ctrl+/', desc: 'Toggle palette (outside palette)' },
+        { keys: 'Ctrl+Alt+/', desc: 'Toggle palette (outside palette)' },
         { keys: 'F1', desc: 'Show this cheatsheet' },
         { keys: '? <query>', desc: 'Search Google' },
         { keys: '> <query>', desc: 'Search actions only' },

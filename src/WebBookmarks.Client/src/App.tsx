@@ -159,7 +159,7 @@ export default function App() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [optionsOpen]);
 
-    // Ctrl+/ opens command palette; Ctrl+` cycles profiles
+    // Ctrl+Alt+/ opens command palette; Ctrl+` cycles profiles
     const profilesRef = useRef(profiles);
     const disabledProfilesRef = useRef(disabledProfiles);
     const activeProfileRef = useRef(activeProfile);
@@ -174,7 +174,7 @@ export default function App() {
     }, [activeProfile]);
     useEffect(() => {
         const handleGlobalKeyDown = (e: KeyboardEvent) => {
-            if (e.key === '/' && (e.ctrlKey || e.metaKey)) {
+            if (e.key === '/' && e.altKey && (e.ctrlKey || e.metaKey)) {
                 e.preventDefault();
                 if (startupMode === 'palette') {
                     setPaletteOpen(true);
@@ -606,7 +606,7 @@ export default function App() {
                             setPaletteOpen(true);
                             setStartupPaletteHiding(true);
                         }}
-                        title="Command Palette (Ctrl+/)"
+                        title="Command Palette (Ctrl+Alt+/)"
                     >
                         <svg
                             width="14"

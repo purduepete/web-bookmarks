@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      4.9.12
+// @version      4.9.13
 // @description  Press Ctrl+Alt+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
@@ -1245,7 +1245,7 @@
             }
         };
         const cheatsheetItems = [
-            ['↑ ↓', 'Navigate'],
+            ['↑ ↓ / Ctrl+J Ctrl+K', 'Navigate'],
             ['→', 'Expand selected group'],
             ['← / Esc', 'Back / clear / close'],
             ['Enter', 'Open'],
@@ -1348,13 +1348,13 @@
             const { filtered } = getFiltered();
             const maxIdx = filtered.length - 1;
 
-            if (e.key === 'ArrowDown') {
+            if (e.key === 'ArrowDown' || (e.ctrlKey && (e.key === 'j' || e.key === 'J'))) {
                 e.preventDefault();
                 activeIndex = Math.min(activeIndex + 1, maxIdx);
                 render();
                 return;
             }
-            if (e.key === 'ArrowUp') {
+            if (e.key === 'ArrowUp' || (e.ctrlKey && (e.key === 'k' || e.key === 'K'))) {
                 e.preventDefault();
                 activeIndex = Math.max(activeIndex - 1, 0);
                 render();

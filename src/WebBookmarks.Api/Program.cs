@@ -115,7 +115,7 @@ app.MapGet("/api/bookmarks/check-alias", async (string alias, int? excludeId, We
 {
     var lower = alias.Trim().ToLower();
     var query = db.WebBookmarkItems.Where(b =>
-        b.Shortcut != "" && (b.Shortcut.ToLower().Contains(lower) || lower.Contains(b.Shortcut.ToLower())));
+        b.Shortcut != null && b.Shortcut != "" && (b.Shortcut.ToLower().Contains(lower) || lower.Contains(b.Shortcut.ToLower())));
 
     if (excludeId.HasValue)
         query = query.Where(b => b.Id != excludeId.Value);

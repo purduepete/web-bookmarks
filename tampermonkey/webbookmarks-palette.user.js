@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      4.8.9
+// @version      4.9.0
 // @description  Press Ctrl+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
@@ -64,7 +64,7 @@
             font-family: 'Roboto', sans-serif;
             font-size: 15px;
             font-weight: 400;
-            line-height: normal;
+            line-height: 1.5;
             letter-spacing: normal;
             color: #b2bac2;
         }

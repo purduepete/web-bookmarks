@@ -177,12 +177,30 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
             }
         }
         // Actions (at the bottom)
-        entries.push({ kind: 'action', label: 'New Bookmark', secondary: '', alias: 'add new +', action: 'new-bookmark' });
+        entries.push({
+            kind: 'action',
+            label: 'New Bookmark',
+            secondary: '',
+            alias: 'add new +',
+            action: 'new-bookmark',
+        });
         entries.push({ kind: 'action', label: 'Import Bookmarks', secondary: '', alias: '', action: 'import' });
         entries.push({ kind: 'action', label: 'Bulk Edit', secondary: '', alias: '', action: 'bulk-edit' });
         entries.push({ kind: 'action', label: 'Reload Bookmarks', secondary: '', alias: '', action: 'reload' });
-        entries.push({ kind: 'action', label: 'Copy as Markdown link', secondary: 'of highlighted bookmark', alias: 'copy', action: 'copy-markdown' });
-        entries.push({ kind: 'action', label: 'Keyboard Shortcuts', secondary: 'press F1', alias: 'help shortcuts cheatsheet', action: 'cheatsheet' });
+        entries.push({
+            kind: 'action',
+            label: 'Copy as Markdown link',
+            secondary: 'of highlighted bookmark',
+            alias: 'copy',
+            action: 'copy-markdown',
+        });
+        entries.push({
+            kind: 'action',
+            label: 'Keyboard Shortcuts',
+            secondary: 'press F1',
+            alias: 'help shortcuts cheatsheet',
+            action: 'cheatsheet',
+        });
         if (isPaletteMode) {
             entries.push({ kind: 'action', label: 'Show Landing', secondary: '', alias: '', action: 'show-landing' });
         }
@@ -293,9 +311,7 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
             entry,
             seq: entry.kind === 'bookmark' ? seq++ : null,
         }));
-        const visible = numberSelection
-            ? withSeq.filter((x) => x.seq != null && numberSelection.has(x.seq))
-            : withSeq;
+        const visible = numberSelection ? withSeq.filter((x) => x.seq != null && numberSelection.has(x.seq)) : withSeq;
         const list = visible.map((x) => x.entry);
         const numbers = new Map<number, number>();
         visible.forEach((x, i) => {
@@ -533,7 +549,19 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
                 return;
             }
         },
-        [onClose, isPaletteMode, displayList, activeIndex, query, profiles, activeProfile, onAction, cheatsheetOpen, showToast, handleSubmit],
+        [
+            onClose,
+            isPaletteMode,
+            displayList,
+            activeIndex,
+            query,
+            profiles,
+            activeProfile,
+            onAction,
+            cheatsheetOpen,
+            showToast,
+            handleSubmit,
+        ],
     );
 
     // URL preview for the highlighted entry

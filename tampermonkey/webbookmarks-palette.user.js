@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      4.9.0
+// @version      4.9.2
 // @description  Press Ctrl+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
@@ -68,6 +68,21 @@
             letter-spacing: normal;
             color: #b2bac2;
         }
+        /* Scoped reset so the palette renders identically on any host page,
+           immune to the host site's own div/span/box-sizing/line-height rules. */
+        .wbp-backdrop, .wbp-backdrop * {
+            box-sizing: border-box;
+            font-family: 'Roboto', sans-serif;
+            font-size: 15px;
+            line-height: 1.5;
+            letter-spacing: normal;
+            text-transform: none;
+            text-align: left;
+            margin: 0;
+        }
+        .wbp-backdrop svg, .wbp-backdrop img {
+            vertical-align: middle;
+        }
         .wbp-container {
             width: 900px;
             max-width: 94vw;
@@ -112,6 +127,7 @@
             font-size: 15px;
             font-family: inherit;
             font-weight: 500;
+            line-height: 1.2;
             color: #e0e6ed;
             background: #020617;
             border: none;

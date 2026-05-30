@@ -1334,6 +1334,7 @@ select.bulk-edit-input option:checked {
     font-size: 15px;
     font-family: 'Roboto', sans-serif;
     font-weight: 500;
+    line-height: 1.2;
     color: #e0e6ed;
     background: #020617;
     border: none;

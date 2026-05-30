@@ -562,7 +562,7 @@ export default function App() {
         <div className="app-body">
             <div className="header-spacer" />
 
-            <div id="colMain" style={(startupPaletteHiding || newBookmarkOnly) ? { display: 'none' } : undefined}>
+            <div id="colMain" style={startupPaletteHiding || newBookmarkOnly ? { display: 'none' } : undefined}>
                 {profiles.filter((p) => !disabledProfiles.has(p)).length > 1 && (
                     <div className="profile-tabs">
                         {profiles

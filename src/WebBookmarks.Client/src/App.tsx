@@ -8,6 +8,8 @@ import BookmarkModal from './components/BookmarkModal';
 import ImportModal from './components/ImportModal';
 import BulkEditModal from './components/BulkEditModal';
 import CommandPalette from './components/CommandPalette';
+import ConfirmModal from './components/ConfirmModal';
+import PromptModal from './components/PromptModal';
 
 function navigateByShortcut(input: string, bookmarks: WebBookmarksItem[], openInNewTab = false): boolean {
     const trimmed = input.trim();
@@ -63,6 +65,8 @@ export default function App() {
     const [promptActive, setPromptActive] = useState(() => {
         return localStorage.getItem('startupMode') === 'prompt';
     });
+    const [promptModalOpen, setPromptModalOpen] = useState(false);
+    const [pendingDelete, setPendingDelete] = useState<WebBookmarksItem | null>(null);
     const promptShown = useRef(false);
     const skipStartupOverlay = useRef(false);
     const [newBookmarkOnly, setNewBookmarkOnly] = useState(() => {
@@ -362,23 +366,25 @@ export default function App() {
     }, [groups, searchFilter]);
 
     const showPromptLoop = useCallback(() => {
-        // Use setTimeout so the checkbox renders before the prompt blocks the UI
-        setTimeout(() => {
-            let input: string | null = null;
-            try {
-                input = window.prompt('Type `help` for a list of commands:');
-            } catch {
-                // prompt() not supported (e.g. VS Code Simple Browser)
-                setPromptActive(false);
-                return;
-            }
-            if (input !== null && input.trim().toLowerCase() !== 'help' && input.trim() !== '') {
-                // Navigate immediately — don't setPromptActive(false) so the page stays blank during navigation
+        setPromptModalOpen(true);
+    }, []);
+
+    const handlePromptSubmit = useCallback(
+        (input: string) => {
+            setPromptModalOpen(false);
+            if (input.trim().toLowerCase() !== 'help' && input.trim() !== '') {
+                // Navigate immediately — keep the page blank during navigation
                 if (navigateByShortcut(input, bookmarks)) return;
             }
             setPromptActive(false);
-        }, 0);
-    }, [bookmarks]);
+        },
+        [bookmarks],
+    );
+
+    const handlePromptCancel = useCallback(() => {
+        setPromptModalOpen(false);
+        setPromptActive(false);
+    }, []);
 
     // Show prompt or palette on page load based on startupMode (once only)
     useEffect(() => {
@@ -472,18 +478,21 @@ export default function App() {
         }
     }, [loadBookmarks]);
 
-    const handleDelete = useCallback(
-        async (item: WebBookmarksItem) => {
-            if (!window.confirm(`Delete "${item.name}"?`)) return;
-            try {
-                await deleteBookmark(item.id);
-                loadBookmarks();
-            } catch (e) {
-                setError(e instanceof Error ? e.message : 'Delete failed');
-            }
-        },
-        [loadBookmarks],
-    );
+    const handleDelete = useCallback((item: WebBookmarksItem) => {
+        setPendingDelete(item);
+    }, []);
+
+    const performDelete = useCallback(async () => {
+        const item = pendingDelete;
+        setPendingDelete(null);
+        if (!item) return;
+        try {
+            await deleteBookmark(item.id);
+            loadBookmarks();
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Delete failed');
+        }
+    }, [pendingDelete, loadBookmarks]);
 
     const handleReorder = useCallback(
         async (groupName: string, activeId: number, overId: number) => {
@@ -534,8 +543,21 @@ export default function App() {
 
     if (loading) return null;
     if (error) return <div className="loading-msg text-danger">{error}</div>;
-    if (promptActive) return null;
-
+    if (promptActive) {
+        return (
+            <div className="app-body">
+                {promptModalOpen && (
+                    <PromptModal
+                        title="Quick command"
+                        message="Type `help` for a list of commands:"
+                        placeholder="Enter a shortcut…"
+                        onSubmit={handlePromptSubmit}
+                        onCancel={handlePromptCancel}
+                    />
+                )}
+            </div>
+        );
+    }
     return (
         <div className="app-body">
             <div className="header-spacer" />
@@ -846,6 +868,17 @@ export default function App() {
                     profiles={profiles.filter((p) => !disabledProfiles.has(p))}
                     activeProfile={activeProfile}
                     isPaletteMode={startupMode === 'palette'}
+                />
+            )}
+
+            {pendingDelete && (
+                <ConfirmModal
+                    title="Delete bookmark"
+                    message={`Delete "${pendingDelete.name}"?`}
+                    confirmLabel="Delete"
+                    danger
+                    onConfirm={performDelete}
+                    onCancel={() => setPendingDelete(null)}
                 />
             )}
         </div>

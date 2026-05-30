@@ -1,5 +1,5 @@
 body {
-    font-family: 'Rubik', sans-serif;
+    font-family: 'Roboto', sans-serif;
     font-size: 15px;
     color: #b2bac2;
     background-color: #020617;
@@ -793,6 +793,27 @@ td.col3 {
     cursor: not-allowed;
 }
 
+.btn-modal-danger {
+    background: #b91c1c;
+    color: #fff;
+    border-color: #b91c1c;
+}
+
+.btn-modal-danger:hover {
+    background: #dc2626;
+}
+
+.modal-confirm {
+    width: 420px;
+}
+
+.confirm-message {
+    margin: 0;
+    font-size: 14px;
+    color: #cbd5e1;
+    line-height: 1.5;
+}
+
 /* ── Drag Handle ─────────────────────────────────── */
 
 .drag-handle {
@@ -1311,7 +1332,7 @@ select.bulk-edit-input option:checked {
     width: 100%;
     padding: 12px 16px;
     font-size: 15px;
-    font-family: 'Rubik', sans-serif;
+    font-family: 'Roboto', sans-serif;
     font-weight: 500;
     color: #e0e6ed;
     background: #020617;
@@ -1525,7 +1546,7 @@ select.bulk-edit-input option:checked {
     display: inline-block;
     padding: 1px 5px;
     font-size: 11px;
-    font-family: 'Rubik', sans-serif;
+    font-family: 'Roboto', sans-serif;
     color: #94a3b8;
     background: #1e293b;
     border: 1px solid #334155;

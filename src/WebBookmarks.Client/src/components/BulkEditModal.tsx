@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import type { WebBookmarksItem } from '../types';
 import { bulkUpdateBookmarks, bulkDeleteBookmarks, fetchGroups, fetchProfiles } from '../api';
 import DarkSelect from './DarkSelect';
+import ConfirmModal from './ConfirmModal';
 
 interface Props {
     bookmarks: WebBookmarksItem[];
@@ -23,6 +24,7 @@ export default function BulkEditModal({ bookmarks, activeProfile, onClose, onCha
     const [error, setError] = useState<string | null>(null);
     const [result, setResult] = useState<string | null>(null);
     const [filter, setFilter] = useState('');
+    const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
     const modalRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -72,26 +74,19 @@ export default function BulkEditModal({ bookmarks, activeProfile, onClose, onCha
 
     const handleApply = async () => {
         if (selected.size === 0) return;
+
+        if (action === 'delete') {
+            setConfirmDeleteOpen(true);
+            return;
+        }
+
         setError(null);
         setResult(null);
         setBusy(true);
 
         const ids = [...selected];
         try {
-            if (action === 'delete') {
-                if (
-                    !window.confirm(
-                        `Delete ${ids.length} bookmark${ids.length !== 1 ? 's' : ''}? This cannot be undone.`,
-                    )
-                ) {
-                    setBusy(false);
-                    return;
-                }
-                const res = await bulkDeleteBookmarks(ids);
-                setResult(`Deleted ${res.deleted} bookmark${res.deleted !== 1 ? 's' : ''}.`);
-                setSelected(new Set());
-                onChanged();
-            } else if (action === 'profile') {
+            if (action === 'profile') {
                 if (!targetProfile) {
                     setError('Select a profile.');
                     setBusy(false);
@@ -118,6 +113,24 @@ export default function BulkEditModal({ bookmarks, activeProfile, onClose, onCha
                 setResult(`Updated visibility on ${res.updated} bookmark${res.updated !== 1 ? 's' : ''}.`);
                 onChanged();
             }
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Operation failed');
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const performBulkDelete = async () => {
+        setConfirmDeleteOpen(false);
+        setError(null);
+        setResult(null);
+        setBusy(true);
+        const ids = [...selected];
+        try {
+            const res = await bulkDeleteBookmarks(ids);
+            setResult(`Deleted ${res.deleted} bookmark${res.deleted !== 1 ? 's' : ''}.`);
+            setSelected(new Set());
+            onChanged();
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Operation failed');
         } finally {
@@ -281,6 +294,17 @@ export default function BulkEditModal({ bookmarks, activeProfile, onClose, onCha
                     </button>
                 </div>
             </div>
+
+            {confirmDeleteOpen && (
+                <ConfirmModal
+                    title="Delete bookmarks"
+                    message={`Delete ${selected.size} bookmark${selected.size !== 1 ? 's' : ''}? This cannot be undone.`}
+                    confirmLabel="Delete"
+                    danger
+                    onConfirm={performBulkDelete}
+                    onCancel={() => setConfirmDeleteOpen(false)}
+                />
+            )}
         </div>
     );
 }

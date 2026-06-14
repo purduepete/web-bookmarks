@@ -46,7 +46,7 @@ export default function BookmarkModal({ bookmark, allBookmarks, activeProfile, o
     const modalRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        fetchGroups(form.profile === 'all' ? undefined : form.profile)
+        fetchGroups(form.profile === 'all' ? undefined : form.profile, form.profile !== 'all')
             .then(setGroups)
             .catch(() => {});
     }, [form.profile]);

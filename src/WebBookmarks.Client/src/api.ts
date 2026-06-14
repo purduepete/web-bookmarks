@@ -82,9 +82,12 @@ export async function checkAlias(
     return await res.json();
 }
 
-export async function fetchGroups(profile?: string): Promise<string[]> {
-    const params = profile ? `?profile=${encodeURIComponent(profile)}` : '';
-    const res = await fetch(`${API_BASE}/groups${params}`);
+export async function fetchGroups(profile?: string, exact?: boolean): Promise<string[]> {
+    const params = new URLSearchParams();
+    if (profile) params.set('profile', profile);
+    if (exact) params.set('exact', 'true');
+    const qs = params.toString();
+    const res = await fetch(`${API_BASE}/groups${qs ? `?${qs}` : ''}`);
     if (!res.ok) throw new Error(`Failed to fetch groups: ${res.status}`);
     return await res.json();
 }

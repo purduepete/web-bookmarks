@@ -126,11 +126,13 @@ app.MapGet("/api/bookmarks/check-alias", async (string alias, int? excludeId, We
     .WithName("CheckAlias")
     .WithOpenApi();
 
-app.MapGet("/api/bookmarks/groups", async (string? profile, WebBookmarksContext db) =>
+app.MapGet("/api/bookmarks/groups", async (string? profile, bool? exact, WebBookmarksContext db) =>
 {
     var query = db.WebBookmarkItems.Where(b => b.IsVisible);
     if (!string.IsNullOrEmpty(profile))
-        query = query.Where(b => b.Profile == profile || b.Profile == "all");
+        query = exact == true
+            ? query.Where(b => b.Profile == profile)
+            : query.Where(b => b.Profile == profile || b.Profile == "all");
     return await query
         .Select(b => b.BookmarkGroup)
         .Distinct()

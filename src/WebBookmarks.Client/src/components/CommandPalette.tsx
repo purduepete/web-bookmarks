@@ -537,6 +537,16 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
                 }
                 return;
             }
+            if (e.key === 'Tab') {
+                const visible = profiles.filter((p) => p !== 'all');
+                if (visible.length < 2) return;
+                e.preventDefault();
+                const idx = visible.indexOf(activeProfile);
+                const delta = e.shiftKey ? -1 : 1;
+                const next = visible[(idx + delta + visible.length) % visible.length];
+                onAction('select-profile', next);
+                return;
+            }
             if (e.key === ' ' && e.ctrlKey) {
                 // Toggle multi-select on current item
                 e.preventDefault();
@@ -609,6 +619,7 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
         { keys: 'Ctrl+Enter', desc: 'Open in new tab' },
         { keys: 'Ctrl+Space', desc: 'Toggle multi-select' },
         { keys: '1-9 (then Enter)', desc: 'Open by number(s) — e.g. "foo 1,3-5"' },
+        { keys: 'Tab / Shift+Tab', desc: 'Switch profile' },
         { keys: 'Ctrl+`', desc: 'Cycle through profiles' },
         { keys: 'Ctrl+Alt+/', desc: 'Toggle palette (outside palette)' },
         { keys: 'F1', desc: 'Show this cheatsheet' },

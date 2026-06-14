@@ -46,10 +46,10 @@ export default function BookmarkModal({ bookmark, allBookmarks, activeProfile, o
     const modalRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        fetchGroups(activeProfile === 'all' ? undefined : activeProfile)
+        fetchGroups(form.profile === 'all' ? undefined : form.profile)
             .then(setGroups)
             .catch(() => {});
-    }, [activeProfile]);
+    }, [form.profile]);
 
     useEffect(() => {
         fetchProfiles()
@@ -142,6 +142,10 @@ export default function BookmarkModal({ bookmark, allBookmarks, activeProfile, o
 
     const handleChange = (field: keyof typeof form, value: string | boolean | number) => {
         const next = { ...form, [field]: value };
+        if (field === 'profile') {
+            next.bookmarkGroup = '';
+            setUseNewGroup(false);
+        }
         setForm(next);
         if (field === 'shortcut' && typeof value === 'string') {
             validateAlias(value);

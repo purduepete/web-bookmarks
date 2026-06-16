@@ -283,8 +283,8 @@ static Dictionary<string, string[]>? ValidateBookmark(WebBookmarksItem item)
     if (item.URL is { Length: > 2048 }) Add("url", "URL must be 2048 characters or fewer.");
     if (item.URLs is { Length: > 4096 }) Add("urls", "URLs must be 4096 characters or fewer.");
 
-    if (HasUnsafeScheme(item.URL)) Add("url", "URL must use http or https.");
-    if (HasUnsafeScheme(item.URLs)) Add("urls", "URL must use http or https.");
+    if (HasUnsafeScheme(item.URL)) Add("url", "URL uses a disallowed scheme.");
+    if (HasUnsafeScheme(item.URLs)) Add("urls", "URL uses a disallowed scheme.");
 
     return errors.Count == 0 ? null : errors.ToDictionary(e => e.Key, e => e.Value.ToArray());
 }
@@ -293,7 +293,7 @@ static bool HasUnsafeScheme(string? value)
 {
     if (string.IsNullOrWhiteSpace(value)) return false;
     var v = value.TrimStart().ToLowerInvariant();
-    string[] blockedSchemes = { "javascript:", "data:", "vbscript:", "file:" };
+    string[] blockedSchemes = { "javascript:", "data:", "vbscript:" };
     return blockedSchemes.Any(scheme => v.StartsWith(scheme, StringComparison.Ordinal));
 }
 

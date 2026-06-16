@@ -12,11 +12,11 @@ export function escapeHtml(value: string): string {
     return value.replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]);
 }
 
-// Neutralizes URLs that use a dangerous scheme (javascript:, data:, vbscript:,
-// file:) by collapsing them to about:blank, so they can never execute when
-// navigated to or rendered into an href. All other schemes (http, https, mailto,
+// Neutralizes URLs that use a dangerous scheme (javascript:, data:, vbscript:)
+// by collapsing them to about:blank, so they can never execute when navigated to
+// or rendered into an href. All other schemes (http, https, file, mailto,
 // tel, ...) and relative URLs are left untouched.
-const UNSAFE_SCHEME = /^\s*(javascript|data|vbscript|file):/i;
+const UNSAFE_SCHEME = /^\s*(javascript|data|vbscript):/i;
 
 export function sanitizeUrl(url: string): string {
     const value = url ?? '';

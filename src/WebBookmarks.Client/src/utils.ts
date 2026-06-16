@@ -1,5 +1,28 @@
 const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
+const HTML_ESCAPES: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+};
+
+export function escapeHtml(value: string): string {
+    return value.replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]);
+}
+
+// Neutralizes URLs that use a dangerous scheme (javascript:, data:, vbscript:,
+// file:) by collapsing them to about:blank, so they can never execute when
+// navigated to or rendered into an href. All other schemes (http, https, mailto,
+// tel, ...) and relative URLs are left untouched.
+const UNSAFE_SCHEME = /^\s*(javascript|data|vbscript|file):/i;
+
+export function sanitizeUrl(url: string): string {
+    const value = url ?? '';
+    return UNSAFE_SCHEME.test(value) ? 'about:blank' : value;
+}
+
 export function openUrls(items: { name: string; url: string }[], openInNewTab = false) {
     if (items.length === 0) return;
     if (isSafari && items.length > 1) {
@@ -11,28 +34,28 @@ a{display:block;padding:14px;margin:8px 0;background:#16213e;color:#4fc3f7;borde
 a:active{background:#0f3460}
 .self-link{background:#0f3460;color:#93c5fd;font-weight:600}
 .divider{border:none;border-top:1px solid #334155;margin:12px 0}</style></head><body>
-<a href="${selfUrl}" class="self-link">WebBookmarks</a>
+<a href="${escapeHtml(sanitizeUrl(selfUrl))}" class="self-link">WebBookmarks</a>
 <hr class="divider">
 <h2>Tap each to open:</h2>
-${items.map((item) => `<a href="${item.url}" target="_blank">${item.name}</a>`).join('')}
+${items.map((item) => `<a href="${escapeHtml(sanitizeUrl(item.url))}" target="_blank">${escapeHtml(item.name)}</a>`).join('')}
 </body></html>`;
         const blob = new Blob([html], { type: 'text/html' });
         window.location.href = URL.createObjectURL(blob);
     } else if (openInNewTab) {
         let win: Window | null = null;
         for (const item of items) {
-            win = window.open(item.url, '_blank', 'noopener');
+            win = window.open(sanitizeUrl(item.url), '_blank', 'noopener');
         }
         win?.focus();
     } else {
         let i = 0;
         function next() {
             if (i < items.length - 1) {
-                window.open(items[i].url, '_blank', 'noopener');
+                window.open(sanitizeUrl(items[i].url), '_blank', 'noopener');
                 i++;
                 setTimeout(next, 500);
             } else {
-                window.location.href = items[i].url;
+                window.location.href = sanitizeUrl(items[i].url);
             }
         }
         next();

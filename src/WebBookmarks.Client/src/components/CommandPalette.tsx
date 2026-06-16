@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { WebBookmarksItem, BookmarkGroup } from '../types';
-import { wildcardMatch, openUrls } from '../utils';
+import { wildcardMatch, openUrls, sanitizeUrl } from '../utils';
 
 interface Props {
     groups: BookmarkGroup[];
@@ -407,9 +407,9 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
                 }
                 recordMru(activeProfile, entry.bookmark.id);
                 if (newTab) {
-                    window.open(targetUrl, '_blank', 'noopener');
+                    window.open(sanitizeUrl(targetUrl), '_blank', 'noopener');
                 } else {
-                    window.location.href = targetUrl;
+                    window.location.href = sanitizeUrl(targetUrl);
                 }
             }
             if (!newTab) onClose(true);

@@ -99,6 +99,7 @@ app.MapGet("/api/bookmarks/{id:int}", async (int id, WebBookmarksContext db) =>
 
 app.MapPost("/api/bookmarks", async (WebBookmarksItem item, WebBookmarksContext db) =>
 {
+    if (ValidateBookmark(item) is { } errors) return Results.ValidationProblem(errors);
     db.WebBookmarkItems.Add(item);
     await db.SaveChangesAsync();
     return Results.Created($"/api/bookmarks/{item.Id}", item);
@@ -108,6 +109,7 @@ app.MapPost("/api/bookmarks", async (WebBookmarksItem item, WebBookmarksContext 
 
 app.MapPut("/api/bookmarks/{id:int}", async (int id, WebBookmarksItem input, WebBookmarksContext db) =>
 {
+    if (ValidateBookmark(input) is { } errors) return Results.ValidationProblem(errors);
     var item = await db.WebBookmarkItems.FindAsync(id);
     if (item is null) return Results.NotFound();
 
@@ -196,6 +198,9 @@ app.MapGet("/api/bookmarks/profiles", async (WebBookmarksContext db) =>
 
 app.MapPost("/api/bookmarks/bulk", async (List<WebBookmarksItem> items, WebBookmarksContext db) =>
 {
+    foreach (var item in items)
+        if (ValidateBookmark(item) is { } errors)
+            return Results.ValidationProblem(errors);
     db.WebBookmarkItems.AddRange(items);
     await db.SaveChangesAsync();
     return Results.Ok(new { imported = items.Count });
@@ -254,6 +259,42 @@ static bool KeysMatch(string expected, string provided)
     var a = System.Text.Encoding.UTF8.GetBytes(expected);
     var b = System.Text.Encoding.UTF8.GetBytes(provided);
     return System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(a, b);
+}
+
+// Validates a bookmark payload. Returns null when valid, otherwise a field->messages
+// map suitable for Results.ValidationProblem. Blocks dangerous URL schemes
+// (javascript:, data:, etc.) so they can never be stored and later navigated to.
+static Dictionary<string, string[]>? ValidateBookmark(WebBookmarksItem item)
+{
+    var errors = new Dictionary<string, List<string>>();
+    void Add(string field, string message)
+    {
+        if (!errors.TryGetValue(field, out var list)) errors[field] = list = new List<string>();
+        list.Add(message);
+    }
+
+    if (string.IsNullOrWhiteSpace(item.Name)) Add("name", "Name is required.");
+    else if (item.Name.Length > 200) Add("name", "Name must be 200 characters or fewer.");
+
+    if (item.Shortcut is { Length: > 100 }) Add("shortcut", "Shortcut must be 100 characters or fewer.");
+    if (item.Description is { Length: > 1000 }) Add("description", "Description must be 1000 characters or fewer.");
+    if (item.BookmarkGroup is { Length: > 200 }) Add("bookmarkGroup", "Group must be 200 characters or fewer.");
+    if (item.Profile is { Length: > 100 }) Add("profile", "Profile must be 100 characters or fewer.");
+    if (item.URL is { Length: > 2048 }) Add("url", "URL must be 2048 characters or fewer.");
+    if (item.URLs is { Length: > 4096 }) Add("urls", "URLs must be 4096 characters or fewer.");
+
+    if (HasUnsafeScheme(item.URL)) Add("url", "URL must use http or https.");
+    if (HasUnsafeScheme(item.URLs)) Add("urls", "URL must use http or https.");
+
+    return errors.Count == 0 ? null : errors.ToDictionary(e => e.Key, e => e.Value.ToArray());
+}
+
+static bool HasUnsafeScheme(string? value)
+{
+    if (string.IsNullOrWhiteSpace(value)) return false;
+    var v = value.TrimStart().ToLowerInvariant();
+    string[] blockedSchemes = { "javascript:", "data:", "vbscript:", "file:" };
+    return blockedSchemes.Any(scheme => v.StartsWith(scheme, StringComparison.Ordinal));
 }
 
 record ReorderEntry(int Id, int SortOrder);

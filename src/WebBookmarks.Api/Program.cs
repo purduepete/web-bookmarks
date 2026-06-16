@@ -44,6 +44,35 @@ else
 
 app.UseCors();
 
+// ── API key authentication ──────────────────────────────────────────
+// Enabled only when an "ApiKey" value is configured (env var / user secret /
+// App Service setting). When unset, the API stays open (convenient for local dev).
+var apiKey = app.Configuration["ApiKey"];
+
+app.Use(async (context, next) =>
+{
+    // Always let CORS preflight and Swagger through.
+    if (HttpMethods.IsOptions(context.Request.Method) ||
+        context.Request.Path.StartsWithSegments("/swagger"))
+    {
+        await next();
+        return;
+    }
+
+    if (!string.IsNullOrEmpty(apiKey))
+    {
+        var provided = context.Request.Headers["X-Api-Key"].ToString();
+        if (!KeysMatch(apiKey, provided))
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            await context.Response.WriteAsJsonAsync(new { error = "Unauthorized" });
+            return;
+        }
+    }
+
+    await next();
+});
+
 // ── Bookmark Endpoints ──────────────────────────────────────────────
 
 app.MapGet("/api/bookmarks", async (bool? includeHidden, string? profile, WebBookmarksContext db) =>
@@ -218,6 +247,14 @@ app.MapPost("/api/bookmarks/bulk-delete", async (List<int> ids, WebBookmarksCont
     .WithOpenApi();
 
 app.Run();
+
+static bool KeysMatch(string expected, string provided)
+{
+    if (string.IsNullOrEmpty(provided)) return false;
+    var a = System.Text.Encoding.UTF8.GetBytes(expected);
+    var b = System.Text.Encoding.UTF8.GetBytes(provided);
+    return System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(a, b);
+}
 
 record ReorderEntry(int Id, int SortOrder);
 record BulkUpdateRequest(List<int> Ids, string? Profile, string? BookmarkGroup, string? Shortcut, bool? IsVisible, bool? ClearShortcut, bool? IsFavorite);

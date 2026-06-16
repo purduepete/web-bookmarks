@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      4.9.15
+// @version      4.9.16
 // @description  Press Ctrl+Alt+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
@@ -14,6 +14,7 @@
 // @grant        GM_openInTab
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @grant        GM_registerMenuCommand
 // @connect      webbookmarksapi.azurewebsites.net
 // @run-at       document-idle
 // @updateURL    https://gist.githubusercontent.com/purduepete/7e7bb1d0855d688bf683069e786ac524/raw/webbookmarks-palette.user.js
@@ -28,6 +29,16 @@
 
     const API_BASE = 'https://webbookmarksapi.azurewebsites.net/api/bookmarks';
     const APP_URL = 'https://witty-hill-00503bc10.7.azurestaticapps.net';
+
+    // ── API key (set once via the Tampermonkey menu, persisted with GM_setValue) ──
+    let API_KEY = GM_getValue('apiKey', '');
+    GM_registerMenuCommand('Set WebBookmarks API Key', () => {
+        const k = prompt('Enter WebBookmarks API key:', API_KEY);
+        if (k !== null) {
+            API_KEY = k.trim();
+            GM_setValue('apiKey', API_KEY);
+        }
+    });
 
     // ── Embed Roboto Flex (same font the web app uses) as base64 @font-face so it ──
     // ── renders identically everywhere, immune to host-page CSP / offline. ──
@@ -513,6 +524,7 @@
             GM_xmlhttpRequest({
                 method: 'GET',
                 url: url,
+                headers: { 'X-Api-Key': API_KEY },
                 onload(res) {
                     if (res.status !== 200) return reject(new Error('HTTP ' + res.status));
                     try {
@@ -533,6 +545,7 @@
             GM_xmlhttpRequest({
                 method: 'GET',
                 url: API_BASE + '/profiles',
+                headers: { 'X-Api-Key': API_KEY },
                 onload(res) {
                     if (res.status !== 200) return reject(new Error('HTTP ' + res.status));
                     try {

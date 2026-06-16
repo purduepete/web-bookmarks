@@ -19,6 +19,7 @@ A personal bookmark manager with a .NET 9 API and React frontend, deployed to Az
 - **Alias conflict detection** — warns on partial matches (e.g. `_stwp` vs `_stwpl`) both in the modal and inline with ⚠ icons
 - **Show / Hide hidden bookmarks** — toggle to reveal hidden bookmarks (dimmed at 40% opacity)
 - **Prompt mode** — optional browser prompt for quick shortcut-based navigation
+- **API key gate** — a single shared key locks the API; the web app and Tampermonkey palette ask for it once and remember it
 
 ## Project Structure
 
@@ -56,6 +57,28 @@ dotnet user-secrets set "ConnectionStrings:WebBookmarksDatabase" "Server=tcp:YOU
 dotnet run
 # → http://localhost:5288  (Swagger at /swagger)
 ```
+
+## Authentication (API key)
+
+The API is protected by a single shared key. Requests must send it in an `X-Api-Key` header; anything else gets `401 Unauthorized`.
+
+**Configure the key** (the API reads the `ApiKey` configuration value):
+
+```bash
+# Local dev — store it in User Secrets
+cd src/WebBookmarks.Api
+dotnet user-secrets set "ApiKey" "YOUR_SECRET_KEY"
+
+# Production — set it as an Azure App Service application setting
+az webapp config appsettings set -g webbookmarks -n webbookmarksapi --settings ApiKey="YOUR_SECRET_KEY"
+```
+
+> If `ApiKey` is left empty/unset, authentication is disabled (the API stays open). Set a value to enforce it.
+
+**Clients enter the key once:**
+
+- **Web app** — prompts for the key on first load and stores it in `localStorage` (sent on every request). On a `401` it clears the key and re-prompts.
+- **Tampermonkey palette** — run **Set WebBookmarks API Key** from the Tampermonkey menu; it's saved with `GM_setValue` and reused on every request.
 
 ### Frontend
 

@@ -80,6 +80,8 @@ az webapp config appsettings set -g webbookmarks -n webbookmarksapi --settings A
 - **Web app** — prompts for the key on first load and stores it in `localStorage` (sent on every request). On a `401` it clears the key and re-prompts.
 - **Tampermonkey palette** — run **Set WebBookmarks API Key** from the Tampermonkey menu; it's saved with `GM_setValue` and reused on every request.
 
+> 📖 For key rotation, updating the Tampermonkey gist, disabling auth, and troubleshooting, see [`docs/authentication.md`](docs/authentication.md).
+
 ### Frontend
 
 ```bash

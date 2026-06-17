@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      4.9.16
+// @version      4.9.17
 // @description  Press Ctrl+Alt+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
@@ -460,6 +460,18 @@
         GM_openInTab(APP_URL + '/?' + params.toString(), { active: true, insert: true });
     }
 
+    // Navigate the current tab to a URL. Browsers block http(s) pages from
+    // navigating to file:// URLs, so route those through GM_openInTab (which has
+    // elevated privileges). Requires "Allow access to file URLs" enabled for the
+    // Tampermonkey extension in the browser's extension settings.
+    function navigateTo(url) {
+        if (/^\s*file:/i.test(url || '')) {
+            GM_openInTab(url, { active: true, insert: true });
+        } else {
+            window.location.href = url;
+        }
+    }
+
     function openUrls(items, newTab) {
         if (items.length === 0) return;
         if (newTab) {
@@ -473,7 +485,7 @@
                 GM_openInTab(items[i].url, { active: false, insert: true });
             }
             // Navigate current tab to the last URL
-            window.location.href = items[items.length - 1].url;
+            navigateTo(items[items.length - 1].url);
         }
     }
 
@@ -1072,7 +1084,7 @@
                 if (newTab) {
                     GM_openInTab(targetUrl, { active: true, insert: true });
                 } else {
-                    window.location.href = targetUrl;
+                    navigateTo(targetUrl);
                 }
                 if (!newTab) close();
             } else if (entry.kind === 'action' && entry.action === 'google-search') {

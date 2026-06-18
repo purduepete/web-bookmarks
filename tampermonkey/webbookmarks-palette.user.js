@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      4.9.17
+// @version      4.9.18
 // @description  Press Ctrl+Alt+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
@@ -1224,9 +1224,24 @@
         }
 
         function close() {
+            document.removeEventListener('keydown', escHandler, true);
             backdrop.remove();
             paletteOpen = false;
         }
+
+        // Document-level capture handler so Esc closes the palette even when the
+        // host page steals focus or stops propagation on its own keydown handlers.
+        const escHandler = (e) => {
+            if (e.key !== 'Escape') return;
+            e.preventDefault();
+            e.stopPropagation();
+            if (cheatsheetVisible()) {
+                hideCheatsheet();
+                setTimeout(() => input.focus(), 0);
+                return;
+            }
+            close();
+        };
 
         // ── Toast ──
         let toastEl = null;
@@ -1458,12 +1473,14 @@
             if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                 e.preventDefault();
                 handleSubmit(true);
+                close();
                 return;
             }
         });
 
         // ── Mount ──
         document.body.appendChild(backdrop);
+        document.addEventListener('keydown', escHandler, true);
         input.focus();
         render();
 

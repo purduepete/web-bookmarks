@@ -20,6 +20,25 @@ async function apiFetch(input: string, init: RequestInit = {}): Promise<Response
     return res;
 }
 
+// Issues an authenticated request, throws a labelled error on non-2xx, and
+// returns the parsed JSON body (or undefined for empty 204 responses).
+// A `body` is JSON-serialized and sent with the appropriate Content-Type.
+async function request<T>(
+    url: string,
+    opts: { method?: string; body?: unknown; label: string },
+): Promise<T> {
+    const init: RequestInit = {};
+    if (opts.method) init.method = opts.method;
+    if (opts.body !== undefined) {
+        init.headers = { 'Content-Type': 'application/json' };
+        init.body = JSON.stringify(opts.body);
+    }
+    const res = await apiFetch(url, init);
+    if (!res.ok) throw new Error(`Failed to ${opts.label}: ${res.status}`);
+    if (res.status === 204) return undefined as T;
+    return (await res.json()) as T;
+}
+
 // Validates a key against the API without persisting it. Used by the login gate.
 export async function validateApiKey(key: string): Promise<boolean> {
     try {
@@ -61,79 +80,48 @@ export async function fetchBookmarks(includeHidden = false, profile?: string): P
     throw lastError!;
 }
 
-export async function createBookmark(item: Omit<WebBookmarksItem, 'id'>): Promise<WebBookmarksItem> {
-    const res = await apiFetch(API_BASE, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(item),
-    });
-    if (!res.ok) throw new Error(`Failed to create bookmark: ${res.status}`);
-    return await res.json();
+export function createBookmark(item: Omit<WebBookmarksItem, 'id'>): Promise<WebBookmarksItem> {
+    return request(API_BASE, { method: 'POST', body: item, label: 'create bookmark' });
 }
 
-export async function updateBookmark(id: number, item: WebBookmarksItem): Promise<void> {
-    const res = await apiFetch(`${API_BASE}/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(item),
-    });
-    if (!res.ok) throw new Error(`Failed to update bookmark: ${res.status}`);
+export function updateBookmark(id: number, item: WebBookmarksItem): Promise<void> {
+    return request(`${API_BASE}/${id}`, { method: 'PUT', body: item, label: 'update bookmark' });
 }
 
-export async function deleteBookmark(id: number): Promise<void> {
-    const res = await apiFetch(`${API_BASE}/${id}`, {
-        method: 'DELETE',
-    });
-    if (!res.ok) throw new Error(`Failed to delete bookmark: ${res.status}`);
+export function deleteBookmark(id: number): Promise<void> {
+    return request(`${API_BASE}/${id}`, { method: 'DELETE', label: 'delete bookmark' });
 }
 
-export async function reorderBookmarks(entries: { id: number; sortOrder: number }[]): Promise<void> {
-    const res = await apiFetch(`${API_BASE}/reorder`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(entries),
-    });
-    if (!res.ok) throw new Error(`Failed to reorder bookmarks: ${res.status}`);
+export function reorderBookmarks(entries: { id: number; sortOrder: number }[]): Promise<void> {
+    return request(`${API_BASE}/reorder`, { method: 'POST', body: entries, label: 'reorder bookmarks' });
 }
 
-export async function checkAlias(
+export function checkAlias(
     alias: string,
     excludeId?: number,
 ): Promise<{ isDuplicate: boolean; matches: { id: number; name: string; shortcut: string }[] }> {
     const params = new URLSearchParams({ alias });
     if (excludeId !== undefined) params.set('excludeId', String(excludeId));
-    const res = await apiFetch(`${API_BASE}/check-alias?${params}`);
-    if (!res.ok) throw new Error(`Failed to check alias: ${res.status}`);
-    return await res.json();
+    return request(`${API_BASE}/check-alias?${params}`, { label: 'check alias' });
 }
 
-export async function fetchGroups(profile?: string, exact?: boolean): Promise<string[]> {
+export function fetchGroups(profile?: string, exact?: boolean): Promise<string[]> {
     const params = new URLSearchParams();
     if (profile) params.set('profile', profile);
     if (exact) params.set('exact', 'true');
     const qs = params.toString();
-    const res = await apiFetch(`${API_BASE}/groups${qs ? `?${qs}` : ''}`);
-    if (!res.ok) throw new Error(`Failed to fetch groups: ${res.status}`);
-    return await res.json();
+    return request(`${API_BASE}/groups${qs ? `?${qs}` : ''}`, { label: 'fetch groups' });
 }
 
-export async function fetchProfiles(): Promise<string[]> {
-    const res = await apiFetch(`${API_BASE}/profiles`);
-    if (!res.ok) throw new Error(`Failed to fetch profiles: ${res.status}`);
-    return await res.json();
+export function fetchProfiles(): Promise<string[]> {
+    return request(`${API_BASE}/profiles`, { label: 'fetch profiles' });
 }
 
-export async function bulkCreateBookmarks(items: Omit<WebBookmarksItem, 'id'>[]): Promise<{ imported: number }> {
-    const res = await apiFetch(`${API_BASE}/bulk`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(items),
-    });
-    if (!res.ok) throw new Error(`Failed to bulk import: ${res.status}`);
-    return await res.json();
+export function bulkCreateBookmarks(items: Omit<WebBookmarksItem, 'id'>[]): Promise<{ imported: number }> {
+    return request(`${API_BASE}/bulk`, { method: 'POST', body: items, label: 'bulk import' });
 }
 
-export async function bulkUpdateBookmarks(
+export function bulkUpdateBookmarks(
     ids: number[],
     profile?: string,
     bookmarkGroup?: string,
@@ -141,36 +129,24 @@ export async function bulkUpdateBookmarks(
     isVisible?: boolean,
 ): Promise<{ updated: number }> {
     const clearShortcut = shortcut === '' ? true : null;
-    const res = await apiFetch(`${API_BASE}/bulk`, {
+    return request(`${API_BASE}/bulk`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: {
             ids,
             profile: profile ?? null,
             bookmarkGroup: bookmarkGroup ?? null,
             shortcut: shortcut || null,
             isVisible: isVisible ?? null,
             clearShortcut,
-        }),
+        },
+        label: 'bulk update',
     });
-    if (!res.ok) throw new Error(`Failed to bulk update: ${res.status}`);
-    return await res.json();
 }
 
-export async function bulkDeleteBookmarks(ids: number[]): Promise<{ deleted: number }> {
-    const res = await apiFetch(`${API_BASE}/bulk-delete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(ids),
-    });
-    if (!res.ok) throw new Error(`Failed to bulk delete: ${res.status}`);
-    return await res.json();
+export function bulkDeleteBookmarks(ids: number[]): Promise<{ deleted: number }> {
+    return request(`${API_BASE}/bulk-delete`, { method: 'POST', body: ids, label: 'bulk delete' });
 }
 
-export async function toggleFavorite(id: number): Promise<{ id: number; isFavorite: boolean }> {
-    const res = await apiFetch(`${API_BASE}/${id}/favorite`, {
-        method: 'PATCH',
-    });
-    if (!res.ok) throw new Error(`Failed to toggle favorite: ${res.status}`);
-    return await res.json();
+export function toggleFavorite(id: number): Promise<{ id: number; isFavorite: boolean }> {
+    return request(`${API_BASE}/${id}/favorite`, { method: 'PATCH', label: 'toggle favorite' });
 }

@@ -1,20 +1,21 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import type { WebBookmarksItem } from '../types';
-import { bulkUpdateBookmarks, bulkDeleteBookmarks, fetchGroups, fetchProfiles } from '../api';
+import { bulkUpdateBookmarks, bulkDeleteBookmarks, fetchGroups } from '../api';
 import DarkSelect from './DarkSelect';
 import ConfirmModal from './ConfirmModal';
+import Modal from './Modal';
 
 interface Props {
     bookmarks: WebBookmarksItem[];
     activeProfile: string;
+    profiles: string[];
     onClose: () => void;
     onChanged: () => void;
 }
 
-export default function BulkEditModal({ bookmarks, activeProfile, onClose, onChanged }: Props) {
+export default function BulkEditModal({ bookmarks, activeProfile, profiles, onClose, onChanged }: Props) {
     const [selected, setSelected] = useState<Set<number>>(new Set());
     const [groups, setGroups] = useState<string[]>([]);
-    const [profiles, setProfiles] = useState<string[]>([]);
     const [action, setAction] = useState<'profile' | 'group' | 'alias' | 'visible' | 'delete' | ''>('');
     const [targetVisible, setTargetVisible] = useState('true');
     const [targetProfile, setTargetProfile] = useState(activeProfile);
@@ -25,24 +26,12 @@ export default function BulkEditModal({ bookmarks, activeProfile, onClose, onCha
     const [result, setResult] = useState<string | null>(null);
     const [filter, setFilter] = useState('');
     const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
-    const modalRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         fetchGroups()
             .then(setGroups)
             .catch(() => {});
-        fetchProfiles()
-            .then(setProfiles)
-            .catch(() => {});
     }, []);
-
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') onClose();
-        };
-        document.addEventListener('keydown', handleKeyDown);
-        return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [onClose]);
 
     const toggleAll = (checked: boolean) => {
         if (checked) {
@@ -138,25 +127,9 @@ export default function BulkEditModal({ bookmarks, activeProfile, onClose, onCha
         }
     };
 
-    const handleBackdropClick = (e: React.MouseEvent) => {
-        if (e.target === e.currentTarget) onClose();
-    };
-
     return (
-        <div
-            className="modal-backdrop-custom"
-            onClick={handleBackdropClick}
-            ref={modalRef}
-            role="dialog"
-            aria-modal="true"
-        >
-            <div className="modal-content-custom modal-wide">
-                <div className="modal-header-custom">
-                    <span>Bulk Edit Bookmarks</span>
-                    <button className="modal-close-btn" onClick={onClose}>
-                        ×
-                    </button>
-                </div>
+        <>
+            <Modal title="Bulk Edit Bookmarks" onClose={onClose} contentClassName="modal-wide">
                 <div className="modal-body-custom">
                     <div className="bulk-toolbar">
                         <label className="checkbox-label">
@@ -293,7 +266,7 @@ export default function BulkEditModal({ bookmarks, activeProfile, onClose, onCha
                         Close
                     </button>
                 </div>
-            </div>
+            </Modal>
 
             {confirmDeleteOpen && (
                 <ConfirmModal
@@ -305,6 +278,6 @@ export default function BulkEditModal({ bookmarks, activeProfile, onClose, onCha
                     onCancel={() => setConfirmDeleteOpen(false)}
                 />
             )}
-        </div>
+        </>
     );
 }

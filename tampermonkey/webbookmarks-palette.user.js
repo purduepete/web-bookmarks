@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      4.9.18
+// @version      4.9.19
 // @description  Press Ctrl+Alt+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
@@ -390,6 +390,22 @@
         const d = document.createElement('div');
         d.textContent = s;
         return d.innerHTML;
+    }
+
+    // Resolves the URL to open for a bookmark given the current query. When the
+    // bookmark has a search URL ({q} placeholder) and the query is
+    // "<alias-or-name> <terms…>", the terms are substituted in. Mirrors
+    // resolveBookmarkUrl() in the web app's utils.ts.
+    function resolveBookmarkUrl(bookmark, q) {
+        if (!bookmark.urls) return bookmark.url;
+        const parts = (q || '').trim().split(/\s+/);
+        if (parts.length < 2) return bookmark.url;
+        const firstWord = parts[0].toLowerCase();
+        const alias = (bookmark.shortcut || '').trim().toLowerCase();
+        if ((alias && firstWord === alias) || (bookmark.name || '').toLowerCase().startsWith(firstWord)) {
+            return bookmark.urls.replace('{q}', encodeURIComponent(parts.slice(1).join(' ')));
+        }
+        return bookmark.url;
     }
 
     // ── MRU ──────────────────────────────────────────────────
@@ -1032,21 +1048,7 @@
             const entry = filtered[activeIndex];
             if (entry?.kind === 'bookmark' && entry.bookmark) {
                 lastBookmark = entry.bookmark;
-                var previewUrl = entry.bookmark.url;
-                if (entry.bookmark.urls) {
-                    var pq = query.trim();
-                    var pparts = pq.split(/\s+/);
-                    var palias = (entry.bookmark.shortcut || '').trim().toLowerCase();
-                    var pfirstWord = pparts[0].toLowerCase();
-                    if (
-                        pparts.length > 1 &&
-                        ((palias && pfirstWord === palias) ||
-                            (entry.bookmark.name || '').toLowerCase().startsWith(pfirstWord))
-                    ) {
-                        previewUrl = entry.bookmark.urls.replace('{q}', encodeURIComponent(pparts.slice(1).join(' ')));
-                    }
-                }
-                previewEl.textContent = previewUrl;
+                previewEl.textContent = resolveBookmarkUrl(entry.bookmark, query);
             } else if (entry?.kind === 'group' && entry.group) {
                 previewEl.textContent = entry.group.items.length + ' bookmarks \u2014 Enter to open all';
             } else if (entry?.kind === 'action') {
@@ -1066,20 +1068,7 @@
                 );
                 if (!newTab) close();
             } else if (entry.kind === 'bookmark' && entry.bookmark) {
-                var targetUrl = entry.bookmark.url;
-                if (entry.bookmark.urls) {
-                    var bq = query.trim();
-                    var bparts = bq.split(/\s+/);
-                    var balias = (entry.bookmark.shortcut || '').trim().toLowerCase();
-                    var bfirstWord = bparts[0].toLowerCase();
-                    if (
-                        bparts.length > 1 &&
-                        ((balias && bfirstWord === balias) ||
-                            (entry.bookmark.name || '').toLowerCase().startsWith(bfirstWord))
-                    ) {
-                        targetUrl = entry.bookmark.urls.replace('{q}', encodeURIComponent(bparts.slice(1).join(' ')));
-                    }
-                }
+                const targetUrl = resolveBookmarkUrl(entry.bookmark, query);
                 recordMru(currentProfile, entry.bookmark.id);
                 if (newTab) {
                     GM_openInTab(targetUrl, { active: true, insert: true });

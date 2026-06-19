@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { fetchBookmarks, deleteBookmark, reorderBookmarks, fetchProfiles, toggleFavorite } from './api';
 import type { WebBookmarksItem, BookmarkGroup } from './types';
-import { wildcardMatch, openUrls } from './utils';
+import { wildcardMatch, openUrls, resolveBookmarkUrl } from './utils';
 
 import BookmarkGroupComponent from './components/BookmarkGroup';
 import BookmarkModal from './components/BookmarkModal';
@@ -33,7 +33,7 @@ function navigateByShortcut(input: string, bookmarks: WebBookmarksItem[], openIn
     openUrls(
         matches.map((m) => ({
             name: m.name,
-            url: searchQuery && m.urls ? m.urls.replace('{q}', encodeURIComponent(searchQuery)) : m.url,
+            url: resolveBookmarkUrl(m, trimmed),
         })),
         openInNewTab,
     );
@@ -800,6 +800,7 @@ export default function App() {
                     bookmark={editingBookmark}
                     allBookmarks={bookmarks}
                     activeProfile={activeProfile}
+                    profiles={profiles}
                     onClose={handleModalClose}
                     onSaved={handleModalSaved}
                     prefill={prefillData}
@@ -809,6 +810,7 @@ export default function App() {
             {importOpen && (
                 <ImportModal
                     activeProfile={activeProfile}
+                    profiles={profiles}
                     onClose={() => {
                         setImportOpen(false);
                         if (modalFromPaletteRef.current) {
@@ -824,6 +826,7 @@ export default function App() {
                 <BulkEditModal
                     bookmarks={bookmarks}
                     activeProfile={activeProfile}
+                    profiles={profiles}
                     onClose={() => {
                         setBulkEditOpen(false);
                         if (modalFromPaletteRef.current) {

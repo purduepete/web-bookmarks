@@ -13,6 +13,14 @@ public class WebBookmarksContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<WebBookmarksItem>().ToTable("webbookmarkitems");
+        var item = modelBuilder.Entity<WebBookmarksItem>();
+        item.ToTable("webbookmarkitems");
+
+        // Indexes matching the common query shapes: list/groups filter by
+        // Profile (+ IsVisible) and order by BookmarkGroup then SortOrder.
+        // NOTE: declared on the EF model — apply to the live DB via a migration
+        // or the equivalent CREATE INDEX statements.
+        item.HasIndex(b => b.Profile);
+        item.HasIndex(b => new { b.BookmarkGroup, b.SortOrder });
     }
 }

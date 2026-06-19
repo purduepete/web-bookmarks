@@ -222,7 +222,7 @@ app.MapPut("/api/bookmarks/bulk", async (BulkUpdateRequest request, WebBookmarks
         if (request.IsVisible is not null) item.IsVisible = request.IsVisible.Value;
         if (request.IsFavorite is not null) item.IsFavorite = request.IsFavorite.Value;
     }
-    var count = await db.SaveChangesAsync();
+    await db.SaveChangesAsync();
     return Results.Ok(new { updated = items.Count });
 })
     .WithName("BulkUpdateBookmarks")

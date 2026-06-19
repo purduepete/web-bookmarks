@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import type { WebBookmarksItem } from '../types';
-import { bulkCreateBookmarks, fetchProfiles, fetchGroups } from '../api';
+import { bulkCreateBookmarks, fetchGroups } from '../api';
 import DarkSelect from './DarkSelect';
+import Modal from './Modal';
 
 interface Props {
     activeProfile: string;
+    profiles: string[];
     onClose: () => void;
     onImported: () => void;
 }
@@ -50,37 +52,24 @@ function parseEdgeHtml(html: string): ParsedBookmark[] {
     return results;
 }
 
-export default function ImportModal({ activeProfile, onClose, onImported }: Props) {
+export default function ImportModal({ activeProfile, profiles, onClose, onImported }: Props) {
     const [parsed, setParsed] = useState<ParsedBookmark[]>([]);
     const [importing, setImporting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [done, setDone] = useState<number | null>(null);
     const [profile, setProfile] = useState(activeProfile);
-    const [profiles, setProfiles] = useState<string[]>([]);
     const [existingGroups, setExistingGroups] = useState<string[]>([]);
     const [customGroups, setCustomGroups] = useState<string[]>([]);
     const [newGroupRow, setNewGroupRow] = useState<number | null>(null);
     const [newGroupValue, setNewGroupValue] = useState('');
     const newGroupRef = useRef<HTMLInputElement>(null);
     const fileRef = useRef<HTMLInputElement>(null);
-    const modalRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        fetchProfiles()
-            .then(setProfiles)
-            .catch(() => {});
         fetchGroups()
             .then(setExistingGroups)
             .catch(() => {});
     }, []);
-
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') onClose();
-        };
-        document.addEventListener('keydown', handleKeyDown);
-        return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [onClose]);
 
     const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -157,29 +146,12 @@ export default function ImportModal({ activeProfile, onClose, onImported }: Prop
         }
     };
 
-    const handleBackdropClick = (e: React.MouseEvent) => {
-        if (e.target === e.currentTarget) onClose();
-    };
-
     const selectedCount = parsed.filter((b) => b.selected).length;
     const folders = [...new Set(parsed.map((b) => b.folder))];
 
     return (
-        <div
-            className="modal-backdrop-custom"
-            onClick={handleBackdropClick}
-            ref={modalRef}
-            role="dialog"
-            aria-modal="true"
-        >
-            <div className="modal-content-custom modal-wide">
-                <div className="modal-header-custom">
-                    <span>Import Bookmarks</span>
-                    <button className="modal-close-btn" onClick={onClose}>
-                        ×
-                    </button>
-                </div>
-                <div className="modal-body-custom">
+        <Modal title="Import Bookmarks" onClose={onClose} contentClassName="modal-wide">
+            <div className="modal-body-custom">
                     <div className="modal-field">
                         <label>Select Edge favorites HTML export file</label>
                         <input
@@ -324,7 +296,6 @@ export default function ImportModal({ activeProfile, onClose, onImported }: Prop
                         </button>
                     )}
                 </div>
-            </div>
-        </div>
+        </Modal>
     );
 }

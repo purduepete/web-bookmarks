@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { WebBookmarksItem } from '../types';
-import { checkAlias, createBookmark, updateBookmark, fetchGroups, fetchProfiles } from '../api';
+import { checkAlias, createBookmark, updateBookmark, fetchGroups } from '../api';
 import DarkSelect from './DarkSelect';
+import Modal from './Modal';
 
 interface Props {
     bookmark: WebBookmarksItem | null; // null = create mode
     allBookmarks: WebBookmarksItem[];
     activeProfile: string;
+    profiles: string[];
     onClose: () => void;
     onSaved: () => void;
     prefill?: Partial<Omit<WebBookmarksItem, 'id'>> | null;
@@ -25,13 +27,20 @@ const emptyBookmark: Omit<WebBookmarksItem, 'id'> = {
     isFavorite: false,
 };
 
-export default function BookmarkModal({ bookmark, allBookmarks, activeProfile, onClose, onSaved, prefill }: Props) {
+export default function BookmarkModal({
+    bookmark,
+    allBookmarks,
+    activeProfile,
+    profiles,
+    onClose,
+    onSaved,
+    prefill,
+}: Props) {
     const isEdit = bookmark !== null;
     const [form, setForm] = useState<Omit<WebBookmarksItem, 'id'>>(
         bookmark ? { ...bookmark } : { ...emptyBookmark, profile: activeProfile, ...(prefill || {}) },
     );
     const [groups, setGroups] = useState<string[]>([]);
-    const [profiles, setProfiles] = useState<string[]>([]);
     const [newGroup, setNewGroup] = useState('');
     const [useNewGroup, setUseNewGroup] = useState(false);
     const [newProfile, setNewProfile] = useState('');
@@ -43,7 +52,6 @@ export default function BookmarkModal({ bookmark, allBookmarks, activeProfile, o
     const [error, setError] = useState<string | null>(null);
     const aliasTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const nameRef = useRef<HTMLInputElement>(null);
-    const modalRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         fetchGroups(form.profile === 'all' ? undefined : form.profile, form.profile !== 'all')
@@ -52,51 +60,8 @@ export default function BookmarkModal({ bookmark, allBookmarks, activeProfile, o
     }, [form.profile]);
 
     useEffect(() => {
-        fetchProfiles()
-            .then(setProfiles)
-            .catch(() => {});
-    }, []);
-
-    useEffect(() => {
         nameRef.current?.focus();
     }, []);
-
-    // Focus trap: keep Tab/Shift+Tab cycling within the modal
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
-                onClose();
-                return;
-            }
-            if (e.key !== 'Tab') return;
-
-            const modal = modalRef.current;
-            if (!modal) return;
-
-            const focusable = modal.querySelectorAll<HTMLElement>(
-                'input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])',
-            );
-            if (focusable.length === 0) return;
-
-            const first = focusable[0];
-            const last = focusable[focusable.length - 1];
-
-            if (e.shiftKey) {
-                if (document.activeElement === first) {
-                    e.preventDefault();
-                    last.focus();
-                }
-            } else {
-                if (document.activeElement === last) {
-                    e.preventDefault();
-                    first.focus();
-                }
-            }
-        };
-
-        document.addEventListener('keydown', handleKeyDown);
-        return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [onClose]);
 
     const validateAlias = useCallback(
         (alias: string) => {
@@ -192,27 +157,10 @@ export default function BookmarkModal({ bookmark, allBookmarks, activeProfile, o
         }
     };
 
-    const handleBackdropClick = (e: React.MouseEvent) => {
-        if (e.target === e.currentTarget) onClose();
-    };
-
     return (
-        <div
-            className="modal-backdrop-custom"
-            onClick={handleBackdropClick}
-            ref={modalRef}
-            role="dialog"
-            aria-modal="true"
-        >
-            <div className="modal-content-custom">
-                <div className="modal-header-custom">
-                    <span>{isEdit ? 'Edit Bookmark' : 'New Bookmark'}</span>
-                    <button className="modal-close-btn" onClick={onClose}>
-                        ×
-                    </button>
-                </div>
-                <form onSubmit={handleSubmit}>
-                    <div className="modal-body-custom">
+        <Modal title={isEdit ? 'Edit Bookmark' : 'New Bookmark'} onClose={onClose}>
+            <form onSubmit={handleSubmit}>
+                <div className="modal-body-custom">
                         <div className="modal-field">
                             <label>Name</label>
                             <input
@@ -344,8 +292,7 @@ export default function BookmarkModal({ bookmark, allBookmarks, activeProfile, o
                             {saving ? 'Saving...' : 'Save'}
                         </button>
                     </div>
-                </form>
-            </div>
-        </div>
+            </form>
+        </Modal>
     );
 }

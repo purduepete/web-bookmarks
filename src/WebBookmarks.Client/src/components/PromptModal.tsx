@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import Modal from './Modal';
 
 interface Props {
     message: string;
@@ -29,60 +30,36 @@ export default function PromptModal({
         inputRef.current?.select();
     }, []);
 
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
-                e.preventDefault();
-                onCancel();
-            }
-        };
-        document.addEventListener('keydown', handleKeyDown);
-        return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [onCancel]);
-
     return (
-        <div
-            className="modal-backdrop-custom"
-            onMouseDown={(e) => {
-                if (e.target === e.currentTarget) onCancel();
-            }}
-        >
-            <div className="modal-content-custom modal-confirm">
-                <div className="modal-header-custom">
-                    <span>{title}</span>
-                    <button className="modal-close-btn" onClick={onCancel}>
-                        ×
+        <Modal title={title} onClose={onCancel} contentClassName="modal-confirm">
+            <form
+                onSubmit={(e) => {
+                    e.preventDefault();
+                    onSubmit(value);
+                }}
+            >
+                <div className="modal-body-custom">
+                    <div className="modal-field">
+                        <label>{message}</label>
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            className="form-control"
+                            placeholder={placeholder}
+                            value={value}
+                            onChange={(e) => setValue(e.target.value)}
+                        />
+                    </div>
+                </div>
+                <div className="modal-footer-custom">
+                    <button type="button" className="btn-modal btn-modal-cancel" onClick={onCancel}>
+                        {cancelLabel}
+                    </button>
+                    <button type="submit" className="btn-modal btn-modal-save">
+                        {submitLabel}
                     </button>
                 </div>
-                <form
-                    onSubmit={(e) => {
-                        e.preventDefault();
-                        onSubmit(value);
-                    }}
-                >
-                    <div className="modal-body-custom">
-                        <div className="modal-field">
-                            <label>{message}</label>
-                            <input
-                                ref={inputRef}
-                                type="text"
-                                className="form-control"
-                                placeholder={placeholder}
-                                value={value}
-                                onChange={(e) => setValue(e.target.value)}
-                            />
-                        </div>
-                    </div>
-                    <div className="modal-footer-custom">
-                        <button type="button" className="btn-modal btn-modal-cancel" onClick={onCancel}>
-                            {cancelLabel}
-                        </button>
-                        <button type="submit" className="btn-modal btn-modal-save">
-                            {submitLabel}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+            </form>
+        </Modal>
     );
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { WebBookmarksItem, BookmarkGroup } from '../types';
-import { wildcardMatch, openUrls, sanitizeUrl, resolveBookmarkUrl } from '../utils';
+import { wildcardMatch, openUrls } from '../utils';
 
 interface Props {
     groups: BookmarkGroup[];
@@ -300,6 +300,11 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
                     }
                 }
             }
+            // Prioritize favorites: separate bookmarks into favorites and non-favorites,
+            // then concatenate favorites first, maintaining original order within each group
+            const favorites = result.filter((e) => e.kind === 'bookmark' && e.bookmark?.isFavorite);
+            const nonFavorites = result.filter((e) => !(e.kind === 'bookmark' && e.bookmark?.isFavorite));
+            result = [...favorites, ...nonFavorites];
         }
         // Google fallback: if nothing matched, offer a web search
         if (result.length === 0) {
@@ -392,12 +397,24 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
                     newTab,
                 );
             } else if (entry.kind === 'bookmark' && entry.bookmark) {
-                const targetUrl = resolveBookmarkUrl(entry.bookmark, searchPart);
+                let targetUrl = entry.bookmark.url;
+                if (entry.bookmark.urls) {
+                    const q = searchPart.trim();
+                    const parts = q.split(/\s+/);
+                    const alias = (entry.bookmark.shortcut || '').trim().toLowerCase();
+                    const firstWord = parts[0].toLowerCase();
+                    if (
+                        parts.length > 1 &&
+                        ((alias && firstWord === alias) || entry.bookmark.name.toLowerCase().startsWith(firstWord))
+                    ) {
+                        targetUrl = entry.bookmark.urls.replace('{q}', encodeURIComponent(parts.slice(1).join(' ')));
+                    }
+                }
                 recordMru(activeProfile, entry.bookmark.id);
                 if (newTab) {
-                    window.open(sanitizeUrl(targetUrl), '_blank', 'noopener');
+                    window.open(targetUrl, '_blank', 'noopener');
                 } else {
-                    window.location.href = sanitizeUrl(targetUrl);
+                    window.location.href = targetUrl;
                 }
             }
             if (!newTab) onClose(true);
@@ -578,7 +595,19 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
         const entry = displayList[activeIndex];
         if (!entry) return '';
         if (entry.kind === 'bookmark' && entry.bookmark) {
-            return resolveBookmarkUrl(entry.bookmark, searchPart);
+            if (entry.bookmark.urls) {
+                const q = searchPart.trim();
+                const parts = q.split(/\s+/);
+                const alias = (entry.bookmark.shortcut || '').trim().toLowerCase();
+                const firstWord = parts[0].toLowerCase();
+                if (
+                    parts.length > 1 &&
+                    ((alias && firstWord === alias) || entry.bookmark.name.toLowerCase().startsWith(firstWord))
+                ) {
+                    return entry.bookmark.urls.replace('{q}', encodeURIComponent(parts.slice(1).join(' ')));
+                }
+            }
+            return entry.bookmark.url;
         }
         if (entry.kind === 'group' && entry.group) return `${entry.group.items.length} bookmarks — Enter to open all`;
         if (entry.kind === 'action') return 'Action — Enter to execute';

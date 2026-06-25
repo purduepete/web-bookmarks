@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      4.9.20
+// @version      4.9.21
 // @description  Press Ctrl+Alt+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
@@ -14,6 +14,7 @@
 // @grant        GM_openInTab
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @grant        GM_registerMenuCommand
 // @connect      webbookmarksapi.azurewebsites.net
 // @run-at       document-idle
 // @updateURL    https://gist.githubusercontent.com/purduepete/7e7bb1d0855d688bf683069e786ac524/raw/webbookmarks-palette.user.js
@@ -28,6 +29,16 @@
 
     const API_BASE = 'https://webbookmarksapi.azurewebsites.net/api/bookmarks';
     const APP_URL = 'https://witty-hill-00503bc10.7.azurestaticapps.net';
+
+    // ── API key (set once via the Tampermonkey menu, persisted with GM_setValue) ──
+    let API_KEY = GM_getValue('apiKey', '');
+    GM_registerMenuCommand('Set WebBookmarks API Key', () => {
+        const k = prompt('Enter WebBookmarks API key:', API_KEY);
+        if (k !== null) {
+            API_KEY = k.trim();
+            GM_setValue('apiKey', API_KEY);
+        }
+    });
 
     // ── Embed Roboto Flex (same font the web app uses) as base64 @font-face so it ──
     // ── renders identically everywhere, immune to host-page CSP / offline. ──
@@ -381,6 +392,22 @@
         return d.innerHTML;
     }
 
+    // Resolves the URL to open for a bookmark given the current query. When the
+    // bookmark has a search URL ({q} placeholder) and the query is
+    // "<alias-or-name> <terms…>", the terms are substituted in. Mirrors
+    // resolveBookmarkUrl() in the web app's utils.ts.
+    function resolveBookmarkUrl(bookmark, q) {
+        if (!bookmark.urls) return bookmark.url;
+        const parts = (q || '').trim().split(/\s+/);
+        if (parts.length < 2) return bookmark.url;
+        const firstWord = parts[0].toLowerCase();
+        const alias = (bookmark.shortcut || '').trim().toLowerCase();
+        if ((alias && firstWord === alias) || (bookmark.name || '').toLowerCase().startsWith(firstWord)) {
+            return bookmark.urls.replace('{q}', encodeURIComponent(parts.slice(1).join(' ')));
+        }
+        return bookmark.url;
+    }
+
     // ── MRU ──────────────────────────────────────────────────
     const MRU_LIMIT = 5;
     const MRU_MAX_ENTRIES = 50;
@@ -449,6 +476,18 @@
         GM_openInTab(APP_URL + '/?' + params.toString(), { active: true, insert: true });
     }
 
+    // Navigate the current tab to a URL. Browsers block http(s) pages from
+    // navigating to file:// URLs, so route those through GM_openInTab (which has
+    // elevated privileges). Requires "Allow access to file URLs" enabled for the
+    // Tampermonkey extension in the browser's extension settings.
+    function navigateTo(url) {
+        if (/^\s*file:/i.test(url || '')) {
+            GM_openInTab(url, { active: true, insert: true });
+        } else {
+            window.location.href = url;
+        }
+    }
+
     function openUrls(items, newTab) {
         if (items.length === 0) return;
         if (newTab) {
@@ -462,7 +501,7 @@
                 GM_openInTab(items[i].url, { active: false, insert: true });
             }
             // Navigate current tab to the last URL
-            window.location.href = items[items.length - 1].url;
+            navigateTo(items[items.length - 1].url);
         }
     }
 
@@ -513,6 +552,7 @@
             GM_xmlhttpRequest({
                 method: 'GET',
                 url: url,
+                headers: { 'X-Api-Key': API_KEY },
                 onload(res) {
                     if (res.status !== 200) return reject(new Error('HTTP ' + res.status));
                     try {
@@ -533,6 +573,7 @@
             GM_xmlhttpRequest({
                 method: 'GET',
                 url: API_BASE + '/profiles',
+                headers: { 'X-Api-Key': API_KEY },
                 onload(res) {
                     if (res.status !== 200) return reject(new Error('HTTP ' + res.status));
                     try {
@@ -1018,21 +1059,7 @@
             const entry = filtered[activeIndex];
             if (entry?.kind === 'bookmark' && entry.bookmark) {
                 lastBookmark = entry.bookmark;
-                var previewUrl = entry.bookmark.url;
-                if (entry.bookmark.urls) {
-                    var pq = query.trim();
-                    var pparts = pq.split(/\s+/);
-                    var palias = (entry.bookmark.shortcut || '').trim().toLowerCase();
-                    var pfirstWord = pparts[0].toLowerCase();
-                    if (
-                        pparts.length > 1 &&
-                        ((palias && pfirstWord === palias) ||
-                            (entry.bookmark.name || '').toLowerCase().startsWith(pfirstWord))
-                    ) {
-                        previewUrl = entry.bookmark.urls.replace('{q}', encodeURIComponent(pparts.slice(1).join(' ')));
-                    }
-                }
-                previewEl.textContent = previewUrl;
+                previewEl.textContent = resolveBookmarkUrl(entry.bookmark, query);
             } else if (entry?.kind === 'group' && entry.group) {
                 previewEl.textContent = entry.group.items.length + ' bookmarks \u2014 Enter to open all';
             } else if (entry?.kind === 'action') {
@@ -1052,25 +1079,12 @@
                 );
                 if (!newTab) close();
             } else if (entry.kind === 'bookmark' && entry.bookmark) {
-                var targetUrl = entry.bookmark.url;
-                if (entry.bookmark.urls) {
-                    var bq = query.trim();
-                    var bparts = bq.split(/\s+/);
-                    var balias = (entry.bookmark.shortcut || '').trim().toLowerCase();
-                    var bfirstWord = bparts[0].toLowerCase();
-                    if (
-                        bparts.length > 1 &&
-                        ((balias && bfirstWord === balias) ||
-                            (entry.bookmark.name || '').toLowerCase().startsWith(bfirstWord))
-                    ) {
-                        targetUrl = entry.bookmark.urls.replace('{q}', encodeURIComponent(bparts.slice(1).join(' ')));
-                    }
-                }
+                const targetUrl = resolveBookmarkUrl(entry.bookmark, query);
                 recordMru(currentProfile, entry.bookmark.id);
                 if (newTab) {
                     GM_openInTab(targetUrl, { active: true, insert: true });
                 } else {
-                    window.location.href = targetUrl;
+                    navigateTo(targetUrl);
                 }
                 if (!newTab) close();
             } else if (entry.kind === 'action' && entry.action === 'google-search') {
@@ -1210,9 +1224,24 @@
         }
 
         function close() {
+            document.removeEventListener('keydown', escHandler, true);
             backdrop.remove();
             paletteOpen = false;
         }
+
+        // Document-level capture handler so Esc closes the palette even when the
+        // host page steals focus or stops propagation on its own keydown handlers.
+        const escHandler = (e) => {
+            if (e.key !== 'Escape') return;
+            e.preventDefault();
+            e.stopPropagation();
+            if (cheatsheetVisible()) {
+                hideCheatsheet();
+                setTimeout(() => input.focus(), 0);
+                return;
+            }
+            close();
+        };
 
         // ── Toast ──
         let toastEl = null;
@@ -1444,12 +1473,14 @@
             if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                 e.preventDefault();
                 handleSubmit(true);
+                close();
                 return;
             }
         });
 
         // ── Mount ──
         document.body.appendChild(backdrop);
+        document.addEventListener('keydown', escHandler, true);
         input.focus();
         render();
 

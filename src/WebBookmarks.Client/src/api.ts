@@ -1,7 +1,9 @@
 import type { WebBookmarksItem } from './types';
 import { getApiKey, clearApiKey } from './auth';
 
-const API_BASE = import.meta.env.PROD ? 'https://webbookmarksapi.azurewebsites.net/api/bookmarks' : '/api/bookmarks';
+const API_BASE =
+    import.meta.env.VITE_API_BASE ??
+    (import.meta.env.PROD ? 'https://webbookmarksapi.azurewebsites.net/api/bookmarks' : '/api/bookmarks');
 
 const MAX_RETRIES = 5;
 const RETRY_DELAY_MS = 2000;

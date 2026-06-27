@@ -3,6 +3,10 @@ using WebBookmarks.Api.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Application Insights. No-ops when APPLICATIONINSIGHTS_CONNECTION_STRING is
+// absent (e.g. local dev), so it only emits telemetry where it's configured.
+builder.Services.AddApplicationInsightsTelemetry();
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -19,12 +23,17 @@ builder.Services.AddDbContext<WebBookmarksContext>(options =>
     options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure());
 });
 
-// CORS for local development (Static Web Apps proxies in production)
+// CORS. Allowed origins come from configuration ("Cors:AllowedOrigins"), so
+// production owns its origin list via an App Service setting / IaC instead of
+// relying on out-of-band platform CORS. Defaults to the Vite dev server.
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
+        var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+        if (origins is null || origins.Length == 0)
+            origins = new[] { "http://localhost:5173" };
+        policy.WithOrigins(origins)
               .AllowAnyHeader()
               .AllowAnyMethod();
     });

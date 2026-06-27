@@ -97,11 +97,11 @@ app.Use(async (context, next) =>
 // Verifies the process is up AND can reach the database; returns 503 if not,
 // so a deploy that can't talk to SQL is reported unhealthy instead of 500ing
 // on the first real request.
-app.MapGet("/healthz", async (WebBookmarksContext db) =>
+app.MapGet("/healthz", async (WebBookmarksContext db, CancellationToken ct) =>
 {
     try
     {
-        var canConnect = await db.Database.CanConnectAsync();
+        var canConnect = await db.Database.CanConnectAsync(ct);
         return canConnect
             ? Results.Ok(new { status = "healthy" })
             : Results.Json(new { status = "unhealthy", reason = "database unreachable" },
@@ -122,7 +122,7 @@ app.MapGet("/healthz", async (WebBookmarksContext db) =>
 // malformed or hostile payload can't exhaust memory/DB resources.
 const int MaxBulkItems = 1000;
 
-app.MapGet("/api/bookmarks", async (bool? includeHidden, string? profile, WebBookmarksContext db) =>
+app.MapGet("/api/bookmarks", async (bool? includeHidden, string? profile, WebBookmarksContext db, CancellationToken ct) =>
 {
     var query = db.WebBookmarkItems.AsQueryable();
     if (includeHidden != true)
@@ -132,32 +132,32 @@ app.MapGet("/api/bookmarks", async (bool? includeHidden, string? profile, WebBoo
     return await query
         .OrderBy(b => b.BookmarkGroup)
         .ThenBy(b => b.SortOrder)
-        .ToListAsync();
+        .ToListAsync(ct);
 })
     .WithName("GetBookmarks")
     .WithOpenApi();
 
-app.MapGet("/api/bookmarks/{id:int}", async (int id, WebBookmarksContext db) =>
-    await db.WebBookmarkItems.FindAsync(id) is { } item
+app.MapGet("/api/bookmarks/{id:int}", async (int id, WebBookmarksContext db, CancellationToken ct) =>
+    await db.WebBookmarkItems.FindAsync(new object?[] { id }, ct) is { } item
         ? Results.Ok(item)
         : Results.NotFound())
     .WithName("GetBookmark")
     .WithOpenApi();
 
-app.MapPost("/api/bookmarks", async (WebBookmarksItem item, WebBookmarksContext db) =>
+app.MapPost("/api/bookmarks", async (WebBookmarksItem item, WebBookmarksContext db, CancellationToken ct) =>
 {
     if (ValidateBookmark(item) is { } errors) return Results.ValidationProblem(errors);
     db.WebBookmarkItems.Add(item);
-    await db.SaveChangesAsync();
+    await db.SaveChangesAsync(ct);
     return Results.Created($"/api/bookmarks/{item.Id}", item);
 })
     .WithName("CreateBookmark")
     .WithOpenApi();
 
-app.MapPut("/api/bookmarks/{id:int}", async (int id, WebBookmarksItem input, WebBookmarksContext db) =>
+app.MapPut("/api/bookmarks/{id:int}", async (int id, WebBookmarksItem input, WebBookmarksContext db, CancellationToken ct) =>
 {
     if (ValidateBookmark(input) is { } errors) return Results.ValidationProblem(errors);
-    var item = await db.WebBookmarkItems.FindAsync(id);
+    var item = await db.WebBookmarkItems.FindAsync(new object?[] { id }, ct);
     if (item is null) return Results.NotFound();
 
     item.Name = input.Name;
@@ -171,25 +171,25 @@ app.MapPut("/api/bookmarks/{id:int}", async (int id, WebBookmarksItem input, Web
     item.Profile = input.Profile;
     item.IsFavorite = input.IsFavorite;
 
-    await db.SaveChangesAsync();
+    await db.SaveChangesAsync(ct);
     return Results.NoContent();
 })
     .WithName("UpdateBookmark")
     .WithOpenApi();
 
-app.MapDelete("/api/bookmarks/{id:int}", async (int id, WebBookmarksContext db) =>
+app.MapDelete("/api/bookmarks/{id:int}", async (int id, WebBookmarksContext db, CancellationToken ct) =>
 {
-    var item = await db.WebBookmarkItems.FindAsync(id);
+    var item = await db.WebBookmarkItems.FindAsync(new object?[] { id }, ct);
     if (item is null) return Results.NotFound();
 
     db.WebBookmarkItems.Remove(item);
-    await db.SaveChangesAsync();
+    await db.SaveChangesAsync(ct);
     return Results.NoContent();
 })
     .WithName("DeleteBookmark")
     .WithOpenApi();
 
-app.MapGet("/api/bookmarks/check-alias", async (string alias, int? excludeId, WebBookmarksContext db) =>
+app.MapGet("/api/bookmarks/check-alias", async (string alias, int? excludeId, WebBookmarksContext db, CancellationToken ct) =>
 {
     var lower = alias.Trim().ToLower();
     var query = db.WebBookmarkItems.Where(b =>
@@ -198,13 +198,13 @@ app.MapGet("/api/bookmarks/check-alias", async (string alias, int? excludeId, We
     if (excludeId.HasValue)
         query = query.Where(b => b.Id != excludeId.Value);
 
-    var matches = await query.Select(b => new { b.Id, b.Name, b.Shortcut }).ToListAsync();
+    var matches = await query.Select(b => new { b.Id, b.Name, b.Shortcut }).ToListAsync(ct);
     return Results.Ok(new { isDuplicate = matches.Count > 0, matches });
 })
     .WithName("CheckAlias")
     .WithOpenApi();
 
-app.MapGet("/api/bookmarks/groups", async (string? profile, bool? exact, WebBookmarksContext db) =>
+app.MapGet("/api/bookmarks/groups", async (string? profile, bool? exact, WebBookmarksContext db, CancellationToken ct) =>
 {
     var query = db.WebBookmarkItems.Where(b => b.IsVisible);
     if (!string.IsNullOrEmpty(profile))
@@ -215,56 +215,56 @@ app.MapGet("/api/bookmarks/groups", async (string? profile, bool? exact, WebBook
         .Select(b => b.BookmarkGroup)
         .Distinct()
         .OrderBy(g => g)
-        .ToListAsync();
+        .ToListAsync(ct);
 })
     .WithName("GetGroups")
     .WithOpenApi();
 
-app.MapPost("/api/bookmarks/reorder", async (List<ReorderEntry> entries, WebBookmarksContext db) =>
+app.MapPost("/api/bookmarks/reorder", async (List<ReorderEntry> entries, WebBookmarksContext db, CancellationToken ct) =>
 {
     if (entries.Count > MaxBulkItems) return Results.ValidationProblem(TooMany("entries"));
     var ids = entries.Select(e => e.Id).ToList();
     var items = await db.WebBookmarkItems
         .Where(b => ids.Contains(b.Id))
-        .ToDictionaryAsync(b => b.Id);
+        .ToDictionaryAsync(b => b.Id, ct);
     foreach (var entry in entries)
         if (items.TryGetValue(entry.Id, out var item))
             item.SortOrder = entry.SortOrder;
-    await db.SaveChangesAsync();
+    await db.SaveChangesAsync(ct);
     return Results.NoContent();
 })
     .WithName("ReorderBookmarks")
     .WithOpenApi();
 
-app.MapGet("/api/bookmarks/profiles", async (WebBookmarksContext db) =>
+app.MapGet("/api/bookmarks/profiles", async (WebBookmarksContext db, CancellationToken ct) =>
     await db.WebBookmarkItems
         .Select(b => b.Profile)
         .Distinct()
         .OrderBy(p => p)
-        .ToListAsync())
+        .ToListAsync(ct))
     .WithName("GetProfiles")
     .WithOpenApi();
 
-app.MapPost("/api/bookmarks/bulk", async (List<WebBookmarksItem> items, WebBookmarksContext db) =>
+app.MapPost("/api/bookmarks/bulk", async (List<WebBookmarksItem> items, WebBookmarksContext db, CancellationToken ct) =>
 {
     if (items.Count > MaxBulkItems) return Results.ValidationProblem(TooMany("items"));
     foreach (var item in items)
         if (ValidateBookmark(item) is { } errors)
             return Results.ValidationProblem(errors);
     db.WebBookmarkItems.AddRange(items);
-    await db.SaveChangesAsync();
+    await db.SaveChangesAsync(ct);
     return Results.Ok(new { imported = items.Count });
 })
     .WithName("BulkCreateBookmarks")
     .WithOpenApi();
 
-app.MapPut("/api/bookmarks/bulk", async (BulkUpdateRequest request, WebBookmarksContext db) =>
+app.MapPut("/api/bookmarks/bulk", async (BulkUpdateRequest request, WebBookmarksContext db, CancellationToken ct) =>
 {
     if (request.Ids.Count > MaxBulkItems) return Results.ValidationProblem(TooMany("ids"));
     if (ValidateBulkUpdate(request) is { } errors) return Results.ValidationProblem(errors);
     var items = await db.WebBookmarkItems
         .Where(b => request.Ids.Contains(b.Id))
-        .ToListAsync();
+        .ToListAsync(ct);
     foreach (var item in items)
     {
         if (request.Profile is not null) item.Profile = request.Profile;
@@ -274,31 +274,31 @@ app.MapPut("/api/bookmarks/bulk", async (BulkUpdateRequest request, WebBookmarks
         if (request.IsVisible is not null) item.IsVisible = request.IsVisible.Value;
         if (request.IsFavorite is not null) item.IsFavorite = request.IsFavorite.Value;
     }
-    await db.SaveChangesAsync();
+    await db.SaveChangesAsync(ct);
     return Results.Ok(new { updated = items.Count });
 })
     .WithName("BulkUpdateBookmarks")
     .WithOpenApi();
 
-app.MapPatch("/api/bookmarks/{id:int}/favorite", async (int id, WebBookmarksContext db) =>
+app.MapPatch("/api/bookmarks/{id:int}/favorite", async (int id, WebBookmarksContext db, CancellationToken ct) =>
 {
-    var item = await db.WebBookmarkItems.FindAsync(id);
+    var item = await db.WebBookmarkItems.FindAsync(new object?[] { id }, ct);
     if (item is null) return Results.NotFound();
     item.IsFavorite = !item.IsFavorite;
-    await db.SaveChangesAsync();
+    await db.SaveChangesAsync(ct);
     return Results.Ok(new { id = item.Id, isFavorite = item.IsFavorite });
 })
     .WithName("ToggleFavorite")
     .WithOpenApi();
 
-app.MapPost("/api/bookmarks/bulk-delete", async (List<int> ids, WebBookmarksContext db) =>
+app.MapPost("/api/bookmarks/bulk-delete", async (List<int> ids, WebBookmarksContext db, CancellationToken ct) =>
 {
     if (ids.Count > MaxBulkItems) return Results.ValidationProblem(TooMany("ids"));
     var items = await db.WebBookmarkItems
         .Where(b => ids.Contains(b.Id))
-        .ToListAsync();
+        .ToListAsync(ct);
     db.WebBookmarkItems.RemoveRange(items);
-    await db.SaveChangesAsync();
+    await db.SaveChangesAsync(ct);
     return Results.Ok(new { deleted = items.Count });
 })
     .WithName("BulkDeleteBookmarks")

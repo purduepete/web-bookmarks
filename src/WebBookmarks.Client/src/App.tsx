@@ -552,7 +552,10 @@ export default function App() {
     );
 
     if (loading) return null;
-    if (error) return <div className="loading-msg text-danger">{error}</div>;
+    // Only show a full-page error when there's nothing cached to fall back on.
+    // If we have bookmarks (from cache), keep showing them and surface the
+    // failure as a non-blocking banner below instead of wiping the UI.
+    if (error && bookmarks.length === 0) return <div className="loading-msg text-danger">{error}</div>;
     if (promptActive) {
         return (
             <div className="app-body">
@@ -573,6 +576,11 @@ export default function App() {
             <div className="header-spacer" />
 
             <div id="colMain" style={startupPaletteHiding || newBookmarkOnly ? { display: 'none' } : undefined}>
+                {error && bookmarks.length > 0 && (
+                    <div className="offline-banner text-warning" role="status">
+                        ⚠ Showing saved bookmarks — couldn't reach the server.
+                    </div>
+                )}
                 {profiles.filter((p) => !disabledProfiles.has(p)).length > 1 && (
                     <div className="profile-tabs">
                         {profiles

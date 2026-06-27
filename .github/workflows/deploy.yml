@@ -41,6 +41,23 @@ jobs:
                   app-name: ${{ env.API_APP_NAME }}
                   package: ./api-publish
 
+            - name: Smoke test (health probe)
+              shell: bash
+              run: |
+                  url="https://${{ env.API_APP_NAME }}.azurewebsites.net/healthz"
+                  echo "Probing $url"
+                  for i in {1..10}; do
+                    code=$(curl -s -o /dev/null -w '%{http_code}' "$url" || echo 000)
+                    echo "Attempt $i: HTTP $code"
+                    if [ "$code" = "200" ]; then
+                      echo "API is healthy."
+                      exit 0
+                    fi
+                    sleep 15
+                  done
+                  echo "Health check failed after retries."
+                  exit 1
+
     deploy-client:
         runs-on: ubuntu-latest
         environment: production

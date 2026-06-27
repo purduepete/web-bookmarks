@@ -44,6 +44,7 @@ resource apiApp 'Microsoft.Web/sites@2023-12-01' = {
     serverFarmId: appServicePlan.id
     siteConfig: {
       linuxFxVersion: 'DOTNETCORE|9.0'
+      healthCheckPath: '/healthz'
       connectionStrings: [
         {
           name: 'WebBookmarksDatabase'

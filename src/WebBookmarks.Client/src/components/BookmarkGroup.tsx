@@ -12,6 +12,7 @@ import {
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { BookmarkGroup as BookmarkGroupType, WebBookmarksItem } from '../types';
+import { sanitizeUrl } from '../utils';
 
 interface Props {
     group: BookmarkGroupType;
@@ -104,7 +105,7 @@ function SortableRow({
                         <line x1="3" y1="18" x2="21" y2="18" />
                     </svg>
                 </span>
-                <a href={item.url}>{item.name}</a>
+                <a href={sanitizeUrl(item.url)}>{item.name}</a>
             </td>
             <td className="col3">
                 <div className="shortcut-wrap">

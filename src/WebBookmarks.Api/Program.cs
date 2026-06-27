@@ -49,11 +49,21 @@ app.UseCors();
 // App Service setting). When unset, the API stays open (convenient for local dev).
 var apiKey = app.Configuration["ApiKey"];
 
+// Fail fast in non-development environments if no key is configured, so a
+// misconfigured deploy can never go live as an open, unauthenticated API.
+if (!app.Environment.IsDevelopment() && string.IsNullOrEmpty(apiKey))
+{
+    throw new InvalidOperationException(
+        "ApiKey is not configured. Set the 'ApiKey' application setting " +
+        "(App Service setting / Key Vault reference) before deploying to a non-development environment.");
+}
+
 app.Use(async (context, next) =>
 {
-    // Always let CORS preflight and Swagger through.
+    // Always let CORS preflight, Swagger, and the health probe through.
     if (HttpMethods.IsOptions(context.Request.Method) ||
-        context.Request.Path.StartsWithSegments("/swagger"))
+        context.Request.Path.StartsWithSegments("/swagger") ||
+        context.Request.Path.StartsWithSegments("/healthz"))
     {
         await next();
         return;
@@ -73,7 +83,35 @@ app.Use(async (context, next) =>
     await next();
 });
 
+// ── Health probe ────────────────────────────────────────────────────
+// Liveness/readiness for App Service healthCheckPath and CI smoke tests.
+// Verifies the process is up AND can reach the database; returns 503 if not,
+// so a deploy that can't talk to SQL is reported unhealthy instead of 500ing
+// on the first real request.
+app.MapGet("/healthz", async (WebBookmarksContext db) =>
+{
+    try
+    {
+        var canConnect = await db.Database.CanConnectAsync();
+        return canConnect
+            ? Results.Ok(new { status = "healthy" })
+            : Results.Json(new { status = "unhealthy", reason = "database unreachable" },
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+    catch (Exception ex)
+    {
+        return Results.Json(new { status = "unhealthy", reason = ex.Message },
+            statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+})
+    .WithName("HealthCheck")
+    .WithOpenApi();
+
 // ── Bookmark Endpoints ──────────────────────────────────────────────
+
+// Upper bound on how many items a single bulk/reorder request may carry, so a
+// malformed or hostile payload can't exhaust memory/DB resources.
+const int MaxBulkItems = 1000;
 
 app.MapGet("/api/bookmarks", async (bool? includeHidden, string? profile, WebBookmarksContext db) =>
 {
@@ -175,12 +213,14 @@ app.MapGet("/api/bookmarks/groups", async (string? profile, bool? exact, WebBook
 
 app.MapPost("/api/bookmarks/reorder", async (List<ReorderEntry> entries, WebBookmarksContext db) =>
 {
+    if (entries.Count > MaxBulkItems) return Results.ValidationProblem(TooMany("entries"));
+    var ids = entries.Select(e => e.Id).ToList();
+    var items = await db.WebBookmarkItems
+        .Where(b => ids.Contains(b.Id))
+        .ToDictionaryAsync(b => b.Id);
     foreach (var entry in entries)
-    {
-        var item = await db.WebBookmarkItems.FindAsync(entry.Id);
-        if (item is not null)
+        if (items.TryGetValue(entry.Id, out var item))
             item.SortOrder = entry.SortOrder;
-    }
     await db.SaveChangesAsync();
     return Results.NoContent();
 })
@@ -198,6 +238,7 @@ app.MapGet("/api/bookmarks/profiles", async (WebBookmarksContext db) =>
 
 app.MapPost("/api/bookmarks/bulk", async (List<WebBookmarksItem> items, WebBookmarksContext db) =>
 {
+    if (items.Count > MaxBulkItems) return Results.ValidationProblem(TooMany("items"));
     foreach (var item in items)
         if (ValidateBookmark(item) is { } errors)
             return Results.ValidationProblem(errors);
@@ -210,6 +251,8 @@ app.MapPost("/api/bookmarks/bulk", async (List<WebBookmarksItem> items, WebBookm
 
 app.MapPut("/api/bookmarks/bulk", async (BulkUpdateRequest request, WebBookmarksContext db) =>
 {
+    if (request.Ids.Count > MaxBulkItems) return Results.ValidationProblem(TooMany("ids"));
+    if (ValidateBulkUpdate(request) is { } errors) return Results.ValidationProblem(errors);
     var items = await db.WebBookmarkItems
         .Where(b => request.Ids.Contains(b.Id))
         .ToListAsync();
@@ -241,6 +284,7 @@ app.MapPatch("/api/bookmarks/{id:int}/favorite", async (int id, WebBookmarksCont
 
 app.MapPost("/api/bookmarks/bulk-delete", async (List<int> ids, WebBookmarksContext db) =>
 {
+    if (ids.Count > MaxBulkItems) return Results.ValidationProblem(TooMany("ids"));
     var items = await db.WebBookmarkItems
         .Where(b => ids.Contains(b.Id))
         .ToListAsync();
@@ -296,6 +340,24 @@ static bool HasUnsafeScheme(string? value)
     string[] blockedSchemes = { "javascript:", "data:", "vbscript:" };
     return blockedSchemes.Any(scheme => v.StartsWith(scheme, StringComparison.Ordinal));
 }
+
+// Validates the mutable fields of a bulk update so the same length caps enforced
+// on single create/update can't be bypassed via the bulk endpoint.
+static Dictionary<string, string[]>? ValidateBulkUpdate(BulkUpdateRequest request)
+{
+    var errors = new Dictionary<string, string[]>();
+    if (request.Shortcut is { Length: > 100 })
+        errors["shortcut"] = new[] { "Shortcut must be 100 characters or fewer." };
+    if (request.BookmarkGroup is { Length: > 200 })
+        errors["bookmarkGroup"] = new[] { "Group must be 200 characters or fewer." };
+    if (request.Profile is { Length: > 100 })
+        errors["profile"] = new[] { "Profile must be 100 characters or fewer." };
+    return errors.Count == 0 ? null : errors;
+}
+
+// Standard ValidationProblem payload for an over-sized bulk request.
+static Dictionary<string, string[]> TooMany(string field) =>
+    new() { [field] = new[] { $"Too many items in one request (max {1000})." } };
 
 record ReorderEntry(int Id, int SortOrder);
 record BulkUpdateRequest(List<int> Ids, string? Profile, string? BookmarkGroup, string? Shortcut, bool? IsVisible, bool? ClearShortcut, bool? IsFavorite);

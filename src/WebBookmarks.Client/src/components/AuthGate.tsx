@@ -1,5 +1,5 @@
-import { useState, type FormEvent, type ReactNode } from 'react';
-import { getApiKey, setApiKey } from '../auth';
+import { useState, useEffect, type FormEvent, type ReactNode } from 'react';
+import { getApiKey, setApiKey, clearApiKey, onUnauthorized } from '../auth';
 import { validateApiKey } from '../api';
 
 export function AuthGate({ children }: { children: ReactNode }) {
@@ -7,6 +7,19 @@ export function AuthGate({ children }: { children: ReactNode }) {
     const [value, setValue] = useState('');
     const [error, setError] = useState('');
     const [checking, setChecking] = useState(false);
+
+    // When any API call is rejected (401), drop back to the login gate in-place.
+    // This catches a stale/rotated key that looked valid at mount (a key was
+    // present, so we optimistically rendered the app) but the server rejected.
+    useEffect(
+        () =>
+            onUnauthorized(() => {
+                clearApiKey();
+                setError('Your access key is no longer valid. Please re-enter it.');
+                setAuthed(false);
+            }),
+        [],
+    );
 
     if (authed) return <>{children}</>;
 

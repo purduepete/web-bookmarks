@@ -1,5 +1,5 @@
 import type { WebBookmarksItem } from './types';
-import { getApiKey, clearApiKey } from './auth';
+import { getApiKey, clearApiKey, notifyUnauthorized } from './auth';
 
 const API_BASE =
     import.meta.env.VITE_API_BASE ??
@@ -60,8 +60,13 @@ async function apiFetch(input: string, init: RequestInit = {}): Promise<Response
     if (key) headers.set('X-Api-Key', key);
     const res = await fetchWithTimeout(input, { ...init, headers });
     if (res.status === 401) {
+        // Drop the rejected key and signal the UI to show the login gate.
+        // We intentionally do NOT reload the page: a reload would re-run the
+        // same authenticated requests with the same bad key and loop, hammering
+        // the API with 401s (a self-inflicted request storm). The login gate
+        // unmounts the app instead, stopping further calls until a valid key.
         clearApiKey();
-        window.location.reload();
+        notifyUnauthorized();
         throw new Error('Unauthorized');
     }
     return res;

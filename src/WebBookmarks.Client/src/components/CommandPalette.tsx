@@ -520,12 +520,12 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
             }
             if (e.key === 'ArrowDown' || (e.ctrlKey && e.key === 'j')) {
                 e.preventDefault();
-                setActiveIndex((i) => Math.min(i + 1, displayList.length - 1));
+                setActiveIndex((i) => (displayList.length ? (i + 1) % displayList.length : 0));
                 return;
             }
             if (e.key === 'ArrowUp' || (e.ctrlKey && e.key === 'k')) {
                 e.preventDefault();
-                setActiveIndex((i) => Math.max(i - 1, 0));
+                setActiveIndex((i) => (displayList.length ? (i - 1 + displayList.length) % displayList.length : 0));
                 return;
             }
             if (e.key === 'ArrowRight') {

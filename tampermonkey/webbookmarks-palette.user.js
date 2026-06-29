@@ -1230,7 +1230,10 @@
         function close() {
             document.removeEventListener('keydown', escHandler, true);
             backdrop.remove();
-            if (shadowHost) { shadowHost.remove(); shadowHost = null; }
+            if (shadowHost) {
+                shadowHost.remove();
+                shadowHost = null;
+            }
             paletteOpen = false;
         }
 
@@ -1534,7 +1537,10 @@
                 e.stopImmediatePropagation();
                 if (paletteOpen) {
                     // Close palette on second Ctrl+Alt+/
-                    if (shadowHost) { shadowHost.remove(); shadowHost = null; }
+                    if (shadowHost) {
+                        shadowHost.remove();
+                        shadowHost = null;
+                    }
                     paletteOpen = false;
                     return;
                 }

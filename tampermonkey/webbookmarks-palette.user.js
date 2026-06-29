@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      4.9.21
+// @version      4.9.22
 // @description  Press Ctrl+Alt+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
@@ -64,7 +64,10 @@
     `);
 
     // ── CSS ──────────────────────────────────────────
-    GM_addStyle(`
+    // Injected into the palette's shadow root (see openPalette) so the host
+    // page's stylesheets cannot bleed in. Kept out of the document on purpose.
+    const PALETTE_CSS = `
+        :host { all: initial; }
         .wbp-backdrop {
             position: fixed;
             inset: 0;
@@ -339,7 +342,7 @@
             .wbp-container { width: auto; max-width: none; flex: 1; max-height: none; }
             .wbp-list { flex: 1; max-height: none; }
         }
-    `);
+    `;
 
     // ── SVG icons ────────────────────────────────────
     const FOLDER_SVG =
@@ -609,6 +612,7 @@
 
     // ── Palette ──────────────────────────────────────
     let paletteOpen = false;
+    let shadowHost = null;
 
     // Pre-fetch bookmarks on page load so palette opens instantly
     getGroups().catch(() => {});
@@ -1226,6 +1230,7 @@
         function close() {
             document.removeEventListener('keydown', escHandler, true);
             backdrop.remove();
+            if (shadowHost) { shadowHost.remove(); shadowHost = null; }
             paletteOpen = false;
         }
 
@@ -1479,7 +1484,16 @@
         });
 
         // ── Mount ──
-        document.body.appendChild(backdrop);
+        // Render the palette inside a Shadow DOM so the host page's CSS can't
+        // bleed into it. Styles live in the shadow root, not the document.
+        shadowHost = document.createElement('div');
+        shadowHost.id = 'wbp-shadow-host';
+        const shadow = shadowHost.attachShadow({ mode: 'open' });
+        const styleEl = document.createElement('style');
+        styleEl.textContent = PALETTE_CSS;
+        shadow.appendChild(styleEl);
+        shadow.appendChild(backdrop);
+        document.body.appendChild(shadowHost);
         document.addEventListener('keydown', escHandler, true);
         input.focus();
         render();
@@ -1520,8 +1534,7 @@
                 e.stopImmediatePropagation();
                 if (paletteOpen) {
                     // Close palette on second Ctrl+Alt+/
-                    const backdrop = document.querySelector('.wbp-backdrop');
-                    if (backdrop) backdrop.remove();
+                    if (shadowHost) { shadowHost.remove(); shadowHost = null; }
                     paletteOpen = false;
                     return;
                 }

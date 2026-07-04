@@ -1,4 +1,9 @@
 import type { WebBookmarksItem } from './types';
+import { resolveBookmarkUrl } from './palette-core';
+
+// wildcardMatch and resolveBookmarkUrl now live in the shared palette-core;
+// re-exported here so existing '../utils' import sites keep working.
+export { wildcardMatch, resolveBookmarkUrl } from './palette-core';
 
 const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
@@ -69,25 +74,6 @@ ${items.map((item) => `<a href="${escapeHtml(sanitizeUrl(item.url))}" target="_b
     }
 }
 
-// Resolves the URL to open for a bookmark given the current query. When the
-// bookmark has a search URL (containing a {q} placeholder) and the query is
-// "<alias-or-name> <terms…>", the terms are substituted into the search URL.
-// Otherwise the bookmark's plain URL is returned.
-export function resolveBookmarkUrl(
-    bookmark: { url: string; urls: string | null; shortcut: string; name: string },
-    query: string,
-): string {
-    if (!bookmark.urls) return bookmark.url;
-    const parts = query.trim().split(/\s+/);
-    if (parts.length < 2) return bookmark.url;
-    const firstWord = parts[0].toLowerCase();
-    const alias = (bookmark.shortcut || '').trim().toLowerCase();
-    if ((alias && firstWord === alias) || bookmark.name.toLowerCase().startsWith(firstWord)) {
-        return bookmark.urls.replace('{q}', encodeURIComponent(parts.slice(1).join(' ')));
-    }
-    return bookmark.url;
-}
-
 // Resolves a raw "<shortcut> <terms…>" command against the bookmark list and, if
 // it matches (by exact then partial alias, then by name for search-URL bookmarks),
 // opens the matching bookmark(s). Returns true when it navigated, false otherwise.
@@ -117,21 +103,5 @@ export function navigateByShortcut(input: string, bookmarks: WebBookmarksItem[],
         })),
         openInNewTab,
     );
-    return true;
-}
-
-export function wildcardMatch(text: string, pattern: string): boolean {
-    const lower = text.toLowerCase();
-    if (!pattern.includes('*')) {
-        return lower.includes(pattern.toLowerCase());
-    }
-    const parts = pattern.toLowerCase().split('*');
-    let pos = 0;
-    for (const part of parts) {
-        if (!part) continue;
-        const idx = lower.indexOf(part, pos);
-        if (idx === -1) return false;
-        pos = idx + part.length;
-    }
     return true;
 }

@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { WebBookmarksItem, BookmarkGroup } from '../types';
-import { wildcardMatch, openUrls, sanitizeUrl, resolveBookmarkUrl } from '../utils';
+import { openUrls, sanitizeUrl, resolveBookmarkUrl } from '../utils';
+import type { PaletteEntry, MruEntry } from '../palette-core';
+import { detectNumberSelection, filterEntries, assignBookmarkNumbers, applyMru, MRU_LIMIT } from '../palette-core';
 
 interface Props {
     groups: BookmarkGroup[];
@@ -11,26 +13,7 @@ interface Props {
     isPaletteMode: boolean;
 }
 
-interface PaletteEntry {
-    kind: 'bookmark' | 'group' | 'action';
-    label: string;
-    secondary: string;
-    alias: string;
-    bookmark?: WebBookmarksItem;
-    group?: BookmarkGroup;
-    action?: string;
-    actionPayload?: string;
-    isRecent?: boolean;
-}
-
 // ── MRU (most-recently-used) tracking ──────────────────
-const MRU_LIMIT = 5;
-const MRU_MAX_ENTRIES = 50;
-interface MruEntry {
-    id: number;
-    count: number;
-    ts: number;
-}
 function mruKey(profile: string) {
     return `mru:${profile}`;
 }
@@ -44,18 +27,7 @@ function getMru(profile: string): MruEntry[] {
 }
 function recordMru(profile: string, id: number) {
     if (!id) return;
-    const list = getMru(profile);
-    const idx = list.findIndex((e) => e.id === id);
-    const now = Date.now();
-    if (idx >= 0) {
-        list[idx].count += 1;
-        list[idx].ts = now;
-    } else {
-        list.push({ id, count: 1, ts: now });
-    }
-    // Sort by frecency: recency-weighted count
-    list.sort((a, b) => b.ts - a.ts || b.count - a.count);
-    if (list.length > MRU_MAX_ENTRIES) list.length = MRU_MAX_ENTRIES;
+    const list = applyMru(getMru(profile), id, Date.now());
     try {
         localStorage.setItem(mruKey(profile), JSON.stringify(list));
     } catch {
@@ -84,26 +56,6 @@ async function copyText(text: string): Promise<boolean> {
             return false;
         }
     }
-}
-
-function parseNumberSelection(input: string): Set<number> | null {
-    const nums = new Set<number>();
-    const parts = input.split(',').map((s) => s.trim());
-    for (const part of parts) {
-        if (!part) continue;
-        const rangeMatch = part.match(/^(\d+)\s*-\s*(\d+)$/);
-        if (rangeMatch) {
-            const lo = parseInt(rangeMatch[1], 10);
-            const hi = parseInt(rangeMatch[2], 10);
-            if (isNaN(lo) || isNaN(hi)) return null;
-            for (let i = Math.min(lo, hi); i <= Math.max(lo, hi); i++) nums.add(i);
-        } else if (/^\d+$/.test(part)) {
-            nums.add(parseInt(part, 10));
-        } else {
-            return null;
-        }
-    }
-    return nums.size > 0 ? nums : null;
 }
 
 export default function CommandPalette({ groups, onClose, onAction, profiles, activeProfile, isPaletteMode }: Props) {
@@ -218,123 +170,14 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
     }, [groups, profiles, activeProfile, isPaletteMode]);
 
     // Detect if the query ends with " <numbers>" for number-selection mode
-    const { searchPart, numberSelection } = useMemo(() => {
-        const match = query.match(/^(.*?)\s+([\d,\s\-]+)$/);
-        if (match) {
-            const sel = parseNumberSelection(match[2]);
-            return { searchPart: match[1], numberSelection: sel };
-        }
-        return { searchPart: query, numberSelection: null as Set<number> | null };
-    }, [query]);
+    const { searchPart, numberSelection } = useMemo(() => detectNumberSelection(query), [query]);
 
-    const filtered = useMemo(() => {
-        const q = searchPart.trim();
-        if (!q) return allEntries;
-        // Strip recents once a query is active (recents only show on empty query)
-        const source = allEntries.filter((e) => !e.isRecent);
-        // Google explicit search: prefix with "?"
-        if (q.startsWith('?')) {
-            const sub = q.slice(1).trim();
-            if (!sub) return source;
-            return [
-                {
-                    kind: 'action' as const,
-                    label: `Search Google: ${sub}`,
-                    secondary: 'Google',
-                    alias: '',
-                    action: 'google-search',
-                    actionPayload: sub,
-                },
-            ];
-        }
-        if (q === '>') return source.filter((e) => e.kind === 'action');
-        if (q === '/') return source.filter((e) => e.kind === 'bookmark');
-        if (q === '@') return source.filter((e) => e.kind === 'group');
-        if (q === '*')
-            return source
-                .filter((e) => e.kind === 'bookmark' && e.bookmark?.isFavorite)
-                .sort((a, b) => a.label.localeCompare(b.label));
-        let result: PaletteEntry[];
-        if (q.startsWith('>')) {
-            const sub = q.slice(1).trim();
-            result = source.filter(
-                (e) => e.kind === 'action' && (wildcardMatch(e.label, sub) || wildcardMatch(e.secondary, sub)),
-            );
-        } else if (q.startsWith('/')) {
-            const sub = q.slice(1).trim();
-            result = source.filter(
-                (e) =>
-                    e.kind === 'bookmark' &&
-                    (wildcardMatch(e.label, sub) || wildcardMatch(e.secondary, sub) || wildcardMatch(e.alias, sub)),
-            );
-        } else if (q.startsWith('@')) {
-            const sub = q.slice(1).trim();
-            result = source.filter(
-                (e) => e.kind === 'group' && (wildcardMatch(e.label, sub) || wildcardMatch(e.secondary, sub)),
-            );
-        } else if (q.startsWith('*')) {
-            const sub = q.slice(1).trim();
-            result = source
-                .filter(
-                    (e) =>
-                        e.kind === 'bookmark' &&
-                        e.bookmark?.isFavorite &&
-                        (wildcardMatch(e.label, sub) || wildcardMatch(e.secondary, sub) || wildcardMatch(e.alias, sub)),
-                )
-                .sort((a, b) => a.label.localeCompare(b.label));
-        } else {
-            result = source.filter(
-                (e) => wildcardMatch(e.label, q) || wildcardMatch(e.secondary, q) || wildcardMatch(e.alias, q),
-            );
-            // Also include bookmarks with search URLs when the first word matches alias or name (e.g. "g hello world", "seek msft")
-            if (q.includes(' ')) {
-                const shortcutPart = q.split(/\s+/)[0].toLowerCase();
-                for (const e of source) {
-                    if (
-                        e.kind === 'bookmark' &&
-                        e.bookmark?.urls &&
-                        (e.alias.toLowerCase() === shortcutPart || e.label.toLowerCase().startsWith(shortcutPart)) &&
-                        !result.includes(e)
-                    ) {
-                        result.push(e);
-                    }
-                }
-            }
-            // Prioritize favorites: separate bookmarks into favorites and non-favorites,
-            // then concatenate favorites first, maintaining original order within each group
-            const favorites = result.filter((e) => e.kind === 'bookmark' && e.bookmark?.isFavorite);
-            const nonFavorites = result.filter((e) => !(e.kind === 'bookmark' && e.bookmark?.isFavorite));
-            result = [...favorites, ...nonFavorites];
-        }
-        // Google fallback: if nothing matched, offer a web search
-        if (result.length === 0) {
-            result = [
-                {
-                    kind: 'action' as const,
-                    label: `Search Google: ${q}`,
-                    secondary: 'No bookmark matches \u2014 search the web',
-                    alias: '',
-                    action: 'google-search',
-                    actionPayload: q,
-                },
-            ];
-        }
-        return result;
-    }, [allEntries, searchPart]);
+    const filtered = useMemo(() => filterEntries(allEntries, searchPart), [allEntries, searchPart]);
 
     const displayList = filtered;
 
     // Sequential 1-based numbering for bookmarks in the display list
-    const bookmarkNumbers = useMemo(() => {
-        const map = new Map<number, number>();
-        let seq = 1;
-        for (let i = 0; i < displayList.length; i++) {
-            if (displayList[i].kind === 'bookmark') {
-                map.set(i, seq++);
-            }
-        }
-        return map;
-    }, [displayList]);
+    const bookmarkNumbers = useMemo(() => assignBookmarkNumbers(displayList), [displayList]);
 
     // Reset active index and clear multi-select when list changes
     useEffect(() => {

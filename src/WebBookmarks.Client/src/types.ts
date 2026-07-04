@@ -1,18 +1,4 @@
-export interface WebBookmarksItem {
-    id: number;
-    name: string;
-    shortcut: string;
-    description: string;
-    url: string;
-    urls: string | null;
-    isVisible: boolean;
-    bookmarkGroup: string;
-    sortOrder: number;
-    profile: string;
-    isFavorite: boolean;
-}
-
-export interface BookmarkGroup {
-    name: string;
-    items: WebBookmarksItem[];
-}
+// The canonical bookmark/group shapes now live in the shared palette-core so
+// they can be reused by the userscript build. Re-exported here under the names
+// the React client already uses to avoid touching every import site.
+export type { Bookmark as WebBookmarksItem, BookmarkGroup } from './palette-core/types';

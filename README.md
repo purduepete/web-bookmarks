@@ -91,6 +91,22 @@ npm run dev
 # → http://localhost:5173  (proxies /api → localhost:5288)
 ```
 
+### Tampermonkey userscript
+
+The command palette is also available as a Tampermonkey userscript. It shares its
+pure logic with the web app (via `src/WebBookmarks.Client/src/palette-core`) and
+is **built** from source with esbuild — the shipped file is generated, so edit
+`tampermonkey/src/`, not the generated `.user.js`.
+
+```bash
+cd tampermonkey
+npm install
+npm run build   # regenerates tampermonkey/webbookmarks-palette.user.js
+```
+
+> 📖 Build details, the file layout, and the publish checklist (bump version →
+> build → update the Gist) are in [`tampermonkey/README.md`](tampermonkey/README.md).
+
 ## Pre-commit Hooks
 
 A git pre-commit hook runs TypeScript (`tsc`) and .NET build checks before every commit. It is automatically configured when you run `.\start.ps1`, or you can set it up manually:

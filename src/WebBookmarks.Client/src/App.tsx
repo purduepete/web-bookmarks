@@ -1,9 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { deleteBookmark, reorderBookmarks, toggleFavorite } from './api';
+import { reorderBookmarks, toggleFavorite } from './api';
 import type { WebBookmarksItem } from './types';
-import { openUrls, navigateByShortcut } from './utils';
+import { openUrls } from './utils';
 import { useBookmarks } from './hooks/useBookmarks';
 import { useBookmarkGroups } from './hooks/useBookmarkGroups';
+import { useModals } from './hooks/useModals';
+import { useStartup } from './hooks/useStartup';
+import { useGlobalShortcuts } from './hooks/useGlobalShortcuts';
 
 import BookmarkGroupComponent from './components/BookmarkGroup';
 import BookmarkModal from './components/BookmarkModal';
@@ -21,7 +24,6 @@ export default function App() {
         error,
         setError,
         activeProfile,
-        setActiveProfile,
         profiles,
         disabledProfiles,
         toggleDisabledProfile,
@@ -39,43 +41,19 @@ export default function App() {
             return false;
         }
     })();
-    const [startupMode, setStartupMode] = useState<'none' | 'prompt' | 'palette'>(() => {
-        if (forceLanding) return 'none';
-        const saved = localStorage.getItem('startupMode');
-        if (saved === 'prompt' || saved === 'palette') return saved;
-        return 'none';
-    });
-    const [promptActive, setPromptActive] = useState(() => {
-        if (forceLanding) return false;
-        return localStorage.getItem('startupMode') === 'prompt';
-    });
-    const [promptModalOpen, setPromptModalOpen] = useState(false);
-    const [pendingDelete, setPendingDelete] = useState<WebBookmarksItem | null>(null);
-    const promptShown = useRef(false);
-    const skipStartupOverlay = useRef(false);
-    const [newBookmarkOnly, setNewBookmarkOnly] = useState(() => {
-        try {
-            return new URLSearchParams(window.location.search).get('new') === '1';
-        } catch {
-            return false;
-        }
-    });
     const bookmarkInputRef = useRef<HTMLInputElement>(null);
-    const [modalOpen, setModalOpen] = useState(false);
-    const [editingBookmark, setEditingBookmark] = useState<WebBookmarksItem | null>(null);
-    const [prefillData, setPrefillData] = useState<Partial<WebBookmarksItem> | null>(null);
     const [editMode, setEditMode] = useState(true);
     const [optionsOpen, setOptionsOpen] = useState(false);
     const optionsRef = useRef<HTMLDivElement>(null);
     const [paletteOpen, setPaletteOpen] = useState(false);
-    const [importOpen, setImportOpen] = useState(false);
-    const [bulkEditOpen, setBulkEditOpen] = useState(false);
-    const modalFromPaletteRef = useRef(false);
     const [startupPaletteHiding, setStartupPaletteHiding] = useState(() => {
         if (forceLanding) return false;
         const saved = localStorage.getItem('startupMode');
         return saved === 'palette';
     });
+
+    const openPalette = useCallback(() => setPaletteOpen(true), []);
+    const closePalette = useCallback(() => setPaletteOpen(false), []);
 
     // Close options dropdown when clicking outside
     useEffect(() => {
@@ -89,81 +67,57 @@ export default function App() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [optionsOpen]);
 
-    // Ctrl+Alt+/ opens command palette; Ctrl+` cycles profiles
-    const profilesRef = useRef(profiles);
-    const disabledProfilesRef = useRef(disabledProfiles);
-    const activeProfileRef = useRef(activeProfile);
-    useEffect(() => {
-        profilesRef.current = profiles;
-    }, [profiles]);
-    useEffect(() => {
-        disabledProfilesRef.current = disabledProfiles;
-    }, [disabledProfiles]);
-    useEffect(() => {
-        activeProfileRef.current = activeProfile;
-    }, [activeProfile]);
-    useEffect(() => {
-        const handleGlobalKeyDown = (e: KeyboardEvent) => {
-            if (e.key === '/' && e.altKey && (e.ctrlKey || e.metaKey)) {
-                e.preventDefault();
-                if (startupMode === 'palette') {
-                    setPaletteOpen(true);
-                    setStartupPaletteHiding(true);
-                    setEditMode(false);
-                } else {
-                    setPaletteOpen((v) => {
-                        if (v) setStartupPaletteHiding(false);
-                        return !v;
-                    });
-                }
-                return;
-            }
-            if (e.key === '`' && e.ctrlKey) {
-                const visible = profilesRef.current.filter((p) => p !== 'all' && !disabledProfilesRef.current.has(p));
-                if (visible.length < 2) return;
-                e.preventDefault();
-                const idx = visible.indexOf(activeProfileRef.current);
-                const delta = e.shiftKey ? -1 : 1;
-                const next = visible[(idx + delta + visible.length) % visible.length];
-                activeProfileRef.current = next;
-                setActiveProfile(next);
-                localStorage.setItem('activeProfile', next);
-            }
-        };
-        document.addEventListener('keydown', handleGlobalKeyDown);
-        return () => document.removeEventListener('keydown', handleGlobalKeyDown);
-    }, [startupMode]);
+    const {
+        modalOpen,
+        editingBookmark,
+        prefillData,
+        importOpen,
+        bulkEditOpen,
+        pendingDelete,
+        newBookmarkOnly,
+        openCreateModal,
+        openEditModal,
+        handleModalClose,
+        handleModalSaved,
+        handleDelete,
+        cancelDelete,
+        performDelete,
+        openImport,
+        closeImport,
+        openBulkEdit,
+        closeBulkEdit,
+        openCreateFromPalette,
+        openImportFromPalette,
+        openBulkEditFromPalette,
+    } = useModals({ loadBookmarks, setError, openPalette, closePalette });
 
-    // On mount: open the New Bookmark modal pre-filled if URL has ?new=1 (used by Tampermonkey)
-    useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        if (params.get('new') !== '1') return;
-        skipStartupOverlay.current = true;
-        promptShown.current = true; // suppress startup prompt/palette
-        setPromptActive(false);
-        setStartupPaletteHiding(false);
-        const url = params.get('url') || '';
-        const name = params.get('name') || '';
-        const description = params.get('desc') || '';
-        const profile = params.get('profile') || '';
-        const group = params.get('group') || '';
-        if (profile && profile !== activeProfileRef.current) {
-            setActiveProfile(profile);
-            localStorage.setItem('activeProfile', profile);
-        }
-        setPrefillData({
-            url,
-            name,
-            description,
-            profile: profile || activeProfileRef.current,
-            bookmarkGroup: group,
-        });
-        setEditingBookmark(null);
-        setModalOpen(true);
-        // Clean URL so reloads don't reopen the dialog
-        const clean = window.location.pathname + window.location.hash;
-        window.history.replaceState({}, '', clean);
-    }, []);
+    const {
+        startupMode,
+        promptActive,
+        promptModalOpen,
+        handleStartupModeChange,
+        handlePromptSubmit,
+        handlePromptCancel,
+    } = useStartup({
+        forceLanding,
+        bookmarks,
+        activeProfile,
+        onProfileChange: handleProfileChange,
+        openPalette,
+        setStartupPaletteHiding,
+        openPrefilledModal: openCreateModal,
+    });
+
+    useGlobalShortcuts({
+        startupMode,
+        profiles,
+        disabledProfiles,
+        activeProfile,
+        onProfileChange: handleProfileChange,
+        setPaletteOpen,
+        setStartupPaletteHiding,
+        setEditMode,
+    });
 
     useEffect(() => {
         if (!loading && !promptActive) {
@@ -172,58 +126,6 @@ export default function App() {
     }, [loading, promptActive]);
 
     const { groups, paletteGroups, conflictIds, displayedGroups } = useBookmarkGroups(bookmarks, searchFilter);
-
-    const showPromptLoop = useCallback(() => {
-        setPromptModalOpen(true);
-    }, []);
-
-    const handlePromptSubmit = useCallback(
-        (input: string) => {
-            setPromptModalOpen(false);
-            if (input.trim().toLowerCase() !== 'help' && input.trim() !== '') {
-                // Navigate immediately — keep the page blank during navigation
-                if (navigateByShortcut(input, bookmarks)) return;
-            }
-            setPromptActive(false);
-        },
-        [bookmarks],
-    );
-
-    const handlePromptCancel = useCallback(() => {
-        setPromptModalOpen(false);
-        setPromptActive(false);
-    }, []);
-
-    // Show prompt or palette on page load based on startupMode (once only)
-    useEffect(() => {
-        if (bookmarks.length > 0 && !promptShown.current) {
-            promptShown.current = true;
-            if (skipStartupOverlay.current) return;
-            if (startupMode === 'prompt') {
-                showPromptLoop();
-            } else if (startupMode === 'palette') {
-                setPaletteOpen(true);
-                setPromptActive(false);
-            }
-        }
-    }, [bookmarks]); // eslint-disable-line react-hooks/exhaustive-deps
-
-    // Re-open palette when returning via back/forward (bfcache) on iPad/Safari
-    useEffect(() => {
-        const handlePageShow = (e: PageTransitionEvent) => {
-            if (e.persisted && startupMode === 'palette') {
-                setPaletteOpen(true);
-                setStartupPaletteHiding(true);
-            }
-        };
-        window.addEventListener('pageshow', handlePageShow);
-        return () => window.removeEventListener('pageshow', handlePageShow);
-    }, [startupMode]);
-
-    const handleStartupModeChange = useCallback((mode: 'none' | 'prompt' | 'palette') => {
-        setStartupMode(mode);
-        localStorage.setItem('startupMode', mode);
-    }, []);
 
     const openFilteredBookmarks = useCallback(
         (newTab = false) => {
@@ -246,56 +148,6 @@ export default function App() {
         },
         [searchFilter, openFilteredBookmarks],
     );
-
-    const openCreateModal = useCallback(() => {
-        setEditingBookmark(null);
-        setPrefillData(null);
-        setModalOpen(true);
-    }, []);
-
-    const openEditModal = useCallback((item: WebBookmarksItem) => {
-        setEditingBookmark(item);
-        setModalOpen(true);
-    }, []);
-
-    const handleModalClose = useCallback(() => {
-        setModalOpen(false);
-        setEditingBookmark(null);
-        setPrefillData(null);
-        setNewBookmarkOnly(false);
-        if (modalFromPaletteRef.current) {
-            modalFromPaletteRef.current = false;
-            setPaletteOpen(true);
-        }
-    }, []);
-
-    const handleModalSaved = useCallback(() => {
-        setModalOpen(false);
-        setEditingBookmark(null);
-        setPrefillData(null);
-        setNewBookmarkOnly(false);
-        loadBookmarks();
-        if (modalFromPaletteRef.current) {
-            modalFromPaletteRef.current = false;
-            setPaletteOpen(true);
-        }
-    }, [loadBookmarks]);
-
-    const handleDelete = useCallback((item: WebBookmarksItem) => {
-        setPendingDelete(item);
-    }, []);
-
-    const performDelete = useCallback(async () => {
-        const item = pendingDelete;
-        setPendingDelete(null);
-        if (!item) return;
-        try {
-            await deleteBookmark(item.id);
-            loadBookmarks();
-        } catch (e) {
-            setError(e instanceof Error ? e.message : 'Delete failed');
-        }
-    }, [pendingDelete, loadBookmarks]);
 
     const handleReorder = useCallback(
         async (groupName: string, activeId: number, overId: number) => {
@@ -465,7 +317,7 @@ export default function App() {
                                 <button
                                     className="dropdown-options-item dropdown-options-btn"
                                     onClick={() => {
-                                        setImportOpen(true);
+                                        openImport();
                                         setOptionsOpen(false);
                                     }}
                                 >
@@ -488,7 +340,7 @@ export default function App() {
                                 <button
                                     className="dropdown-options-item dropdown-options-btn"
                                     onClick={() => {
-                                        setBulkEditOpen(true);
+                                        openBulkEdit();
                                         setOptionsOpen(false);
                                     }}
                                 >
@@ -563,7 +415,7 @@ export default function App() {
                     </span>
                     <button
                         className="btn-new-bookmark input-group-text"
-                        onClick={openCreateModal}
+                        onClick={() => openCreateModal()}
                         title="New Bookmark"
                     >
                         +
@@ -608,13 +460,7 @@ export default function App() {
                 <ImportModal
                     activeProfile={activeProfile}
                     profiles={profiles}
-                    onClose={() => {
-                        setImportOpen(false);
-                        if (modalFromPaletteRef.current) {
-                            modalFromPaletteRef.current = false;
-                            setPaletteOpen(true);
-                        }
-                    }}
+                    onClose={closeImport}
                     onImported={loadBookmarks}
                 />
             )}
@@ -624,13 +470,7 @@ export default function App() {
                     bookmarks={bookmarks}
                     activeProfile={activeProfile}
                     profiles={profiles}
-                    onClose={() => {
-                        setBulkEditOpen(false);
-                        if (modalFromPaletteRef.current) {
-                            modalFromPaletteRef.current = false;
-                            setPaletteOpen(true);
-                        }
-                    }}
+                    onClose={closeBulkEdit}
                     onChanged={loadBookmarks}
                 />
             )}
@@ -646,21 +486,13 @@ export default function App() {
                     onAction={(action, payload) => {
                         switch (action) {
                             case 'new-bookmark':
-                                setEditingBookmark(null);
-                                setPrefillData(null);
-                                setModalOpen(true);
-                                setPaletteOpen(false);
-                                modalFromPaletteRef.current = true;
+                                openCreateFromPalette();
                                 break;
                             case 'import':
-                                setImportOpen(true);
-                                setPaletteOpen(false);
-                                modalFromPaletteRef.current = true;
+                                openImportFromPalette();
                                 break;
                             case 'bulk-edit':
-                                setBulkEditOpen(true);
-                                setPaletteOpen(false);
-                                modalFromPaletteRef.current = true;
+                                openBulkEditFromPalette();
                                 break;
                             case 'select-profile':
                                 if (payload) handleProfileChange(payload);
@@ -688,7 +520,7 @@ export default function App() {
                     confirmLabel="Delete"
                     danger
                     onConfirm={performDelete}
-                    onCancel={() => setPendingDelete(null)}
+                    onCancel={cancelDelete}
                 />
             )}
         </div>

@@ -1,55 +1,35 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { fetchBookmarks, deleteBookmark, reorderBookmarks, fetchProfiles, toggleFavorite } from './api';
-import type { WebBookmarksItem, BookmarkGroup } from './types';
-import { wildcardMatch, openUrls, resolveBookmarkUrl } from './utils';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { reorderBookmarks, toggleFavorite } from './api';
+import type { WebBookmarksItem } from './types';
+import { openUrls } from './utils';
+import { useBookmarks } from './hooks/useBookmarks';
+import { useBookmarkGroups } from './hooks/useBookmarkGroups';
+import { useModals } from './hooks/useModals';
+import { useStartup } from './hooks/useStartup';
+import { useGlobalShortcuts } from './hooks/useGlobalShortcuts';
 
-import BookmarkGroupComponent from './components/BookmarkGroup';
-import BookmarkModal from './components/BookmarkModal';
-import ImportModal from './components/ImportModal';
-import BulkEditModal from './components/BulkEditModal';
-import CommandPalette from './components/CommandPalette';
-import ConfirmModal from './components/ConfirmModal';
+import BookmarkList from './components/BookmarkList';
+import ProfileTabs from './components/ProfileTabs';
+import Toolbar from './components/Toolbar';
+import AppModals from './components/AppModals';
 import PromptModal from './components/PromptModal';
 
-function navigateByShortcut(input: string, bookmarks: WebBookmarksItem[], openInNewTab = false): boolean {
-    const trimmed = input.trim();
-    if (!trimmed) return false;
-
-    const parts = trimmed.split(/\s+/);
-    const shortcut = parts[0].toLowerCase();
-    const searchQuery = parts.slice(1).join(' ');
-
-    let matches = bookmarks.filter((b) => b.shortcut.trim().toLowerCase() === shortcut);
-    if (matches.length === 0) {
-        matches = bookmarks.filter((b) => b.shortcut.trim().toLowerCase().includes(shortcut));
-    }
-    // Also match by name for bookmarks with search URLs (e.g. "seek msft")
-    if (matches.length === 0 && searchQuery) {
-        matches = bookmarks.filter((b) => b.urls && b.name.toLowerCase().startsWith(shortcut));
-    }
-
-    if (matches.length === 0) return false;
-
-    openUrls(
-        matches.map((m) => ({
-            name: m.name,
-            url: resolveBookmarkUrl(m, trimmed),
-        })),
-        openInNewTab,
-    );
-    return true;
-}
-
 export default function App() {
-    const [bookmarks, setBookmarks] = useState<WebBookmarksItem[]>(() => {
-        const profile = localStorage.getItem('activeProfile') || 'home';
-        return getLocalBookmarks(profile) ?? [];
-    });
-    const [loading, setLoading] = useState(() => {
-        const profile = localStorage.getItem('activeProfile') || 'home';
-        return !localStorage.getItem(`bookmarks_${profile}`) && !localStorage.getItem('bookmarks');
-    });
-    const [error, setError] = useState<string | null>(null);
+    const {
+        bookmarks,
+        setBookmarks,
+        loading,
+        error,
+        setError,
+        activeProfile,
+        profiles,
+        disabledProfiles,
+        toggleDisabledProfile,
+        handleProfileChange,
+        showHidden,
+        setShowHidden,
+        loadBookmarks,
+    } = useBookmarks();
 
     const [searchFilter, setSearchFilter] = useState('');
     const forceLanding = (() => {
@@ -59,97 +39,19 @@ export default function App() {
             return false;
         }
     })();
-    const [startupMode, setStartupMode] = useState<'none' | 'prompt' | 'palette'>(() => {
-        if (forceLanding) return 'none';
-        const saved = localStorage.getItem('startupMode');
-        if (saved === 'prompt' || saved === 'palette') return saved;
-        return 'none';
-    });
-    const [promptActive, setPromptActive] = useState(() => {
-        if (forceLanding) return false;
-        return localStorage.getItem('startupMode') === 'prompt';
-    });
-    const [promptModalOpen, setPromptModalOpen] = useState(false);
-    const [pendingDelete, setPendingDelete] = useState<WebBookmarksItem | null>(null);
-    const promptShown = useRef(false);
-    const skipStartupOverlay = useRef(false);
-    const [newBookmarkOnly, setNewBookmarkOnly] = useState(() => {
-        try {
-            return new URLSearchParams(window.location.search).get('new') === '1';
-        } catch {
-            return false;
-        }
-    });
     const bookmarkInputRef = useRef<HTMLInputElement>(null);
-    const [modalOpen, setModalOpen] = useState(false);
-    const [editingBookmark, setEditingBookmark] = useState<WebBookmarksItem | null>(null);
-    const [prefillData, setPrefillData] = useState<Partial<WebBookmarksItem> | null>(null);
-    const [showHidden, setShowHidden] = useState(true);
     const [editMode, setEditMode] = useState(true);
     const [optionsOpen, setOptionsOpen] = useState(false);
     const optionsRef = useRef<HTMLDivElement>(null);
     const [paletteOpen, setPaletteOpen] = useState(false);
-    const [importOpen, setImportOpen] = useState(false);
-    const [bulkEditOpen, setBulkEditOpen] = useState(false);
-    const modalFromPaletteRef = useRef(false);
     const [startupPaletteHiding, setStartupPaletteHiding] = useState(() => {
         if (forceLanding) return false;
         const saved = localStorage.getItem('startupMode');
         return saved === 'palette';
     });
-    const [activeProfile, setActiveProfile] = useState<string>(() => {
-        return localStorage.getItem('activeProfile') || 'home';
-    });
-    const [profiles, setProfiles] = useState<string[]>(() => {
-        try {
-            const cached = localStorage.getItem('profiles');
-            return cached ? JSON.parse(cached) : [];
-        } catch {
-            return [];
-        }
-    });
-    const [disabledProfiles, setDisabledProfiles] = useState<Set<string>>(() => {
-        try {
-            const cached = localStorage.getItem('disabledProfiles');
-            return cached ? new Set(JSON.parse(cached)) : new Set();
-        } catch {
-            return new Set();
-        }
-    });
 
-    function toggleDisabledProfile(profile: string) {
-        setDisabledProfiles((prev) => {
-            const next = new Set(prev);
-            if (next.has(profile)) next.delete(profile);
-            else next.add(profile);
-            localStorage.setItem('disabledProfiles', JSON.stringify([...next]));
-            return next;
-        });
-    }
-
-    function getLocalBookmarks(profile: string): WebBookmarksItem[] | null {
-        try {
-            const cached = localStorage.getItem(`bookmarks_${profile}`);
-            if (cached) return JSON.parse(cached);
-            // One-time migration from the legacy un-profiled key: adopt it under
-            // the profile-aware key, then drop the legacy key so it's never read again.
-            const legacy = localStorage.getItem('bookmarks');
-            if (legacy) {
-                localStorage.setItem(`bookmarks_${profile}`, legacy);
-                localStorage.removeItem('bookmarks');
-                return JSON.parse(legacy);
-            }
-            return null;
-        } catch {
-            return null;
-        }
-    }
-
-    function setLocalBookmarks(profile: string, data: WebBookmarksItem[]) {
-        localStorage.setItem(`bookmarks_${profile}`, JSON.stringify(data));
-        // Drop the legacy un-profiled key if an older build left it behind.
-        localStorage.removeItem('bookmarks');
-    }
+    const openPalette = useCallback(() => setPaletteOpen(true), []);
+    const closePalette = useCallback(() => setPaletteOpen(false), []);
 
     // Close options dropdown when clicking outside
     useEffect(() => {
@@ -163,106 +65,57 @@ export default function App() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [optionsOpen]);
 
-    // Ctrl+Alt+/ opens command palette; Ctrl+` cycles profiles
-    const profilesRef = useRef(profiles);
-    const disabledProfilesRef = useRef(disabledProfiles);
-    const activeProfileRef = useRef(activeProfile);
-    useEffect(() => {
-        profilesRef.current = profiles;
-    }, [profiles]);
-    useEffect(() => {
-        disabledProfilesRef.current = disabledProfiles;
-    }, [disabledProfiles]);
-    useEffect(() => {
-        activeProfileRef.current = activeProfile;
-    }, [activeProfile]);
-    useEffect(() => {
-        const handleGlobalKeyDown = (e: KeyboardEvent) => {
-            if (e.key === '/' && e.altKey && (e.ctrlKey || e.metaKey)) {
-                e.preventDefault();
-                if (startupMode === 'palette') {
-                    setPaletteOpen(true);
-                    setStartupPaletteHiding(true);
-                    setEditMode(false);
-                } else {
-                    setPaletteOpen((v) => {
-                        if (v) setStartupPaletteHiding(false);
-                        return !v;
-                    });
-                }
-                return;
-            }
-            if (e.key === '`' && e.ctrlKey) {
-                const visible = profilesRef.current.filter((p) => p !== 'all' && !disabledProfilesRef.current.has(p));
-                if (visible.length < 2) return;
-                e.preventDefault();
-                const idx = visible.indexOf(activeProfileRef.current);
-                const delta = e.shiftKey ? -1 : 1;
-                const next = visible[(idx + delta + visible.length) % visible.length];
-                activeProfileRef.current = next;
-                setActiveProfile(next);
-                localStorage.setItem('activeProfile', next);
-            }
-        };
-        document.addEventListener('keydown', handleGlobalKeyDown);
-        return () => document.removeEventListener('keydown', handleGlobalKeyDown);
-    }, [startupMode]);
+    const {
+        modalOpen,
+        editingBookmark,
+        prefillData,
+        importOpen,
+        bulkEditOpen,
+        pendingDelete,
+        newBookmarkOnly,
+        openCreateModal,
+        openEditModal,
+        handleModalClose,
+        handleModalSaved,
+        handleDelete,
+        cancelDelete,
+        performDelete,
+        openImport,
+        closeImport,
+        openBulkEdit,
+        closeBulkEdit,
+        openCreateFromPalette,
+        openImportFromPalette,
+        openBulkEditFromPalette,
+    } = useModals({ loadBookmarks, setError, openPalette, closePalette });
 
-    // On mount: open the New Bookmark modal pre-filled if URL has ?new=1 (used by Tampermonkey)
-    useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        if (params.get('new') !== '1') return;
-        skipStartupOverlay.current = true;
-        promptShown.current = true; // suppress startup prompt/palette
-        setPromptActive(false);
-        setStartupPaletteHiding(false);
-        const url = params.get('url') || '';
-        const name = params.get('name') || '';
-        const description = params.get('desc') || '';
-        const profile = params.get('profile') || '';
-        const group = params.get('group') || '';
-        if (profile && profile !== activeProfileRef.current) {
-            setActiveProfile(profile);
-            localStorage.setItem('activeProfile', profile);
-        }
-        setPrefillData({
-            url,
-            name,
-            description,
-            profile: profile || activeProfileRef.current,
-            bookmarkGroup: group,
-        });
-        setEditingBookmark(null);
-        setModalOpen(true);
-        // Clean URL so reloads don't reopen the dialog
-        const clean = window.location.pathname + window.location.hash;
-        window.history.replaceState({}, '', clean);
-    }, []);
+    const {
+        startupMode,
+        promptActive,
+        promptModalOpen,
+        handleStartupModeChange,
+        handlePromptSubmit,
+        handlePromptCancel,
+    } = useStartup({
+        forceLanding,
+        bookmarks,
+        activeProfile,
+        onProfileChange: handleProfileChange,
+        openPalette,
+        setStartupPaletteHiding,
+        openPrefilledModal: openCreateModal,
+    });
 
-    const loadBookmarks = useCallback(() => {
-        setError(null);
-        // Immediately show locally cached bookmarks for this profile
-        const local = getLocalBookmarks(activeProfile);
-        if (local) setBookmarks(local);
-        // Fetch fresh data in background
-        fetchBookmarks(showHidden, activeProfile)
-            .then((data) => {
-                setBookmarks(data);
-                setLocalBookmarks(activeProfile, data);
-            })
-            .catch((e) => setError(e.message))
-            .finally(() => setLoading(false));
-        fetchProfiles()
-            .then((data) => {
-                setProfiles(data);
-                localStorage.setItem('profiles', JSON.stringify(data));
-            })
-            .catch(() => {});
-    }, [showHidden, activeProfile]);
-
-    useEffect(() => {
-        loadBookmarks();
-    }, [loadBookmarks]);
+    useGlobalShortcuts({
+        startupMode,
+        profiles,
+        disabledProfiles,
+        activeProfile,
+        onProfileChange: handleProfileChange,
+        setPaletteOpen,
+        setStartupPaletteHiding,
+        setEditMode,
+    });
 
     useEffect(() => {
         if (!loading && !promptActive) {
@@ -270,171 +123,7 @@ export default function App() {
         }
     }, [loading, promptActive]);
 
-    const groups: BookmarkGroup[] = useMemo(() => {
-        const map = new Map<string, WebBookmarksItem[]>();
-        for (const b of bookmarks) {
-            const list = map.get(b.bookmarkGroup) ?? [];
-            list.push(b);
-            map.set(b.bookmarkGroup, list);
-        }
-        return Array.from(map.entries())
-            .map(([name, items]) => ({ name, items: items.sort((a, b) => a.sortOrder - b.sortOrder) }))
-            .sort((a, b) => a.name.localeCompare(b.name));
-    }, [bookmarks]);
-
-    const paletteGroups: BookmarkGroup[] = useMemo(() => {
-        return groups
-            .map((g) => ({ ...g, items: g.items.filter((b) => b.isVisible) }))
-            .filter((g) => g.items.length > 0);
-    }, [groups]);
-
-    const conflictIds = useMemo(() => {
-        const ids = new Set<number>();
-        for (let i = 0; i < bookmarks.length; i++) {
-            const a = bookmarks[i].shortcut.trim().toLowerCase();
-            if (!a) continue;
-            for (let j = i + 1; j < bookmarks.length; j++) {
-                const b = bookmarks[j].shortcut.trim().toLowerCase();
-                if (!b) continue;
-                if (a.includes(b) || b.includes(a)) {
-                    ids.add(bookmarks[i].id);
-                    ids.add(bookmarks[j].id);
-                }
-            }
-        }
-        return ids;
-    }, [bookmarks]);
-
-    const displayedGroups = useMemo(() => {
-        let result = groups;
-        const raw = searchFilter.trim();
-
-        if (!raw) return result;
-
-        if (raw.startsWith('/')) {
-            // Bookmark-only filter
-            const term = raw.slice(1);
-            if (term) {
-                result = result
-                    .map((g) => ({
-                        ...g,
-                        items: g.items.filter(
-                            (item) =>
-                                wildcardMatch(item.name, term) ||
-                                wildcardMatch(item.shortcut, term) ||
-                                wildcardMatch(item.description, term),
-                        ),
-                    }))
-                    .filter((g) => g.items.length > 0);
-            }
-        } else if (raw.startsWith('@')) {
-            // Group-only filter
-            const term = raw.slice(1);
-            if (term) {
-                result = result.filter((g) => wildcardMatch(g.name, term));
-            }
-        } else if (raw.startsWith('*')) {
-            // Favorites filter
-            const term = raw.slice(1);
-            result = result
-                .map((g) => ({
-                    ...g,
-                    items: g.items.filter(
-                        (item) =>
-                            item.isFavorite &&
-                            (!term ||
-                                wildcardMatch(item.name, term) ||
-                                wildcardMatch(item.shortcut, term) ||
-                                wildcardMatch(item.description, term)),
-                    ),
-                }))
-                .filter((g) => g.items.length > 0);
-        } else {
-            // Search both groups and bookmarks
-            result = result
-                .filter(
-                    (g) =>
-                        wildcardMatch(g.name, raw) ||
-                        g.items.some(
-                            (item) =>
-                                wildcardMatch(item.name, raw) ||
-                                wildcardMatch(item.shortcut, raw) ||
-                                wildcardMatch(item.description, raw),
-                        ),
-                )
-                .map((g) => {
-                    if (wildcardMatch(g.name, raw)) return g;
-                    return {
-                        ...g,
-                        items: g.items.filter(
-                            (item) =>
-                                wildcardMatch(item.name, raw) ||
-                                wildcardMatch(item.shortcut, raw) ||
-                                wildcardMatch(item.description, raw),
-                        ),
-                    };
-                });
-        }
-
-        return result;
-    }, [groups, searchFilter]);
-
-    const showPromptLoop = useCallback(() => {
-        setPromptModalOpen(true);
-    }, []);
-
-    const handlePromptSubmit = useCallback(
-        (input: string) => {
-            setPromptModalOpen(false);
-            if (input.trim().toLowerCase() !== 'help' && input.trim() !== '') {
-                // Navigate immediately — keep the page blank during navigation
-                if (navigateByShortcut(input, bookmarks)) return;
-            }
-            setPromptActive(false);
-        },
-        [bookmarks],
-    );
-
-    const handlePromptCancel = useCallback(() => {
-        setPromptModalOpen(false);
-        setPromptActive(false);
-    }, []);
-
-    // Show prompt or palette on page load based on startupMode (once only)
-    useEffect(() => {
-        if (bookmarks.length > 0 && !promptShown.current) {
-            promptShown.current = true;
-            if (skipStartupOverlay.current) return;
-            if (startupMode === 'prompt') {
-                showPromptLoop();
-            } else if (startupMode === 'palette') {
-                setPaletteOpen(true);
-                setPromptActive(false);
-            }
-        }
-    }, [bookmarks]); // eslint-disable-line react-hooks/exhaustive-deps
-
-    // Re-open palette when returning via back/forward (bfcache) on iPad/Safari
-    useEffect(() => {
-        const handlePageShow = (e: PageTransitionEvent) => {
-            if (e.persisted && startupMode === 'palette') {
-                setPaletteOpen(true);
-                setStartupPaletteHiding(true);
-            }
-        };
-        window.addEventListener('pageshow', handlePageShow);
-        return () => window.removeEventListener('pageshow', handlePageShow);
-    }, [startupMode]);
-
-    const handleStartupModeChange = useCallback((mode: 'none' | 'prompt' | 'palette') => {
-        setStartupMode(mode);
-        localStorage.setItem('startupMode', mode);
-    }, []);
-
-    const handleProfileChange = useCallback((profile: string) => {
-        setActiveProfile(profile);
-        localStorage.setItem('activeProfile', profile);
-    }, []);
+    const { groups, paletteGroups, conflictIds, displayedGroups } = useBookmarkGroups(bookmarks, searchFilter);
 
     const openFilteredBookmarks = useCallback(
         (newTab = false) => {
@@ -457,56 +146,6 @@ export default function App() {
         },
         [searchFilter, openFilteredBookmarks],
     );
-
-    const openCreateModal = useCallback(() => {
-        setEditingBookmark(null);
-        setPrefillData(null);
-        setModalOpen(true);
-    }, []);
-
-    const openEditModal = useCallback((item: WebBookmarksItem) => {
-        setEditingBookmark(item);
-        setModalOpen(true);
-    }, []);
-
-    const handleModalClose = useCallback(() => {
-        setModalOpen(false);
-        setEditingBookmark(null);
-        setPrefillData(null);
-        setNewBookmarkOnly(false);
-        if (modalFromPaletteRef.current) {
-            modalFromPaletteRef.current = false;
-            setPaletteOpen(true);
-        }
-    }, []);
-
-    const handleModalSaved = useCallback(() => {
-        setModalOpen(false);
-        setEditingBookmark(null);
-        setPrefillData(null);
-        setNewBookmarkOnly(false);
-        loadBookmarks();
-        if (modalFromPaletteRef.current) {
-            modalFromPaletteRef.current = false;
-            setPaletteOpen(true);
-        }
-    }, [loadBookmarks]);
-
-    const handleDelete = useCallback((item: WebBookmarksItem) => {
-        setPendingDelete(item);
-    }, []);
-
-    const performDelete = useCallback(async () => {
-        const item = pendingDelete;
-        setPendingDelete(null);
-        if (!item) return;
-        try {
-            await deleteBookmark(item.id);
-            loadBookmarks();
-        } catch (e) {
-            setError(e instanceof Error ? e.message : 'Delete failed');
-        }
-    }, [pendingDelete, loadBookmarks]);
 
     const handleReorder = useCallback(
         async (groupName: string, activeId: number, overId: number) => {
@@ -581,327 +220,81 @@ export default function App() {
                         ⚠ Showing saved bookmarks — couldn't reach the server.
                     </div>
                 )}
-                {profiles.filter((p) => !disabledProfiles.has(p)).length > 1 && (
-                    <div className="profile-tabs">
-                        {profiles
-                            .filter((p) => !disabledProfiles.has(p))
-                            .map((p) => (
-                                <button
-                                    key={p}
-                                    className={`profile-tab${p === activeProfile ? ' profile-tab-active' : ''}`}
-                                    onClick={() => handleProfileChange(p)}
-                                >
-                                    {p}
-                                </button>
-                            ))}
-                    </div>
-                )}
-                <div className="input-group input-group-sm mb-3">
-                    <span className="input-group-text input-label-text" onClick={loadBookmarks}>
-                        Search
-                    </span>
-                    <input
-                        ref={bookmarkInputRef}
-                        className="form-control"
-                        placeholder="/ bookmarks · @ groups · * favorites"
-                        value={searchFilter}
-                        onChange={(e) => setSearchFilter(e.target.value)}
-                        onKeyDown={handleSearchKeyDown}
-                    />
-                    <button
-                        className="btn-palette input-group-text"
-                        onClick={() => {
-                            setPaletteOpen(true);
-                            setStartupPaletteHiding(true);
-                        }}
-                        title="Command Palette (Ctrl+Alt+/)"
-                    >
-                        <svg
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2.5"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                        >
-                            <circle cx="10.5" cy="10.5" r="7" />
-                            <line x1="15.5" y1="15.5" x2="22" y2="22" />
-                        </svg>
-                    </button>
-                    <div className="dropdown-options-wrap" ref={optionsRef}>
-                        <button
-                            className="btn-options input-group-text"
-                            onClick={() => setOptionsOpen((v) => !v)}
-                            title="Options"
-                        >
-                            <svg
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                            >
-                                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-                                <circle cx="12" cy="12" r="3" />
-                            </svg>
-                        </button>
-                        {optionsOpen && (
-                            <div className="dropdown-options-menu">
-                                <div className="dropdown-options-heading">View</div>
-                                <label className="dropdown-options-item">
-                                    <input
-                                        type="checkbox"
-                                        className="form-check-input mt-0 me-1"
-                                        checked={showHidden}
-                                        onChange={(e) => setShowHidden(e.target.checked)}
-                                    />
-                                    Hidden
-                                </label>
-                                <label className="dropdown-options-item">
-                                    <input
-                                        type="checkbox"
-                                        className="form-check-input mt-0 me-1"
-                                        checked={editMode}
-                                        onChange={(e) => setEditMode(e.target.checked)}
-                                    />
-                                    Edit
-                                </label>
-                                <div className="dropdown-options-divider" />
-                                <div className="dropdown-options-heading">Actions</div>
-                                <button
-                                    className="dropdown-options-item dropdown-options-btn"
-                                    onClick={() => {
-                                        setImportOpen(true);
-                                        setOptionsOpen(false);
-                                    }}
-                                >
-                                    <svg
-                                        width="14"
-                                        height="14"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                    >
-                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                        <polyline points="17 8 12 3 7 8" />
-                                        <line x1="12" y1="3" x2="12" y2="15" />
-                                    </svg>
-                                    Import
-                                </button>
-                                <button
-                                    className="dropdown-options-item dropdown-options-btn"
-                                    onClick={() => {
-                                        setBulkEditOpen(true);
-                                        setOptionsOpen(false);
-                                    }}
-                                >
-                                    <svg
-                                        width="14"
-                                        height="14"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                    >
-                                        <path d="M12 20h9" />
-                                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                                    </svg>
-                                    Bulk Edit
-                                </button>
-                                {profiles.filter((p) => p !== 'all').length > 1 && (
-                                    <>
-                                        <div className="dropdown-options-divider" />
-                                        <div className="dropdown-options-heading">Profiles</div>
-                                        {profiles
-                                            .filter((p) => p !== 'all')
-                                            .map((p) => (
-                                                <label key={p} className="dropdown-options-item">
-                                                    <input
-                                                        type="checkbox"
-                                                        className="form-check-input mt-0 me-1"
-                                                        checked={!disabledProfiles.has(p)}
-                                                        onChange={() => toggleDisabledProfile(p)}
-                                                    />
-                                                    {p}
-                                                </label>
-                                            ))}
-                                    </>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                    <span className="input-group-text startup-mode-group">
-                        <label className="startup-mode-option">
-                            <input
-                                type="radio"
-                                className="form-check-input mt-0 me-1"
-                                name="startupMode"
-                                checked={startupMode === 'prompt'}
-                                onChange={() => handleStartupModeChange('prompt')}
-                            />
-                            Prompt
-                        </label>
-                        <label className="startup-mode-option">
-                            <input
-                                type="radio"
-                                className="form-check-input mt-0 me-1"
-                                name="startupMode"
-                                checked={startupMode === 'palette'}
-                                onChange={() => handleStartupModeChange('palette')}
-                            />
-                            Palette
-                        </label>
-                        <label className="startup-mode-option">
-                            <input
-                                type="radio"
-                                className="form-check-input mt-0 me-1"
-                                name="startupMode"
-                                checked={startupMode === 'none'}
-                                onChange={() => handleStartupModeChange('none')}
-                            />
-                            None
-                        </label>
-                    </span>
-                    <button
-                        className="btn-new-bookmark input-group-text"
-                        onClick={openCreateModal}
-                        title="New Bookmark"
-                    >
-                        +
-                    </button>
-                    <button
-                        className={`btn-clear input-group-text${searchFilter ? '' : ' btn-clear-inactive'}`}
-                        onClick={() => searchFilter && setSearchFilter('')}
-                        aria-label="Clear"
-                        tabIndex={searchFilter ? 0 : -1}
-                    >
-                        ×
-                    </button>
-                </div>
+                <ProfileTabs
+                    profiles={profiles}
+                    disabledProfiles={disabledProfiles}
+                    activeProfile={activeProfile}
+                    onProfileChange={handleProfileChange}
+                />
+                <Toolbar
+                    searchInputRef={bookmarkInputRef}
+                    searchFilter={searchFilter}
+                    onSearchChange={setSearchFilter}
+                    onSearchKeyDown={handleSearchKeyDown}
+                    onReload={loadBookmarks}
+                    onOpenPalette={() => {
+                        setPaletteOpen(true);
+                        setStartupPaletteHiding(true);
+                    }}
+                    optionsRef={optionsRef}
+                    optionsOpen={optionsOpen}
+                    onToggleOptions={() => setOptionsOpen((v) => !v)}
+                    onCloseOptions={() => setOptionsOpen(false)}
+                    showHidden={showHidden}
+                    onShowHiddenChange={setShowHidden}
+                    editMode={editMode}
+                    onEditModeChange={setEditMode}
+                    onImport={openImport}
+                    onBulkEdit={openBulkEdit}
+                    profiles={profiles}
+                    disabledProfiles={disabledProfiles}
+                    onToggleDisabledProfile={toggleDisabledProfile}
+                    startupMode={startupMode}
+                    onStartupModeChange={handleStartupModeChange}
+                    onNewBookmark={() => openCreateModal()}
+                />
 
-                {displayedGroups.map((g) => (
-                    <BookmarkGroupComponent
-                        key={g.name}
-                        group={g}
-                        onEdit={openEditModal}
-                        onDelete={handleDelete}
-                        onReorder={handleReorder}
-                        onToggleFavorite={handleToggleFavorite}
-                        conflictIds={conflictIds}
-                        editMode={editMode}
-                    />
-                ))}
+                <BookmarkList
+                    groups={displayedGroups}
+                    onEdit={openEditModal}
+                    onDelete={handleDelete}
+                    onReorder={handleReorder}
+                    onToggleFavorite={handleToggleFavorite}
+                    conflictIds={conflictIds}
+                    editMode={editMode}
+                />
             </div>
 
-            {modalOpen && (
-                <BookmarkModal
-                    bookmark={editingBookmark}
-                    allBookmarks={bookmarks}
-                    activeProfile={activeProfile}
-                    profiles={profiles}
-                    onClose={handleModalClose}
-                    onSaved={handleModalSaved}
-                    prefill={prefillData}
-                />
-            )}
-
-            {importOpen && (
-                <ImportModal
-                    activeProfile={activeProfile}
-                    profiles={profiles}
-                    onClose={() => {
-                        setImportOpen(false);
-                        if (modalFromPaletteRef.current) {
-                            modalFromPaletteRef.current = false;
-                            setPaletteOpen(true);
-                        }
-                    }}
-                    onImported={loadBookmarks}
-                />
-            )}
-
-            {bulkEditOpen && (
-                <BulkEditModal
-                    bookmarks={bookmarks}
-                    activeProfile={activeProfile}
-                    profiles={profiles}
-                    onClose={() => {
-                        setBulkEditOpen(false);
-                        if (modalFromPaletteRef.current) {
-                            modalFromPaletteRef.current = false;
-                            setPaletteOpen(true);
-                        }
-                    }}
-                    onChanged={loadBookmarks}
-                />
-            )}
-
-            {paletteOpen && (
-                <CommandPalette
-                    groups={paletteGroups}
-                    onClose={(navigating) => {
-                        if (startupMode === 'palette' && !navigating) return;
-                        setPaletteOpen(false);
-                        if (startupPaletteHiding && !navigating) setStartupPaletteHiding(false);
-                    }}
-                    onAction={(action, payload) => {
-                        switch (action) {
-                            case 'new-bookmark':
-                                setEditingBookmark(null);
-                                setPrefillData(null);
-                                setModalOpen(true);
-                                setPaletteOpen(false);
-                                modalFromPaletteRef.current = true;
-                                break;
-                            case 'import':
-                                setImportOpen(true);
-                                setPaletteOpen(false);
-                                modalFromPaletteRef.current = true;
-                                break;
-                            case 'bulk-edit':
-                                setBulkEditOpen(true);
-                                setPaletteOpen(false);
-                                modalFromPaletteRef.current = true;
-                                break;
-                            case 'select-profile':
-                                if (payload) handleProfileChange(payload);
-                                break;
-                            case 'reload':
-                                loadBookmarks();
-                                break;
-                            case 'show-landing':
-                                setStartupPaletteHiding(false);
-                                setPaletteOpen(false);
-                                setTimeout(() => bookmarkInputRef.current?.focus(), 0);
-                                break;
-                        }
-                    }}
-                    profiles={profiles.filter((p) => !disabledProfiles.has(p))}
-                    activeProfile={activeProfile}
-                    isPaletteMode={startupMode === 'palette'}
-                />
-            )}
-
-            {pendingDelete && (
-                <ConfirmModal
-                    title="Delete bookmark"
-                    message={`Delete "${pendingDelete.name}"?`}
-                    confirmLabel="Delete"
-                    danger
-                    onConfirm={performDelete}
-                    onCancel={() => setPendingDelete(null)}
-                />
-            )}
+            <AppModals
+                bookmarks={bookmarks}
+                profiles={profiles}
+                disabledProfiles={disabledProfiles}
+                activeProfile={activeProfile}
+                onReload={loadBookmarks}
+                onSelectProfile={handleProfileChange}
+                modalOpen={modalOpen}
+                editingBookmark={editingBookmark}
+                prefillData={prefillData}
+                onModalClose={handleModalClose}
+                onModalSaved={handleModalSaved}
+                importOpen={importOpen}
+                onImportClose={closeImport}
+                bulkEditOpen={bulkEditOpen}
+                onBulkEditClose={closeBulkEdit}
+                paletteOpen={paletteOpen}
+                paletteGroups={paletteGroups}
+                startupMode={startupMode}
+                startupPaletteHiding={startupPaletteHiding}
+                setPaletteOpen={setPaletteOpen}
+                setStartupPaletteHiding={setStartupPaletteHiding}
+                searchInputRef={bookmarkInputRef}
+                onNewBookmarkFromPalette={openCreateFromPalette}
+                onImportFromPalette={openImportFromPalette}
+                onBulkEditFromPalette={openBulkEditFromPalette}
+                pendingDelete={pendingDelete}
+                onConfirmDelete={performDelete}
+                onCancelDelete={cancelDelete}
+            />
         </div>
     );
 }

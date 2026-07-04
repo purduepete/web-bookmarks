@@ -542,19 +542,9 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
         const entry = displayList[activeIndex];
         if (!entry) return '';
         if (entry.kind === 'bookmark' && entry.bookmark) {
-            if (entry.bookmark.urls) {
-                const q = searchPart.trim();
-                const parts = q.split(/\s+/);
-                const alias = (entry.bookmark.shortcut || '').trim().toLowerCase();
-                const firstWord = parts[0].toLowerCase();
-                if (
-                    parts.length > 1 &&
-                    ((alias && firstWord === alias) || entry.bookmark.name.toLowerCase().startsWith(firstWord))
-                ) {
-                    return entry.bookmark.urls.replace('{q}', encodeURIComponent(parts.slice(1).join(' ')));
-                }
-            }
-            return entry.bookmark.url;
+            // Use the same resolver as the open path (line ~330) so the preview
+            // can never drift from the URL that actually opens.
+            return resolveBookmarkUrl(entry.bookmark, searchPart);
         }
         if (entry.kind === 'group' && entry.group) return `${entry.group.items.length} bookmarks — Enter to open all`;
         if (entry.kind === 'action') return 'Action — Enter to execute';

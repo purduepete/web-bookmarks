@@ -42,9 +42,16 @@ export function useBookmarks() {
     const loadBookmarks = useCallback(() => {
         const requestId = ++requestIdRef.current;
         setError(null);
-        // Immediately show locally cached bookmarks for this profile
+        // Immediately show locally cached bookmarks for this profile. If this
+        // profile has no cache (e.g. first switch to it), clear the previous
+        // profile's list and show loading so stale bookmarks aren't left on screen.
         const local = getLocalBookmarks(activeProfile);
-        if (local) setBookmarks(local);
+        if (local) {
+            setBookmarks(local);
+        } else {
+            setBookmarks([]);
+            setLoading(true);
+        }
         // Fetch fresh data in background
         fetchBookmarks(showHidden, activeProfile)
             .then((data) => {

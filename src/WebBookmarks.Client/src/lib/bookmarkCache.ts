@@ -22,9 +22,16 @@ export function getLocalBookmarks(profile: string): WebBookmarksItem[] | null {
 }
 
 export function setLocalBookmarks(profile: string, data: WebBookmarksItem[]) {
-    localStorage.setItem(`bookmarks_${profile}`, JSON.stringify(data));
-    // Drop the legacy un-profiled key if an older build left it behind.
-    localStorage.removeItem('bookmarks');
+    // Best-effort offline cache: a full store (QuotaExceededError) or a disabled
+    // localStorage must never bubble up, or it would reject the fetch success path
+    // and surface an error even though fresh bookmarks loaded fine.
+    try {
+        localStorage.setItem(`bookmarks_${profile}`, JSON.stringify(data));
+        // Drop the legacy un-profiled key if an older build left it behind.
+        localStorage.removeItem('bookmarks');
+    } catch {
+        // Ignore: skip the offline cache write, still render the fresh data.
+    }
 }
 
 // True when no cached bookmarks exist for the profile (nor under the legacy key),

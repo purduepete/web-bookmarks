@@ -411,6 +411,17 @@
         return bookmark.url;
     }
 
+    // Neutralizes URLs using a dangerous scheme (javascript:, data:, vbscript:) by
+    // collapsing them to about:blank. ASCII control chars are stripped first so an
+    // embedded control char (e.g. "java\tscript:", which browsers strip and then
+    // execute) can't bypass the check. Mirrors sanitizeUrl() in the web app's utils.ts.
+    const UNSAFE_SCHEME = /^\s*(javascript|data|vbscript):/i;
+    function sanitizeUrl(url) {
+        const value = url || '';
+        const stripped = value.replace(/[\u0000-\u001F\u007F]/g, '');
+        return UNSAFE_SCHEME.test(stripped) ? 'about:blank' : value;
+    }
+
     // ── MRU ──────────────────────────────────────────────────
     const MRU_LIMIT = 5;
     const MRU_MAX_ENTRIES = 50;
@@ -484,6 +495,7 @@
     // elevated privileges). Requires "Allow access to file URLs" enabled for the
     // Tampermonkey extension in the browser's extension settings.
     function navigateTo(url) {
+        url = sanitizeUrl(url || '');
         if (/^\s*file:/i.test(url || '')) {
             GM_openInTab(url, { active: true, insert: true });
         } else {
@@ -495,13 +507,13 @@
         if (items.length === 0) return;
         if (newTab) {
             for (const item of items) {
-                GM_openInTab(item.url, { active: true, insert: true });
+                GM_openInTab(sanitizeUrl(item.url), { active: true, insert: true });
             }
         } else {
             // Use Tampermonkey's GM_openInTab — it has elevated privileges and
             // is not subject to the browser's popup blocker.
             for (let i = 0; i < items.length - 1; i++) {
-                GM_openInTab(items[i].url, { active: false, insert: true });
+                GM_openInTab(sanitizeUrl(items[i].url), { active: false, insert: true });
             }
             // Navigate current tab to the last URL
             navigateTo(items[items.length - 1].url);
@@ -1086,7 +1098,7 @@
                 const targetUrl = resolveBookmarkUrl(entry.bookmark, query);
                 recordMru(currentProfile, entry.bookmark.id);
                 if (newTab) {
-                    GM_openInTab(targetUrl, { active: true, insert: true });
+                    GM_openInTab(sanitizeUrl(targetUrl), { active: true, insert: true });
                 } else {
                     navigateTo(targetUrl);
                 }

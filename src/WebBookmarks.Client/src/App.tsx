@@ -1,7 +1,9 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { fetchBookmarks, deleteBookmark, reorderBookmarks, fetchProfiles, toggleFavorite } from './api';
-import type { WebBookmarksItem, BookmarkGroup } from './types';
-import { wildcardMatch, openUrls, resolveBookmarkUrl } from './utils';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { deleteBookmark, reorderBookmarks, toggleFavorite } from './api';
+import type { WebBookmarksItem } from './types';
+import { openUrls, navigateByShortcut } from './utils';
+import { useBookmarks } from './hooks/useBookmarks';
+import { useBookmarkGroups } from './hooks/useBookmarkGroups';
 
 import BookmarkGroupComponent from './components/BookmarkGroup';
 import BookmarkModal from './components/BookmarkModal';
@@ -11,45 +13,23 @@ import CommandPalette from './components/CommandPalette';
 import ConfirmModal from './components/ConfirmModal';
 import PromptModal from './components/PromptModal';
 
-function navigateByShortcut(input: string, bookmarks: WebBookmarksItem[], openInNewTab = false): boolean {
-    const trimmed = input.trim();
-    if (!trimmed) return false;
-
-    const parts = trimmed.split(/\s+/);
-    const shortcut = parts[0].toLowerCase();
-    const searchQuery = parts.slice(1).join(' ');
-
-    let matches = bookmarks.filter((b) => b.shortcut.trim().toLowerCase() === shortcut);
-    if (matches.length === 0) {
-        matches = bookmarks.filter((b) => b.shortcut.trim().toLowerCase().includes(shortcut));
-    }
-    // Also match by name for bookmarks with search URLs (e.g. "seek msft")
-    if (matches.length === 0 && searchQuery) {
-        matches = bookmarks.filter((b) => b.urls && b.name.toLowerCase().startsWith(shortcut));
-    }
-
-    if (matches.length === 0) return false;
-
-    openUrls(
-        matches.map((m) => ({
-            name: m.name,
-            url: resolveBookmarkUrl(m, trimmed),
-        })),
-        openInNewTab,
-    );
-    return true;
-}
-
 export default function App() {
-    const [bookmarks, setBookmarks] = useState<WebBookmarksItem[]>(() => {
-        const profile = localStorage.getItem('activeProfile') || 'home';
-        return getLocalBookmarks(profile) ?? [];
-    });
-    const [loading, setLoading] = useState(() => {
-        const profile = localStorage.getItem('activeProfile') || 'home';
-        return !localStorage.getItem(`bookmarks_${profile}`) && !localStorage.getItem('bookmarks');
-    });
-    const [error, setError] = useState<string | null>(null);
+    const {
+        bookmarks,
+        setBookmarks,
+        loading,
+        error,
+        setError,
+        activeProfile,
+        setActiveProfile,
+        profiles,
+        disabledProfiles,
+        toggleDisabledProfile,
+        handleProfileChange,
+        showHidden,
+        setShowHidden,
+        loadBookmarks,
+    } = useBookmarks();
 
     const [searchFilter, setSearchFilter] = useState('');
     const forceLanding = (() => {
@@ -84,7 +64,6 @@ export default function App() {
     const [modalOpen, setModalOpen] = useState(false);
     const [editingBookmark, setEditingBookmark] = useState<WebBookmarksItem | null>(null);
     const [prefillData, setPrefillData] = useState<Partial<WebBookmarksItem> | null>(null);
-    const [showHidden, setShowHidden] = useState(true);
     const [editMode, setEditMode] = useState(true);
     const [optionsOpen, setOptionsOpen] = useState(false);
     const optionsRef = useRef<HTMLDivElement>(null);
@@ -97,59 +76,6 @@ export default function App() {
         const saved = localStorage.getItem('startupMode');
         return saved === 'palette';
     });
-    const [activeProfile, setActiveProfile] = useState<string>(() => {
-        return localStorage.getItem('activeProfile') || 'home';
-    });
-    const [profiles, setProfiles] = useState<string[]>(() => {
-        try {
-            const cached = localStorage.getItem('profiles');
-            return cached ? JSON.parse(cached) : [];
-        } catch {
-            return [];
-        }
-    });
-    const [disabledProfiles, setDisabledProfiles] = useState<Set<string>>(() => {
-        try {
-            const cached = localStorage.getItem('disabledProfiles');
-            return cached ? new Set(JSON.parse(cached)) : new Set();
-        } catch {
-            return new Set();
-        }
-    });
-
-    function toggleDisabledProfile(profile: string) {
-        setDisabledProfiles((prev) => {
-            const next = new Set(prev);
-            if (next.has(profile)) next.delete(profile);
-            else next.add(profile);
-            localStorage.setItem('disabledProfiles', JSON.stringify([...next]));
-            return next;
-        });
-    }
-
-    function getLocalBookmarks(profile: string): WebBookmarksItem[] | null {
-        try {
-            const cached = localStorage.getItem(`bookmarks_${profile}`);
-            if (cached) return JSON.parse(cached);
-            // One-time migration from the legacy un-profiled key: adopt it under
-            // the profile-aware key, then drop the legacy key so it's never read again.
-            const legacy = localStorage.getItem('bookmarks');
-            if (legacy) {
-                localStorage.setItem(`bookmarks_${profile}`, legacy);
-                localStorage.removeItem('bookmarks');
-                return JSON.parse(legacy);
-            }
-            return null;
-        } catch {
-            return null;
-        }
-    }
-
-    function setLocalBookmarks(profile: string, data: WebBookmarksItem[]) {
-        localStorage.setItem(`bookmarks_${profile}`, JSON.stringify(data));
-        // Drop the legacy un-profiled key if an older build left it behind.
-        localStorage.removeItem('bookmarks');
-    }
 
     // Close options dropdown when clicking outside
     useEffect(() => {
@@ -239,145 +165,13 @@ export default function App() {
         window.history.replaceState({}, '', clean);
     }, []);
 
-    const loadBookmarks = useCallback(() => {
-        setError(null);
-        // Immediately show locally cached bookmarks for this profile
-        const local = getLocalBookmarks(activeProfile);
-        if (local) setBookmarks(local);
-        // Fetch fresh data in background
-        fetchBookmarks(showHidden, activeProfile)
-            .then((data) => {
-                setBookmarks(data);
-                setLocalBookmarks(activeProfile, data);
-            })
-            .catch((e) => setError(e.message))
-            .finally(() => setLoading(false));
-        fetchProfiles()
-            .then((data) => {
-                setProfiles(data);
-                localStorage.setItem('profiles', JSON.stringify(data));
-            })
-            .catch(() => {});
-    }, [showHidden, activeProfile]);
-
-    useEffect(() => {
-        loadBookmarks();
-    }, [loadBookmarks]);
-
     useEffect(() => {
         if (!loading && !promptActive) {
             bookmarkInputRef.current?.focus();
         }
     }, [loading, promptActive]);
 
-    const groups: BookmarkGroup[] = useMemo(() => {
-        const map = new Map<string, WebBookmarksItem[]>();
-        for (const b of bookmarks) {
-            const list = map.get(b.bookmarkGroup) ?? [];
-            list.push(b);
-            map.set(b.bookmarkGroup, list);
-        }
-        return Array.from(map.entries())
-            .map(([name, items]) => ({ name, items: items.sort((a, b) => a.sortOrder - b.sortOrder) }))
-            .sort((a, b) => a.name.localeCompare(b.name));
-    }, [bookmarks]);
-
-    const paletteGroups: BookmarkGroup[] = useMemo(() => {
-        return groups
-            .map((g) => ({ ...g, items: g.items.filter((b) => b.isVisible) }))
-            .filter((g) => g.items.length > 0);
-    }, [groups]);
-
-    const conflictIds = useMemo(() => {
-        const ids = new Set<number>();
-        for (let i = 0; i < bookmarks.length; i++) {
-            const a = bookmarks[i].shortcut.trim().toLowerCase();
-            if (!a) continue;
-            for (let j = i + 1; j < bookmarks.length; j++) {
-                const b = bookmarks[j].shortcut.trim().toLowerCase();
-                if (!b) continue;
-                if (a.includes(b) || b.includes(a)) {
-                    ids.add(bookmarks[i].id);
-                    ids.add(bookmarks[j].id);
-                }
-            }
-        }
-        return ids;
-    }, [bookmarks]);
-
-    const displayedGroups = useMemo(() => {
-        let result = groups;
-        const raw = searchFilter.trim();
-
-        if (!raw) return result;
-
-        if (raw.startsWith('/')) {
-            // Bookmark-only filter
-            const term = raw.slice(1);
-            if (term) {
-                result = result
-                    .map((g) => ({
-                        ...g,
-                        items: g.items.filter(
-                            (item) =>
-                                wildcardMatch(item.name, term) ||
-                                wildcardMatch(item.shortcut, term) ||
-                                wildcardMatch(item.description, term),
-                        ),
-                    }))
-                    .filter((g) => g.items.length > 0);
-            }
-        } else if (raw.startsWith('@')) {
-            // Group-only filter
-            const term = raw.slice(1);
-            if (term) {
-                result = result.filter((g) => wildcardMatch(g.name, term));
-            }
-        } else if (raw.startsWith('*')) {
-            // Favorites filter
-            const term = raw.slice(1);
-            result = result
-                .map((g) => ({
-                    ...g,
-                    items: g.items.filter(
-                        (item) =>
-                            item.isFavorite &&
-                            (!term ||
-                                wildcardMatch(item.name, term) ||
-                                wildcardMatch(item.shortcut, term) ||
-                                wildcardMatch(item.description, term)),
-                    ),
-                }))
-                .filter((g) => g.items.length > 0);
-        } else {
-            // Search both groups and bookmarks
-            result = result
-                .filter(
-                    (g) =>
-                        wildcardMatch(g.name, raw) ||
-                        g.items.some(
-                            (item) =>
-                                wildcardMatch(item.name, raw) ||
-                                wildcardMatch(item.shortcut, raw) ||
-                                wildcardMatch(item.description, raw),
-                        ),
-                )
-                .map((g) => {
-                    if (wildcardMatch(g.name, raw)) return g;
-                    return {
-                        ...g,
-                        items: g.items.filter(
-                            (item) =>
-                                wildcardMatch(item.name, raw) ||
-                                wildcardMatch(item.shortcut, raw) ||
-                                wildcardMatch(item.description, raw),
-                        ),
-                    };
-                });
-        }
-
-        return result;
-    }, [groups, searchFilter]);
+    const { groups, paletteGroups, conflictIds, displayedGroups } = useBookmarkGroups(bookmarks, searchFilter);
 
     const showPromptLoop = useCallback(() => {
         setPromptModalOpen(true);
@@ -429,11 +223,6 @@ export default function App() {
     const handleStartupModeChange = useCallback((mode: 'none' | 'prompt' | 'palette') => {
         setStartupMode(mode);
         localStorage.setItem('startupMode', mode);
-    }, []);
-
-    const handleProfileChange = useCallback((profile: string) => {
-        setActiveProfile(profile);
-        localStorage.setItem('activeProfile', profile);
     }, []);
 
     const openFilteredBookmarks = useCallback(

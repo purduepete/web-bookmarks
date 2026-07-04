@@ -1,3 +1,5 @@
+import type { WebBookmarksItem } from './types';
+
 const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
 const HTML_ESCAPES: Record<string, string> = {
@@ -84,6 +86,38 @@ export function resolveBookmarkUrl(
         return bookmark.urls.replace('{q}', encodeURIComponent(parts.slice(1).join(' ')));
     }
     return bookmark.url;
+}
+
+// Resolves a raw "<shortcut> <terms…>" command against the bookmark list and, if
+// it matches (by exact then partial alias, then by name for search-URL bookmarks),
+// opens the matching bookmark(s). Returns true when it navigated, false otherwise.
+export function navigateByShortcut(input: string, bookmarks: WebBookmarksItem[], openInNewTab = false): boolean {
+    const trimmed = input.trim();
+    if (!trimmed) return false;
+
+    const parts = trimmed.split(/\s+/);
+    const shortcut = parts[0].toLowerCase();
+    const searchQuery = parts.slice(1).join(' ');
+
+    let matches = bookmarks.filter((b) => b.shortcut.trim().toLowerCase() === shortcut);
+    if (matches.length === 0) {
+        matches = bookmarks.filter((b) => b.shortcut.trim().toLowerCase().includes(shortcut));
+    }
+    // Also match by name for bookmarks with search URLs (e.g. "seek msft")
+    if (matches.length === 0 && searchQuery) {
+        matches = bookmarks.filter((b) => b.urls && b.name.toLowerCase().startsWith(shortcut));
+    }
+
+    if (matches.length === 0) return false;
+
+    openUrls(
+        matches.map((m) => ({
+            name: m.name,
+            url: resolveBookmarkUrl(m, trimmed),
+        })),
+        openInNewTab,
+    );
+    return true;
 }
 
 export function wildcardMatch(text: string, pattern: string): boolean {

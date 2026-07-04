@@ -517,15 +517,11 @@ export default function App() {
             items.splice(newIndex, 0, moved);
             const entries = items.map((i, pos) => ({ id: i.id, sortOrder: pos }));
 
-            // Optimistic update
-            setBookmarks((prev) => {
-                const next = [...prev];
-                for (const entry of entries) {
-                    const b = next.find((b) => b.id === entry.id);
-                    if (b) b.sortOrder = entry.sortOrder;
-                }
-                return next;
-            });
+            // Optimistic update — apply new sort orders in a single pass via a map.
+            const orderById = new Map(entries.map((e) => [e.id, e.sortOrder]));
+            setBookmarks((prev) =>
+                prev.map((b) => (orderById.has(b.id) ? { ...b, sortOrder: orderById.get(b.id)! } : b)),
+            );
 
             try {
                 await reorderBookmarks(entries);

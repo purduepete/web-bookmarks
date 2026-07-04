@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { WebBookmarksItem, BookmarkGroup } from '../types';
-import { wildcardMatch, openUrls, sanitizeUrl } from '../utils';
+import { wildcardMatch, openUrls, sanitizeUrl, resolveBookmarkUrl } from '../utils';
 
 interface Props {
     groups: BookmarkGroup[];
@@ -397,19 +397,7 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
                     newTab,
                 );
             } else if (entry.kind === 'bookmark' && entry.bookmark) {
-                let targetUrl = entry.bookmark.url;
-                if (entry.bookmark.urls) {
-                    const q = searchPart.trim();
-                    const parts = q.split(/\s+/);
-                    const alias = (entry.bookmark.shortcut || '').trim().toLowerCase();
-                    const firstWord = parts[0].toLowerCase();
-                    if (
-                        parts.length > 1 &&
-                        ((alias && firstWord === alias) || entry.bookmark.name.toLowerCase().startsWith(firstWord))
-                    ) {
-                        targetUrl = entry.bookmark.urls.replace('{q}', encodeURIComponent(parts.slice(1).join(' ')));
-                    }
-                }
+                const targetUrl = resolveBookmarkUrl(entry.bookmark, searchPart);
                 recordMru(activeProfile, entry.bookmark.id);
                 const safeUrl = sanitizeUrl(targetUrl);
                 if (newTab) {

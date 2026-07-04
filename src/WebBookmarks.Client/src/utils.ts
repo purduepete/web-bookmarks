@@ -20,7 +20,12 @@ const UNSAFE_SCHEME = /^\s*(javascript|data|vbscript):/i;
 
 export function sanitizeUrl(url: string): string {
     const value = url ?? '';
-    return UNSAFE_SCHEME.test(value) ? 'about:blank' : value;
+    // Browsers strip ASCII control chars (tab/newline/CR, etc.) from URLs before
+    // parsing, so "java\tscript:" would execute. Strip them before the scheme test
+    // so such payloads can't bypass the blocklist; the original value is returned
+    // unchanged when it is safe.
+    const stripped = value.replace(/[\u0000-\u001F\u007F]/g, '');
+    return UNSAFE_SCHEME.test(stripped) ? 'about:blank' : value;
 }
 
 export function openUrls(items: { name: string; url: string }[], openInNewTab = false) {

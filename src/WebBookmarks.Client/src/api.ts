@@ -13,6 +13,11 @@ const MAX_RETRIES = 4;
 const BASE_RETRY_DELAY_MS = 500;
 const RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504]);
 
+// Must match WebBookmarks.Api Program.cs `const int MaxBulkItems = 1000`: the API
+// rejects any bulk request larger than this. The bulk helpers below chunk
+// oversized inputs to this size transparently, so no caller can exceed the cap.
+export const MAX_BULK_ITEMS = 1000;
+
 // Carries the HTTP status so the retry policy can decide whether to retry.
 // Exported for regression tests of the transient-only retry policy.
 export class HttpError extends Error {
@@ -152,7 +157,9 @@ export function deleteBookmark(id: number): Promise<void> {
 }
 
 export function reorderBookmarks(entries: { id: number; sortOrder: number }[]): Promise<void> {
-    return request(`${API_BASE}/reorder`, { method: 'POST', body: entries, label: 'reorder bookmarks' });
+    return inBulkChunks(entries, (chunk) =>
+        request<void>(`${API_BASE}/reorder`, { method: 'POST', body: chunk, label: 'reorder bookmarks' }),
+    ).then(() => undefined);
 }
 
 export function checkAlias(
@@ -176,8 +183,24 @@ export function fetchProfiles(): Promise<string[]> {
     return request(`${API_BASE}/profiles`, { label: 'fetch profiles' });
 }
 
+// Runs `fn` over `items` in sequential chunks of at most MAX_BULK_ITEMS and
+// returns each chunk's result, so a large bulk operation transparently stays
+// within the API's per-request cap without any caller having to remember to
+// batch. An empty input still invokes `fn` once, preserving single-request
+// semantics for callers that read the result.
+export async function inBulkChunks<T, R>(items: T[], fn: (chunk: T[]) => Promise<R>): Promise<R[]> {
+    if (items.length <= MAX_BULK_ITEMS) return [await fn(items)];
+    const results: R[] = [];
+    for (let i = 0; i < items.length; i += MAX_BULK_ITEMS) {
+        results.push(await fn(items.slice(i, i + MAX_BULK_ITEMS)));
+    }
+    return results;
+}
+
 export function bulkCreateBookmarks(items: Omit<WebBookmarksItem, 'id'>[]): Promise<{ imported: number }> {
-    return request(`${API_BASE}/bulk`, { method: 'POST', body: items, label: 'bulk import' });
+    return inBulkChunks(items, (chunk) =>
+        request<{ imported: number }>(`${API_BASE}/bulk`, { method: 'POST', body: chunk, label: 'bulk import' }),
+    ).then((results) => ({ imported: results.reduce((sum, r) => sum + r.imported, 0) }));
 }
 
 export function bulkUpdateBookmarks(
@@ -188,22 +211,26 @@ export function bulkUpdateBookmarks(
     isVisible?: boolean,
 ): Promise<{ updated: number }> {
     const clearShortcut = shortcut === '' ? true : null;
-    return request(`${API_BASE}/bulk`, {
-        method: 'PUT',
-        body: {
-            ids,
-            profile: profile ?? null,
-            bookmarkGroup: bookmarkGroup ?? null,
-            shortcut: shortcut || null,
-            isVisible: isVisible ?? null,
-            clearShortcut,
-        },
-        label: 'bulk update',
-    });
+    return inBulkChunks(ids, (chunk) =>
+        request<{ updated: number }>(`${API_BASE}/bulk`, {
+            method: 'PUT',
+            body: {
+                ids: chunk,
+                profile: profile ?? null,
+                bookmarkGroup: bookmarkGroup ?? null,
+                shortcut: shortcut || null,
+                isVisible: isVisible ?? null,
+                clearShortcut,
+            },
+            label: 'bulk update',
+        }),
+    ).then((results) => ({ updated: results.reduce((sum, r) => sum + r.updated, 0) }));
 }
 
 export function bulkDeleteBookmarks(ids: number[]): Promise<{ deleted: number }> {
-    return request(`${API_BASE}/bulk-delete`, { method: 'POST', body: ids, label: 'bulk delete' });
+    return inBulkChunks(ids, (chunk) =>
+        request<{ deleted: number }>(`${API_BASE}/bulk-delete`, { method: 'POST', body: chunk, label: 'bulk delete' }),
+    ).then((results) => ({ deleted: results.reduce((sum, r) => sum + r.deleted, 0) }));
 }
 
 export function toggleFavorite(id: number): Promise<{ id: number; isFavorite: boolean }> {

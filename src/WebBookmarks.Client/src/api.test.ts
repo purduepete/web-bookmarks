@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isRetryable, HttpError } from './api';
+import { isRetryable, HttpError, inBulkChunks, MAX_BULK_ITEMS } from './api';
 
 // Locks in the transient-only retry policy (fix from #23 / R4): the retry loop
 // must retry timeouts, network failures and transient 5xx, but NEVER 4xx
@@ -37,3 +37,40 @@ describe('isRetryable', () => {
         expect(isRetryable('nope')).toBe(false);
     });
 });
+
+// Locks in the transparent bulk-batching (R1 + R3): no bulk operation can ever
+// exceed the API's MaxBulkItems cap, regardless of caller, because chunking
+// lives in the api layer. Covers the >1000-item case that used to fail.
+describe('inBulkChunks', () => {
+    it('sends a single chunk when within the cap', async () => {
+        const calls: number[][] = [];
+        const items = Array.from({ length: MAX_BULK_ITEMS }, (_, i) => i);
+        await inBulkChunks(items, async (chunk) => {
+            calls.push(chunk);
+        });
+        expect(calls).toHaveLength(1);
+        expect(calls[0]).toHaveLength(MAX_BULK_ITEMS);
+    });
+
+    it('splits an over-cap input into <=MAX_BULK_ITEMS chunks', async () => {
+        const sizes: number[] = [];
+        const items = Array.from({ length: 2 * MAX_BULK_ITEMS + 250 }, (_, i) => i);
+        const results = await inBulkChunks(items, async (chunk) => {
+            sizes.push(chunk.length);
+            return chunk.length;
+        });
+        expect(sizes).toEqual([MAX_BULK_ITEMS, MAX_BULK_ITEMS, 250]);
+        expect(results).toEqual([MAX_BULK_ITEMS, MAX_BULK_ITEMS, 250]);
+        // Every element is covered exactly once, in order.
+        expect(sizes.reduce((a, b) => a + b, 0)).toBe(items.length);
+    });
+
+    it('invokes fn once for empty input (preserves single-request semantics)', async () => {
+        let calls = 0;
+        await inBulkChunks<number, void>([], async () => {
+            calls++;
+        });
+        expect(calls).toBe(1);
+    });
+});
+

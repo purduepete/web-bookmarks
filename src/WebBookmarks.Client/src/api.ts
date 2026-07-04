@@ -14,7 +14,8 @@ const BASE_RETRY_DELAY_MS = 500;
 const RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504]);
 
 // Carries the HTTP status so the retry policy can decide whether to retry.
-class HttpError extends Error {
+// Exported for regression tests of the transient-only retry policy.
+export class HttpError extends Error {
     status: number;
     constructor(status: number, message: string) {
         super(message);
@@ -29,7 +30,10 @@ function fetchWithTimeout(input: string, init: RequestInit = {}): Promise<Respon
     return fetch(input, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer));
 }
 
-function isRetryable(err: unknown): boolean {
+// Decides whether a failed request should be retried. Exported so the
+// transient-only policy (retry timeouts/network/transient 5xx; never 4xx or
+// deterministic errors) can be locked in by regression tests.
+export function isRetryable(err: unknown): boolean {
     if (err instanceof HttpError) return RETRYABLE_STATUS.has(err.status);
     // A surfaced 401 (handled below) must not be retried.
     if (err instanceof Error && err.message === 'Unauthorized') return false;

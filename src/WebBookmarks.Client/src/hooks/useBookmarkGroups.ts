@@ -30,15 +30,31 @@ export function useBookmarkGroups(bookmarks: WebBookmarksItem[], searchFilter: s
 
     const conflictIds = useMemo(() => {
         const ids = new Set<number>();
-        for (let i = 0; i < bookmarks.length; i++) {
-            const a = bookmarks[i].shortcut.trim().toLowerCase();
-            if (!a) continue;
-            for (let j = i + 1; j < bookmarks.length; j++) {
-                const b = bookmarks[j].shortcut.trim().toLowerCase();
-                if (!b) continue;
+        // Normalize each shortcut once (the previous version re-ran trim/toLowerCase
+        // inside the inner loop, an O(n^2) waste) and drop empties.
+        const byShortcut = new Map<string, number[]>();
+        for (const b of bookmarks) {
+            const s = b.shortcut.trim().toLowerCase();
+            if (!s) continue;
+            const list = byShortcut.get(s);
+            if (list) list.push(b.id);
+            else byShortcut.set(s, [b.id]);
+        }
+        // A shortcut used by 2+ bookmarks always conflicts (each contains itself).
+        const distinct = [...byShortcut.entries()];
+        for (const [, list] of distinct) {
+            if (list.length > 1) for (const id of list) ids.add(id);
+        }
+        // Substring containment (the conflict rule) between *distinct* shortcuts —
+        // comparisons scale with the number of unique shortcuts, not the bookmark
+        // count, and short-circuit on the first empty-normalized entries above.
+        for (let i = 0; i < distinct.length; i++) {
+            const [a, aIds] = distinct[i];
+            for (let j = i + 1; j < distinct.length; j++) {
+                const [b, bIds] = distinct[j];
                 if (a.includes(b) || b.includes(a)) {
-                    ids.add(bookmarks[i].id);
-                    ids.add(bookmarks[j].id);
+                    for (const id of aIds) ids.add(id);
+                    for (const id of bIds) ids.add(id);
                 }
             }
         }

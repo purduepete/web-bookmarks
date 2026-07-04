@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { isRetryable, HttpError, inBulkChunks, MAX_BULK_ITEMS } from './api';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { isRetryable, HttpError, inBulkChunks, MAX_BULK_ITEMS, validateApiKey } from './api';
 
 // Locks in the transient-only retry policy (fix from #23 / R4): the retry loop
 // must retry timeouts, network failures and transient 5xx, but NEVER 4xx
@@ -71,6 +71,67 @@ describe('inBulkChunks', () => {
             calls++;
         });
         expect(calls).toBe(1);
+    });
+});
+
+// Locks in the RB1 fix (#32): validateApiKey must report `false` ONLY for a real
+// auth rejection (401/403). A network/timeout/5xx failure must NOT be reported as
+// an invalid key (which would clear a valid key / block sign-in) — it is retried
+// and then re-thrown so the login gate can distinguish "wrong key" from "offline".
+describe('validateApiKey', () => {
+    afterEach(() => {
+        vi.useRealTimers();
+        vi.unstubAllGlobals();
+        vi.restoreAllMocks();
+    });
+
+    it('returns true for a 2xx response', async () => {
+        const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+        vi.stubGlobal('fetch', fetchMock);
+        await expect(validateApiKey('good')).resolves.toBe(true);
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns false for an auth rejection (401/403) without retrying', async () => {
+        for (const status of [401, 403]) {
+            const fetchMock = vi.fn().mockResolvedValue({ ok: false, status });
+            vi.stubGlobal('fetch', fetchMock);
+            await expect(validateApiKey('bad')).resolves.toBe(false);
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+        }
+    });
+
+    it('throws (not false) on a persistent network failure', async () => {
+        vi.useFakeTimers();
+        const fetchMock = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+        vi.stubGlobal('fetch', fetchMock);
+        const assertion = expect(validateApiKey('valid-but-offline')).rejects.toBeInstanceOf(TypeError);
+        await vi.runAllTimersAsync();
+        await assertion;
+        // retried, not treated as a verdict on the key
+        expect(fetchMock.mock.calls.length).toBeGreaterThan(1);
+    });
+
+    it('recovers a valid key after a transient blip (retries then succeeds)', async () => {
+        vi.useFakeTimers();
+        const fetchMock = vi
+            .fn()
+            .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+            .mockResolvedValueOnce({ ok: true, status: 200 });
+        vi.stubGlobal('fetch', fetchMock);
+        const assertion = expect(validateApiKey('valid')).resolves.toBe(true);
+        await vi.runAllTimersAsync();
+        await assertion;
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('re-throws a non-auth HTTP error (e.g. 500) instead of returning false', async () => {
+        vi.useFakeTimers();
+        const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 500 });
+        vi.stubGlobal('fetch', fetchMock);
+        const assertion = expect(validateApiKey('valid')).rejects.toBeInstanceOf(HttpError);
+        await vi.runAllTimersAsync();
+        await assertion;
     });
 });
 

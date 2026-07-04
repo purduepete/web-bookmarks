@@ -29,13 +29,20 @@ export function AuthGate({ children }: { children: ReactNode }) {
         if (!key) return;
         setChecking(true);
         setError('');
-        const ok = await validateApiKey(key);
-        setChecking(false);
-        if (ok) {
-            setApiKey(key);
-            setAuthed(true);
-        } else {
-            setError('Invalid key. Please try again.');
+        try {
+            const ok = await validateApiKey(key);
+            if (ok) {
+                setApiKey(key);
+                setAuthed(true);
+            } else {
+                setError('Invalid key. Please try again.');
+            }
+        } catch {
+            // A network/timeout/server error is NOT an invalid key — keep the user
+            // on the gate with a distinct message instead of rejecting the key.
+            setError('Could not reach the server. Check your connection and try again.');
+        } finally {
+            setChecking(false);
         }
     }
 

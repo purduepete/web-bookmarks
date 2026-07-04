@@ -153,7 +153,11 @@ const int MaxBulkItems = 1000;
 
 app.MapGet("/api/bookmarks", async (bool? includeHidden, string? profile, WebBookmarksContext db, CancellationToken ct) =>
 {
-    var query = db.WebBookmarkItems.AsQueryable();
+    // Read-only list: AsNoTracking() skips EF change-tracking/snapshotting, which
+    // is pure overhead (memory + CPU) for a query whose results are never mutated
+    // in this request. No pagination — the client is a start-page that renders all
+    // groups at once with client-side search, so slicing would break the UX.
+    var query = db.WebBookmarkItems.AsNoTracking();
     if (includeHidden != true)
         query = query.Where(b => b.IsVisible);
     if (!string.IsNullOrEmpty(profile))

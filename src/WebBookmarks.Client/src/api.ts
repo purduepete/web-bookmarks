@@ -113,13 +113,20 @@ async function request<T>(
 }
 
 // Validates a key against the API without persisting it. Used by the login gate.
+// Returns `false` ONLY for a real auth rejection (401/403). Transient failures
+// (network errors, timeouts, 5xx) are retried and then re-thrown, so a brief
+// network blip is never mistaken for an invalid key (which would wrongly clear a
+// valid key / block sign-in). Callers must catch to distinguish "wrong key" from
+// "couldn't reach the server".
 export async function validateApiKey(key: string): Promise<boolean> {
-    try {
+    return withRetry(async () => {
         const res = await fetchWithTimeout(`${API_BASE}/profiles`, { headers: { 'X-Api-Key': key } });
-        return res.ok;
-    } catch {
-        return false;
-    }
+        if (res.ok) return true;
+        if (res.status === 401 || res.status === 403) return false;
+        // Not an auth verdict — surface it (retryable if transient) rather than
+        // reporting a possibly-valid key as invalid.
+        throw new HttpError(res.status, `Failed to validate key: ${res.status}`);
+    });
 }
 
 export async function fetchBookmarks(includeHidden = false, profile?: string): Promise<WebBookmarksItem[]> {

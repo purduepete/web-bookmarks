@@ -345,7 +345,11 @@ static Dictionary<string, string[]>? ValidateBookmark(WebBookmarksItem item)
 static bool HasUnsafeScheme(string? value)
 {
     if (string.IsNullOrWhiteSpace(value)) return false;
-    var v = value.TrimStart().ToLowerInvariant();
+    // Browsers strip ASCII control chars (tab/newline/CR, etc.) from URLs before
+    // parsing, so "java\tscript:" would execute as javascript. Remove control and
+    // whitespace chars before the scheme check so such payloads can't slip past.
+    var v = new string(value.Where(c => !char.IsControl(c) && !char.IsWhiteSpace(c)).ToArray())
+        .ToLowerInvariant();
     string[] blockedSchemes = { "javascript:", "data:", "vbscript:" };
     return blockedSchemes.Any(scheme => v.StartsWith(scheme, StringComparison.Ordinal));
 }

@@ -41,6 +41,35 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// ── Ensure required indexes exist (self-healing) ────────────────────
+// The list/group queries filter by Profile and order by (BookmarkGroup, SortOrder).
+// These indexes are declared on the EF model, but the schema is managed out-of-band
+// (schema.sql + Database/001-add-indexes.sql), so a DB can exist without them. This
+// idempotent, guarded check creates them if missing on startup. It runs no DDL once
+// they exist (only a metadata read) and never crashes the app if it can't apply them
+// (e.g. the login lacks DDL rights, or the columns are still nvarchar(max) on a
+// legacy DB — in which case the out-of-band script remains the documented path).
+// CREATE INDEX uses ONLINE = ON so a first-time build never takes a schema-mod lock
+// on the live table (per DB-change review).
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<WebBookmarksContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    try
+    {
+        await db.Database.ExecuteSqlRawAsync(@"
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_webbookmarkitems_Profile' AND object_id = OBJECT_ID('dbo.webbookmarkitems'))
+    CREATE INDEX IX_webbookmarkitems_Profile ON dbo.webbookmarkitems (Profile) WITH (ONLINE = ON);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_webbookmarkitems_BookmarkGroup_SortOrder' AND object_id = OBJECT_ID('dbo.webbookmarkitems'))
+    CREATE INDEX IX_webbookmarkitems_BookmarkGroup_SortOrder ON dbo.webbookmarkitems (BookmarkGroup, SortOrder) WITH (ONLINE = ON);");
+        logger.LogInformation("Index check complete: required indexes present.");
+    }
+    catch (Exception ex)
+    {
+        logger.LogWarning(ex, "Could not ensure indexes exist; continuing. Apply Database/001-add-indexes.sql manually if needed.");
+    }
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

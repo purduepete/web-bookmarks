@@ -43,12 +43,7 @@ function navigateByShortcut(input: string, bookmarks: WebBookmarksItem[], openIn
 export default function App() {
     const [bookmarks, setBookmarks] = useState<WebBookmarksItem[]>(() => {
         const profile = localStorage.getItem('activeProfile') || 'home';
-        try {
-            const cached = localStorage.getItem(`bookmarks_${profile}`) || localStorage.getItem('bookmarks');
-            return cached ? JSON.parse(cached) : [];
-        } catch {
-            return [];
-        }
+        return getLocalBookmarks(profile) ?? [];
     });
     const [loading, setLoading] = useState(() => {
         const profile = localStorage.getItem('activeProfile') || 'home';
@@ -135,7 +130,16 @@ export default function App() {
     function getLocalBookmarks(profile: string): WebBookmarksItem[] | null {
         try {
             const cached = localStorage.getItem(`bookmarks_${profile}`);
-            return cached ? JSON.parse(cached) : null;
+            if (cached) return JSON.parse(cached);
+            // One-time migration from the legacy un-profiled key: adopt it under
+            // the profile-aware key, then drop the legacy key so it's never read again.
+            const legacy = localStorage.getItem('bookmarks');
+            if (legacy) {
+                localStorage.setItem(`bookmarks_${profile}`, legacy);
+                localStorage.removeItem('bookmarks');
+                return JSON.parse(legacy);
+            }
+            return null;
         } catch {
             return null;
         }
@@ -143,8 +147,8 @@ export default function App() {
 
     function setLocalBookmarks(profile: string, data: WebBookmarksItem[]) {
         localStorage.setItem(`bookmarks_${profile}`, JSON.stringify(data));
-        // Also keep legacy key for backwards compat
-        localStorage.setItem('bookmarks', JSON.stringify(data));
+        // Drop the legacy un-profiled key if an older build left it behind.
+        localStorage.removeItem('bookmarks');
     }
 
     // Close options dropdown when clicking outside

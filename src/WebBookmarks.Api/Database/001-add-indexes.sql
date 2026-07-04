@@ -1,6 +1,11 @@
 -- Adds the indexes declared on the EF model (WebBookmarksContext.OnModelCreating)
 -- to an existing database. Idempotent: safe to run repeatedly.
 --
+-- NOTE: The API now also self-heals these indexes on startup (create-if-missing,
+-- ONLINE) — see Program.cs. This script is still the fallback for a legacy DB whose
+-- Profile/BookmarkGroup columns are still nvarchar(max) (which can't be indexed until
+-- bounded), since the startup check intentionally does not ALTER columns.
+--
 -- Usage (sqlcmd):
 --   sqlcmd -S <server> -d <database> -i src/WebBookmarks.Api/Database/001-add-indexes.sql
 -- or paste into Azure Data Studio / SSMS against the target DB.

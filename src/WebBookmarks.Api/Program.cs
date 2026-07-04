@@ -315,11 +315,20 @@ app.MapPut("/api/bookmarks/bulk", async (BulkUpdateRequest request, WebBookmarks
 
 app.MapPatch("/api/bookmarks/{id:int}/favorite", async (int id, WebBookmarksContext db, CancellationToken ct) =>
 {
-    var item = await db.WebBookmarkItems.FindAsync(new object?[] { id }, ct);
-    if (item is null) return Results.NotFound();
-    item.IsFavorite = !item.IsFavorite;
-    await db.SaveChangesAsync(ct);
-    return Results.Ok(new { id = item.Id, isFavorite = item.IsFavorite });
+    // Flip the flag atomically at the database (SET IsFavorite = ~IsFavorite) so
+    // concurrent toggles from multiple tabs each apply exactly once. The previous
+    // load-negate-save could read the same value in two requests and write the
+    // same result, silently losing a toggle.
+    var affected = await db.WebBookmarkItems
+        .Where(b => b.Id == id)
+        .ExecuteUpdateAsync(s => s.SetProperty(b => b.IsFavorite, b => !b.IsFavorite), ct);
+    if (affected == 0) return Results.NotFound();
+    // Read back the resulting state to return the current truth to the client.
+    var isFavorite = await db.WebBookmarkItems
+        .Where(b => b.Id == id)
+        .Select(b => b.IsFavorite)
+        .FirstAsync(ct);
+    return Results.Ok(new { id, isFavorite });
 })
     .WithName("ToggleFavorite")
     .WithOpenApi();

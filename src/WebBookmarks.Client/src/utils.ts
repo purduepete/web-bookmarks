@@ -61,17 +61,13 @@ ${items.map((item) => `<a href="${escapeHtml(sanitizeUrl(item.url))}" target="_b
         }
         win?.focus();
     } else {
-        let i = 0;
-        function next() {
-            if (i < items.length - 1) {
-                window.open(sanitizeUrl(items[i].url), '_blank', 'noopener');
-                i++;
-                setTimeout(next, 500);
-            } else {
-                window.location.href = sanitizeUrl(items[i].url);
-            }
+        // Open the non-final URLs synchronously inside the click's user-gesture
+        // stack; async (setTimeout) window.open calls are treated as unsolicited
+        // popups and blocked, so extra tabs would silently fail to open.
+        for (let i = 0; i < items.length - 1; i++) {
+            window.open(sanitizeUrl(items[i].url), '_blank', 'noopener');
         }
-        next();
+        window.location.href = sanitizeUrl(items[items.length - 1].url);
     }
 }
 

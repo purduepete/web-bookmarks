@@ -356,11 +356,19 @@ static bool KeysMatch(string expected, string provided)
     return System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(a, b);
 }
 
-// Validates a bookmark payload. Returns null when valid, otherwise a field->messages
-// map suitable for Results.ValidationProblem. Blocks dangerous URL schemes
-// (javascript:, data:, etc.) so they can never be stored and later navigated to.
+// Validates and normalizes a bookmark payload. Returns null when valid, otherwise
+// a field->messages map suitable for Results.ValidationProblem. Blocks dangerous
+// URL schemes (javascript:, data:, etc.) so they can never be stored and later
+// navigated to.
 static Dictionary<string, string[]>? ValidateBookmark(WebBookmarksItem item)
 {
+    // Normalize the grouping fields so a null Profile/BookmarkGroup can't produce a
+    // row that GetBookmarks (which filters Where(b => b.Profile == profile)) would
+    // exclude — i.e. an orphaned, invisible bookmark. Clients always send a profile;
+    // this is defense-in-depth for hand-crafted requests.
+    item.Profile ??= "home";
+    item.BookmarkGroup ??= "";
+
     var errors = new Dictionary<string, List<string>>();
     void Add(string field, string message)
     {

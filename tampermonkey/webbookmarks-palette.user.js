@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      4.9.24
+// @version      4.9.25
 // @description  Press Ctrl+Alt+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
@@ -625,6 +625,7 @@
     // ── Palette ──────────────────────────────────────
     let paletteOpen = false;
     let shadowHost = null;
+    let activePaletteHandle = null;
 
     // Pre-fetch bookmarks on page load so palette opens instantly
     getGroups().catch(() => {});
@@ -1241,12 +1242,16 @@
 
         function close() {
             document.removeEventListener('keydown', escHandler, true);
+            window.removeEventListener('keydown', keyShield, true);
+            window.removeEventListener('keyup', keyBlock, true);
+            window.removeEventListener('keypress', keyBlock, true);
             backdrop.remove();
             if (shadowHost) {
                 shadowHost.remove();
                 shadowHost = null;
             }
             paletteOpen = false;
+            activePaletteHandle = null;
         }
 
         // Document-level capture handler so Esc closes the palette even when the
@@ -1411,7 +1416,8 @@
                 });
         }
 
-        input.addEventListener('keydown', (e) => {
+        input.addEventListener('keydown', onPaletteKeydown);
+        function onPaletteKeydown(e) {
             if (e.key === 'Escape') {
                 e.preventDefault();
                 if (cheatsheetVisible()) {
@@ -1495,7 +1501,7 @@
                 close();
                 return;
             }
-        });
+        }
 
         // ── Mount ──
         // Render the palette inside a Shadow DOM so the host page's CSS can't
@@ -1509,11 +1515,35 @@
         shadow.appendChild(backdrop);
         document.body.appendChild(shadowHost);
         document.addEventListener('keydown', escHandler, true);
+
+        // While open, the palette owns the keyboard: block every key from reaching
+        // the host page. Registered on `window` in the capture phase (earliest hook)
+        // and stopImmediatePropagation()'d so sites that grab keys — GitHub, Notion,
+        // Docs, etc. — can't act on Arrow/Enter/Ctrl+J/K/Tab/Esc behind the overlay.
+        // keydown drives the palette via onPaletteKeydown; typing keys are not
+        // preventDefault()'d, so characters still land in the focused input (the
+        // `input` event keeps updating the query). keyup/keypress are block-only.
+        const keyShield = (e) => {
+            if (!paletteOpen) return;
+            e.stopImmediatePropagation();
+            // If focus escaped the palette (host page stole it), pull it back so keys
+            // target our input rather than the page.
+            if (shadowHost && !e.composedPath().includes(shadowHost)) input.focus();
+            onPaletteKeydown(e);
+        };
+        const keyBlock = (e) => {
+            if (!paletteOpen) return;
+            e.stopImmediatePropagation();
+        };
+        window.addEventListener('keydown', keyShield, true);
+        window.addEventListener('keyup', keyBlock, true);
+        window.addEventListener('keypress', keyBlock, true);
         input.focus();
         render();
 
         // Return a handle to populate data after open
-        return {
+        activePaletteHandle = {
+            close,
             setData(newGroups, newProfiles) {
                 profiles = newProfiles;
                 allEntries = buildEntries(newGroups, newProfiles);
@@ -1536,63 +1566,73 @@
                 listEl.appendChild(el);
             },
         };
+        return activePaletteHandle;
+    }
+
+    // ── Palette activation flow (shared by the hotkey and the Tampermonkey menu) ──
+    async function activatePalette() {
+        const profile = getActiveProfile();
+        const profiles = cachedProfiles || ['home'];
+
+        // If in-memory cache is warm, open instantly
+        if (cachedGroups && cachedProfile === profile && Date.now() - lastFetch < CACHE_TTL) {
+            openPalette(cachedGroups, profiles, false);
+            return;
+        }
+
+        // Try local storage for instant display, then refresh from API
+        const localItems = getLocalBookmarks(profile);
+        if (localItems) {
+            const localGroups = itemsToGroups(localItems);
+            const handle = openPalette(localGroups, profiles, false);
+            // Refresh in background
+            getGroups()
+                .then((freshGroups) => {
+                    const freshProfiles = cachedProfiles || profiles;
+                    if (paletteOpen) handle.setData(freshGroups, freshProfiles);
+                })
+                .catch(() => {}); // stale data is fine
+            return;
+        }
+
+        // No local data — show loading state
+        const handle = openPalette(null, null, true);
+        try {
+            const groups = await getGroups();
+            const freshProfiles = cachedProfiles || (await fetchProfiles().catch(() => ['home']));
+            cachedProfiles = freshProfiles;
+            if (paletteOpen) handle.setData(groups, freshProfiles);
+        } catch (err) {
+            console.error('[WebBookmarks] Failed to fetch bookmarks:', err);
+            if (paletteOpen) handle.setError(err.message);
+        }
     }
 
     // ── Global hotkey: Ctrl + Alt + / (toggle) ───────────────
-    document.addEventListener(
+    // Registered on `window` in the capture phase — the earliest standard hook — so
+    // it fires before host pages that listen on `document` (e.g. GitHub's shortcut
+    // library). GM_registerMenuCommand below is a guaranteed fallback for sites that
+    // hard-capture the combo on `window` before us.
+    window.addEventListener(
         'keydown',
-        async (e) => {
+        (e) => {
             const isSlash = e.code === 'Slash' || e.key === '/' || e.key === '\u00F7';
             if (e.ctrlKey && e.altKey && !e.shiftKey && !e.metaKey && isSlash) {
                 e.preventDefault();
                 e.stopImmediatePropagation();
                 if (paletteOpen) {
-                    // Close palette on second Ctrl+Alt+/
-                    if (shadowHost) {
-                        shadowHost.remove();
-                        shadowHost = null;
-                    }
-                    paletteOpen = false;
-                    return;
-                }
-
-                const profile = getActiveProfile();
-                const profiles = cachedProfiles || ['home'];
-
-                // If in-memory cache is warm, open instantly
-                if (cachedGroups && cachedProfile === profile && Date.now() - lastFetch < CACHE_TTL) {
-                    openPalette(cachedGroups, profiles, false);
-                    return;
-                }
-
-                // Try local storage for instant display, then refresh from API
-                const localItems = getLocalBookmarks(profile);
-                if (localItems) {
-                    const localGroups = itemsToGroups(localItems);
-                    const handle = openPalette(localGroups, profiles, false);
-                    // Refresh in background
-                    getGroups()
-                        .then((freshGroups) => {
-                            const freshProfiles = cachedProfiles || profiles;
-                            if (paletteOpen) handle.setData(freshGroups, freshProfiles);
-                        })
-                        .catch(() => {}); // stale data is fine
-                    return;
-                }
-
-                // No local data — show loading state
-                const handle = openPalette(null, null, true);
-                try {
-                    const groups = await getGroups();
-                    const freshProfiles = cachedProfiles || (await fetchProfiles().catch(() => ['home']));
-                    cachedProfiles = freshProfiles;
-                    if (paletteOpen) handle.setData(groups, freshProfiles);
-                } catch (err) {
-                    console.error('[WebBookmarks] Failed to fetch bookmarks:', err);
-                    if (paletteOpen) handle.setError(err.message);
+                    // Close palette on second Ctrl+Alt+/ (routes through close() so the
+                    // keyboard shield + listeners are torn down).
+                    if (activePaletteHandle) activePaletteHandle.close();
+                } else {
+                    activatePalette();
                 }
             }
         },
         true,
     );
+
+    GM_registerMenuCommand('Open WebBookmarks Palette', () => {
+        if (!paletteOpen) activatePalette();
+    });
 })();

@@ -28,7 +28,7 @@ export function detectNumberSelection(query: string): {
     searchPart: string;
     numberSelection: Set<number> | null;
 } {
-    const match = query.match(/^(.*?)\s+([\d,\s\-]+)$/);
+    const match = query.match(/^(.*?)\s+([\d,\s-]+)$/);
     if (match) {
         return { searchPart: match[1], numberSelection: parseNumberSelection(match[2]) };
     }

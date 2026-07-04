@@ -31,6 +31,7 @@ export function sanitizeUrl(url: string): string {
     // parsing, so "java\tscript:" would execute. Strip them before the scheme test
     // so such payloads can't bypass the blocklist; the original value is returned
     // unchanged when it is safe.
+    // eslint-disable-next-line no-control-regex -- control chars are the payload we strip
     const stripped = value.replace(/[\u0000-\u001F\u007F]/g, '');
     return UNSAFE_SCHEME.test(stripped) ? 'about:blank' : value;
 }

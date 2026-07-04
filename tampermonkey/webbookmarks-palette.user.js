@@ -746,6 +746,11 @@
         let loading = isLoading || false;
         let query = '';
         let activeIndex = 0;
+        // Row DOM nodes and the list they were built from, kept so moving the
+        // active highlight (hover / arrow nav) can update two nodes' classes
+        // instead of tearing down and rebuilding the whole list on every event.
+        let rowEls = [];
+        let renderedList = [];
         let multiSelected = new Set();
         let lastBookmark = null;
 
@@ -997,10 +1002,41 @@
             return { displayList, bookmarkNumbers };
         }
 
+        // Move the active highlight to `next` without rebuilding the list: swap the
+        // active class on just the two affected rows, then refresh the preview.
+        function setActiveIndex(next) {
+            if (rowEls[activeIndex]) rowEls[activeIndex].classList.remove('wbp-item-active');
+            activeIndex = next;
+            if (rowEls[activeIndex]) rowEls[activeIndex].classList.add('wbp-item-active');
+            updateActivePreview();
+        }
+
+        // Scroll the active row into view and update the URL preview line. Reads the
+        // already-rendered list so hover / arrow nav can run without recomputing
+        // filters or touching the rest of the DOM.
+        function updateActivePreview() {
+            const activeEl = rowEls[activeIndex];
+            if (activeEl) activeEl.scrollIntoView({ block: 'nearest' });
+
+            const entry = renderedList[activeIndex];
+            if (entry?.kind === 'bookmark' && entry.bookmark) {
+                lastBookmark = entry.bookmark;
+                previewEl.textContent = resolveBookmarkUrl(entry.bookmark, query);
+            } else if (entry?.kind === 'group' && entry.group) {
+                previewEl.textContent = entry.group.items.length + ' bookmarks \u2014 Enter to open all';
+            } else if (entry?.kind === 'action') {
+                previewEl.textContent = 'Action \u2014 Enter to execute';
+            } else {
+                previewEl.textContent = '';
+            }
+        }
+
         function render() {
             const { filtered: rawFiltered, numberSelection } = getFiltered();
             const { displayList: filtered, bookmarkNumbers } = getNumbered(rawFiltered, numberSelection);
             if (activeIndex >= filtered.length) activeIndex = Math.max(0, filtered.length - 1);
+            renderedList = filtered;
+            rowEls = [];
 
             listEl.innerHTML = '';
             if (loading) {
@@ -1048,9 +1084,9 @@
                         `<span class="wbp-item-alias${entry.alias ? '' : ' wbp-item-alias-empty'}">${escapeHtml(entry.alias)}</span>` +
                         `<span class="wbp-item-secondary">${escapeHtml(entry.secondary)}</span>`;
 
+                    rowEls[i] = row;
                     row.addEventListener('mouseenter', () => {
-                        activeIndex = i;
-                        render();
+                        if (i !== activeIndex) setActiveIndex(i);
                     });
                     row.addEventListener('click', (ev) => {
                         const nt = isTouchDevice ? newTabMode : ev.ctrlKey || ev.metaKey;
@@ -1068,22 +1104,8 @@
                 }
             }
 
-            // Scroll active into view
-            const activeEl = listEl.children[activeIndex];
-            if (activeEl) activeEl.scrollIntoView({ block: 'nearest' });
-
-            // Preview
-            const entry = filtered[activeIndex];
-            if (entry?.kind === 'bookmark' && entry.bookmark) {
-                lastBookmark = entry.bookmark;
-                previewEl.textContent = resolveBookmarkUrl(entry.bookmark, query);
-            } else if (entry?.kind === 'group' && entry.group) {
-                previewEl.textContent = entry.group.items.length + ' bookmarks \u2014 Enter to open all';
-            } else if (entry?.kind === 'action') {
-                previewEl.textContent = 'Action \u2014 Enter to execute';
-            } else {
-                previewEl.textContent = '';
-            }
+            // Scroll active into view + refresh preview.
+            updateActivePreview();
         }
 
         function activateEntry(entry, newTab) {
@@ -1438,14 +1460,12 @@
 
             if (e.key === 'ArrowDown' || (e.ctrlKey && (e.key === 'j' || e.key === 'J'))) {
                 e.preventDefault();
-                activeIndex = filtered.length ? (activeIndex + 1) % filtered.length : 0;
-                render();
+                setActiveIndex(renderedList.length ? (activeIndex + 1) % renderedList.length : 0);
                 return;
             }
             if (e.key === 'ArrowUp' || (e.ctrlKey && (e.key === 'k' || e.key === 'K'))) {
                 e.preventDefault();
-                activeIndex = filtered.length ? (activeIndex - 1 + filtered.length) % filtered.length : 0;
-                render();
+                setActiveIndex(renderedList.length ? (activeIndex - 1 + renderedList.length) % renderedList.length : 0);
                 return;
             }
             if (e.key === 'ArrowRight') {

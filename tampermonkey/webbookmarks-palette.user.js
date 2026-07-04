@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      4.9.27
+// @version      4.9.28
 // @description  Press Ctrl+Alt+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
@@ -609,6 +609,7 @@
           method: "GET",
           url,
           headers: { "X-Api-Key": API_KEY },
+          timeout: 15e3,
           onload(res) {
             if (res.status !== 200) return reject(new Error("HTTP " + res.status));
             try {
@@ -619,6 +620,9 @@
           },
           onerror(e) {
             reject(e);
+          },
+          ontimeout() {
+            reject(new Error("Request timed out"));
           }
         });
       });
@@ -629,6 +633,7 @@
           method: "GET",
           url: API_BASE + "/profiles",
           headers: { "X-Api-Key": API_KEY },
+          timeout: 15e3,
           onload(res) {
             if (res.status !== 200) return reject(new Error("HTTP " + res.status));
             try {
@@ -639,6 +644,9 @@
           },
           onerror(e) {
             reject(e);
+          },
+          ontimeout() {
+            reject(new Error("Request timed out"));
           }
         });
       });

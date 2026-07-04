@@ -507,6 +507,7 @@ import {
                 method: 'GET',
                 url: url,
                 headers: { 'X-Api-Key': API_KEY },
+                timeout: 15000,
                 onload(res) {
                     if (res.status !== 200) return reject(new Error('HTTP ' + res.status));
                     try {
@@ -517,6 +518,9 @@ import {
                 },
                 onerror(e) {
                     reject(e);
+                },
+                ontimeout() {
+                    reject(new Error('Request timed out'));
                 },
             });
         });
@@ -528,6 +532,7 @@ import {
                 method: 'GET',
                 url: API_BASE + '/profiles',
                 headers: { 'X-Api-Key': API_KEY },
+                timeout: 15000,
                 onload(res) {
                     if (res.status !== 200) return reject(new Error('HTTP ' + res.status));
                     try {
@@ -538,6 +543,9 @@ import {
                 },
                 onerror(e) {
                     reject(e);
+                },
+                ontimeout() {
+                    reject(new Error('Request timed out'));
                 },
             });
         });

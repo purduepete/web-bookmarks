@@ -52,6 +52,8 @@ export default function BookmarkModal({
     const [error, setError] = useState<string | null>(null);
     const aliasTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const nameRef = useRef<HTMLInputElement>(null);
+    // Synchronous re-entry guard for handleSubmit (see below).
+    const isSavingRef = useRef(false);
 
     useEffect(() => {
         fetchGroups(form.profile === 'all' ? undefined : form.profile, form.profile !== 'all')
@@ -125,6 +127,12 @@ export default function BookmarkModal({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        // The `saving` state disables the submit button, but only after a re-render.
+        // A rapid double-click or held Enter can re-enter handleSubmit before that,
+        // producing concurrent POSTs and duplicate bookmarks. This ref blocks
+        // re-entry synchronously, on the same tick.
+        if (isSavingRef.current) return;
+        isSavingRef.current = true;
         setError(null);
         setSaving(true);
 
@@ -133,6 +141,7 @@ export default function BookmarkModal({
         if (!form.name.trim() || !form.url.trim() || !finalGroup || !finalProfile) {
             setError('Name, URL, Group, and Profile are required.');
             setSaving(false);
+            isSavingRef.current = false;
             return;
         }
 
@@ -154,6 +163,7 @@ export default function BookmarkModal({
             setError(err instanceof Error ? err.message : 'Save failed');
         } finally {
             setSaving(false);
+            isSavingRef.current = false;
         }
     };
 

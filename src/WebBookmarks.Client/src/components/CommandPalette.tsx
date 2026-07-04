@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, memo, type ReactElement } from 'react';
 import type { WebBookmarksItem, BookmarkGroup } from '../types';
 import { openUrls, sanitizeUrl, resolveBookmarkUrl } from '../utils';
 import type { PaletteEntry, MruEntry } from '../palette-core';
@@ -36,6 +36,93 @@ function recordMru(profile: string, id: number) {
 }
 
 const GOOGLE_URL = 'https://www.google.com/search?q=';
+
+// Row icons hoisted to module scope so each is allocated once instead of being
+// rebuilt for every row on every render (perf fix for #33 / P1).
+const ICON_CHECK = (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="20 6 9 17 4 12" />
+    </svg>
+);
+const ICON_ACTION = (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+    </svg>
+);
+const ICON_GROUP = (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+    </svg>
+);
+const ICON_BOOKMARK = (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+    </svg>
+);
+const ICON_STAR = (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1">
+        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+    </svg>
+);
+const KIND_ICON: Record<PaletteEntry['kind'], ReactElement> = {
+    action: ICON_ACTION,
+    group: ICON_GROUP,
+    bookmark: ICON_BOOKMARK,
+};
+
+interface PaletteRowProps {
+    index: number;
+    entry: PaletteEntry;
+    seq: number | undefined;
+    isActive: boolean;
+    isNumberSelected: boolean;
+    isMultiSelected: boolean;
+    showDivider: boolean;
+    onHover: (index: number) => void;
+    onClick: (index: number, entry: PaletteEntry, newTab: boolean) => void;
+}
+
+// A single palette row, memoized so that changing the active index (e.g. on
+// mouse-move) only re-renders the two rows whose active state actually flips,
+// instead of re-rendering the whole list. This relies on the parent passing
+// referentially stable `onHover`/`onClick` and a stable `entry` (#33 / P1).
+const PaletteRow = memo(function PaletteRow({
+    index,
+    entry,
+    seq,
+    isActive,
+    isNumberSelected,
+    isMultiSelected,
+    showDivider,
+    onHover,
+    onClick,
+}: PaletteRowProps) {
+    return (
+        <div>
+            {showDivider && <div className="palette-divider" />}
+            <div
+                className={`palette-item${isActive ? ' palette-item-active' : ''}${isNumberSelected ? ' palette-item-selected' : ''}${isMultiSelected ? ' palette-item-multi' : ''}`}
+                onMouseEnter={() => onHover(index)}
+                onClick={(e) => onClick(index, entry, e.ctrlKey || e.metaKey)}
+            >
+                <span className="palette-item-num">
+                    {isMultiSelected ? ICON_CHECK : seq != null ? seq : ''}
+                </span>
+                <span className="palette-item-kind">{KIND_ICON[entry.kind]}</span>
+                <span className="palette-item-label">
+                    {entry.bookmark?.isFavorite && (
+                        <span className="palette-favorite-star">{ICON_STAR}</span>
+                    )}
+                    {entry.label}
+                </span>
+                <span className={`palette-item-alias${entry.alias ? '' : ' palette-item-alias-empty'}`}>
+                    {entry.alias || ''}
+                </span>
+                <span className="palette-item-secondary">{entry.secondary}</span>
+            </div>
+        </div>
+    );
+});
 
 async function copyText(text: string): Promise<boolean> {
     try {
@@ -315,6 +402,34 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
         [multiSelected, numberSelection, displayList, activeIndex, openMultiSelected, openByNumbers, activateEntry],
     );
 
+    // Latest-value refs so the row callbacks below can stay referentially stable
+    // (empty deps) without going stale — this is what keeps PaletteRow's memo
+    // effective, so hovering doesn't re-render the whole list (#33 / P1).
+    const multiSelectedRef = useRef(multiSelected);
+    multiSelectedRef.current = multiSelected;
+    const numberSelectionRef = useRef(numberSelection);
+    numberSelectionRef.current = numberSelection;
+    const activateEntryRef = useRef(activateEntry);
+    activateEntryRef.current = activateEntry;
+    const openByNumbersRef = useRef(openByNumbers);
+    openByNumbersRef.current = openByNumbers;
+
+    const handleRowHover = useCallback((i: number) => setActiveIndex(i), []);
+    const handleRowClick = useCallback((i: number, entry: PaletteEntry, newTab: boolean) => {
+        if (multiSelectedRef.current.size > 0) {
+            setMultiSelected((prev) => {
+                const next = new Set(prev);
+                if (next.has(i)) next.delete(i);
+                else next.add(i);
+                return next;
+            });
+        } else if (numberSelectionRef.current) {
+            openByNumbersRef.current(numberSelectionRef.current, newTab);
+        } else {
+            activateEntryRef.current(entry, false, newTab);
+        }
+    }, []);
+
     // Native keyup listener as fallback for iOS virtual keyboard
     useEffect(() => {
         const input = inputRef.current;
@@ -559,121 +674,21 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
                 <div className="palette-list" ref={listRef}>
                     {displayList.length === 0 && <div className="palette-empty">No matches</div>}
                     {displayList.map((entry, i) => {
-                        const isActive = i === activeIndex;
                         const seq = bookmarkNumbers.get(i);
-                        const isNumberSelected = seq != null && selectedNumbers?.has(seq);
-                        const isMultiSelected = multiSelected.has(i);
                         const prevKind = i > 0 ? displayList[i - 1].kind : null;
-                        const showDivider = prevKind != null && prevKind !== entry.kind;
                         return (
-                            <div key={`${entry.kind}-${entry.label}-${i}`}>
-                                {showDivider && <div className="palette-divider" />}
-                                <div
-                                    className={`palette-item${isActive ? ' palette-item-active' : ''}${isNumberSelected ? ' palette-item-selected' : ''}${isMultiSelected ? ' palette-item-multi' : ''}`}
-                                    onMouseEnter={() => setActiveIndex(i)}
-                                    onClick={(e) => {
-                                        const newTab = e.ctrlKey || e.metaKey;
-                                        if (multiSelected.size > 0) {
-                                            setMultiSelected((prev) => {
-                                                const next = new Set(prev);
-                                                if (next.has(i)) next.delete(i);
-                                                else next.add(i);
-                                                return next;
-                                            });
-                                        } else if (numberSelection) {
-                                            openByNumbers(numberSelection, newTab);
-                                        } else {
-                                            activateEntry(entry, false, newTab);
-                                        }
-                                    }}
-                                >
-                                    <span className="palette-item-num">
-                                        {isMultiSelected ? (
-                                            <svg
-                                                width="12"
-                                                height="12"
-                                                viewBox="0 0 24 24"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                strokeWidth="3"
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                            >
-                                                <polyline points="20 6 9 17 4 12" />
-                                            </svg>
-                                        ) : seq != null ? (
-                                            seq
-                                        ) : (
-                                            ''
-                                        )}
-                                    </span>
-                                    <span className="palette-item-kind">
-                                        {entry.kind === 'action' ? (
-                                            <svg
-                                                width="14"
-                                                height="14"
-                                                viewBox="0 0 24 24"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                strokeWidth="2"
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                            >
-                                                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                                            </svg>
-                                        ) : entry.kind === 'group' ? (
-                                            <svg
-                                                width="14"
-                                                height="14"
-                                                viewBox="0 0 24 24"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                strokeWidth="2"
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                            >
-                                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                                            </svg>
-                                        ) : (
-                                            <svg
-                                                width="14"
-                                                height="14"
-                                                viewBox="0 0 24 24"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                strokeWidth="2"
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                            >
-                                                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                                            </svg>
-                                        )}
-                                    </span>
-                                    <span className="palette-item-label">
-                                        {entry.bookmark?.isFavorite && (
-                                            <span className="palette-favorite-star">
-                                                <svg
-                                                    width="12"
-                                                    height="12"
-                                                    viewBox="0 0 24 24"
-                                                    fill="currentColor"
-                                                    stroke="currentColor"
-                                                    strokeWidth="1"
-                                                >
-                                                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                                                </svg>
-                                            </span>
-                                        )}
-                                        {entry.label}
-                                    </span>
-                                    <span
-                                        className={`palette-item-alias${entry.alias ? '' : ' palette-item-alias-empty'}`}
-                                    >
-                                        {entry.alias || ''}
-                                    </span>
-                                    <span className="palette-item-secondary">{entry.secondary}</span>
-                                </div>
-                            </div>
+                            <PaletteRow
+                                key={`${entry.kind}-${entry.label}-${i}`}
+                                index={i}
+                                entry={entry}
+                                seq={seq}
+                                isActive={i === activeIndex}
+                                isNumberSelected={seq != null && !!selectedNumbers?.has(seq)}
+                                isMultiSelected={multiSelected.has(i)}
+                                showDivider={prevKind != null && prevKind !== entry.kind}
+                                onHover={handleRowHover}
+                                onClick={handleRowClick}
+                            />
                         );
                     })}
                 </div>

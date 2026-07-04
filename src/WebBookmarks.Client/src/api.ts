@@ -33,8 +33,15 @@ function isRetryable(err: unknown): boolean {
     if (err instanceof HttpError) return RETRYABLE_STATUS.has(err.status);
     // A surfaced 401 (handled below) must not be retried.
     if (err instanceof Error && err.message === 'Unauthorized') return false;
-    // Network failures / timeouts (AbortError) are transient → retry.
-    return true;
+    // Request timeout: fetchWithTimeout aborts the controller, which rejects with
+    // an AbortError (a DOMException in browsers, not an Error subclass) → retry.
+    if (typeof err === 'object' && err !== null && (err as { name?: string }).name === 'AbortError') return true;
+    // Genuine network failures make fetch() reject with a TypeError → retry.
+    if (err instanceof TypeError) return true;
+    // Everything else is deterministic and won't recover on retry — e.g. a
+    // SyntaxError from a 200 response with invalid JSON, or a programming error.
+    // Fail fast instead of stalling ~15s through the backoff schedule.
+    return false;
 }
 
 // Runs an idempotent operation, retrying only transient failures.

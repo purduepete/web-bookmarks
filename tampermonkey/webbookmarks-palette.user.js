@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      4.9.23
+// @version      4.9.24
 // @description  Press Ctrl+Alt+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*

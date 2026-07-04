@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchBookmarks, fetchProfiles } from '../api';
 import type { WebBookmarksItem } from '../types';
 import { getLocalBookmarks, setLocalBookmarks, hasNoCachedBookmarks } from '../lib/bookmarkCache';
@@ -33,7 +33,14 @@ export function useBookmarks() {
     const [loading, setLoading] = useState(() => hasNoCachedBookmarks(initialProfile()));
     const [error, setError] = useState<string | null>(null);
 
+    // Monotonic token identifying the latest in-flight load. Each loadBookmarks()
+    // call claims a new token; a resolution only touches state if it still owns the
+    // latest token, so a slow earlier request for a previous profile/filter can no
+    // longer overwrite the UI once the dependencies have changed (stale-fetch race).
+    const requestIdRef = useRef(0);
+
     const loadBookmarks = useCallback(() => {
+        const requestId = ++requestIdRef.current;
         setError(null);
         // Immediately show locally cached bookmarks for this profile
         const local = getLocalBookmarks(activeProfile);
@@ -41,15 +48,25 @@ export function useBookmarks() {
         // Fetch fresh data in background
         fetchBookmarks(showHidden, activeProfile)
             .then((data) => {
-                setBookmarks(data);
+                // Always cache under the profile this request was for (correct key),
+                // but only drive the UI if this is still the latest request.
                 setLocalBookmarks(activeProfile, data);
+                if (requestId !== requestIdRef.current) return;
+                setBookmarks(data);
             })
-            .catch((e) => setError(e.message))
-            .finally(() => setLoading(false));
+            .catch((e) => {
+                if (requestId !== requestIdRef.current) return;
+                setError(e.message);
+            })
+            .finally(() => {
+                if (requestId !== requestIdRef.current) return;
+                setLoading(false);
+            });
         fetchProfiles()
             .then((data) => {
-                setProfiles(data);
                 localStorage.setItem('profiles', JSON.stringify(data));
+                if (requestId !== requestIdRef.current) return;
+                setProfiles(data);
             })
             .catch(() => {});
     }, [showHidden, activeProfile]);

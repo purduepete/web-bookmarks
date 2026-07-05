@@ -21,3 +21,27 @@ export function applyMru(list: MruEntry[], id: number, now: number): MruEntry[] 
     if (next.length > MRU_MAX_ENTRIES) next.length = MRU_MAX_ENTRIES;
     return next;
 }
+
+// Batch form of applyMru: records every id in `ids` against the list with a single
+// `now`, then re-sorts and truncates once. Equivalent to folding applyMru over the
+// ids but without re-reading/re-writing storage per item — the caller persists the
+// result once. Duplicate ids increment the count multiple times; 0 ids are ignored.
+export function applyMruMany(list: MruEntry[], ids: number[], now: number): MruEntry[] {
+    const next = list.map((e) => ({ ...e }));
+    const byId = new Map<number, MruEntry>(next.map((e) => [e.id, e]));
+    for (const id of ids) {
+        if (!id) continue;
+        const existing = byId.get(id);
+        if (existing) {
+            existing.count += 1;
+            existing.ts = now;
+        } else {
+            const entry = { id, count: 1, ts: now };
+            next.push(entry);
+            byId.set(id, entry);
+        }
+    }
+    next.sort((a, b) => b.ts - a.ts || b.count - a.count);
+    if (next.length > MRU_MAX_ENTRIES) next.length = MRU_MAX_ENTRIES;
+    return next;
+}

@@ -8,6 +8,7 @@ import {
     assignBookmarkNumbers,
     filterEntries,
     applyMru,
+    applyMruMany,
     MRU_MAX_ENTRIES,
 } from './index';
 
@@ -187,5 +188,48 @@ describe('applyMru', () => {
         const r = applyMru(start, 0, 500);
         expect(r).toEqual(start);
         expect(r).not.toBe(start);
+    });
+});
+
+describe('applyMruMany', () => {
+    it('records every id with a single timestamp', () => {
+        const r = applyMruMany([], [3, 5], 1000);
+        expect(r).toEqual([
+            { id: 3, count: 1, ts: 1000 },
+            { id: 5, count: 1, ts: 1000 },
+        ]);
+    });
+    it('increments existing ids and appends new ones', () => {
+        const start: MruEntry[] = [{ id: 1, count: 1, ts: 100 }];
+        const r = applyMruMany(start, [1, 2], 300);
+        const byId = Object.fromEntries(r.map((e) => [e.id, e]));
+        expect(byId[1]).toEqual({ id: 1, count: 2, ts: 300 });
+        expect(byId[2]).toEqual({ id: 2, count: 1, ts: 300 });
+    });
+    it('counts duplicate ids in the batch', () => {
+        const r = applyMruMany([], [7, 7, 7], 500);
+        expect(r).toEqual([{ id: 7, count: 3, ts: 500 }]);
+    });
+    it('matches folding applyMru over the ids', () => {
+        const ids = [4, 1, 4, 2];
+        const many = applyMruMany([], ids, 900);
+        let folded: MruEntry[] = [];
+        for (const id of ids) folded = applyMru(folded, id, 900);
+        expect(many).toEqual(folded);
+    });
+    it('ignores 0 ids and truncates to MRU_MAX_ENTRIES', () => {
+        const start: MruEntry[] = Array.from({ length: MRU_MAX_ENTRIES }, (_, i) => ({
+            id: i + 1,
+            count: 1,
+            ts: i,
+        }));
+        const r = applyMruMany(start, [0, 999], MRU_MAX_ENTRIES + 10);
+        expect(r).toHaveLength(MRU_MAX_ENTRIES);
+        expect(r[0].id).toBe(999);
+    });
+    it('does not mutate the input list', () => {
+        const start: MruEntry[] = [{ id: 1, count: 1, ts: 100 }];
+        applyMruMany(start, [1, 2], 300);
+        expect(start).toEqual([{ id: 1, count: 1, ts: 100 }]);
     });
 });

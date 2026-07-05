@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      4.9.29
+// @version      4.9.30
 // @description  Press Ctrl+Alt+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
@@ -208,6 +208,49 @@
     next.sort((a, b) => b.ts - a.ts || b.count - a.count);
     if (next.length > MRU_MAX_ENTRIES) next.length = MRU_MAX_ENTRIES;
     return next;
+  }
+
+  // ../src/WebBookmarks.Client/src/palette-core/entries.ts
+  function buildPaletteEntries(groups, mru, actions) {
+    const entries = [];
+    const bmById = /* @__PURE__ */ new Map();
+    for (const g of groups) for (const b of g.items) bmById.set(b.id, b);
+    let added = 0;
+    for (const m of mru) {
+      const b = bmById.get(m.id);
+      if (!b) continue;
+      entries.push({
+        kind: "bookmark",
+        label: b.name,
+        secondary: b.bookmarkGroup,
+        alias: b.shortcut,
+        bookmark: b,
+        isRecent: true
+      });
+      if (++added >= MRU_LIMIT) break;
+    }
+    for (const g of groups) {
+      entries.push({
+        kind: "group",
+        label: g.name,
+        secondary: `${g.items.length} bookmark${g.items.length !== 1 ? "s" : ""}`,
+        alias: "",
+        group: g
+      });
+    }
+    for (const g of groups) {
+      for (const b of g.items) {
+        entries.push({
+          kind: "bookmark",
+          label: b.name,
+          secondary: b.bookmarkGroup,
+          alias: b.shortcut,
+          bookmark: b
+        });
+      }
+    }
+    for (const a of actions) entries.push(a);
+    return entries;
   }
 
   // src/palette.user.js
@@ -710,48 +753,6 @@
     getGroups().catch(() => {
     });
     function buildEntries(groups, profiles) {
-      const entries = [];
-      {
-        const profile = getActiveProfile();
-        const mru = getMru(profile);
-        const bmById = /* @__PURE__ */ new Map();
-        for (const g of groups) for (const b of g.items) bmById.set(b.id, b);
-        let added = 0;
-        for (const m of mru) {
-          const b = bmById.get(m.id);
-          if (!b) continue;
-          entries.push({
-            kind: "bookmark",
-            label: b.name || "",
-            secondary: b.bookmarkGroup || "",
-            alias: b.shortcut || "",
-            bookmark: b,
-            isRecent: true
-          });
-          added++;
-          if (added >= MRU_LIMIT) break;
-        }
-      }
-      for (const g of groups) {
-        entries.push({
-          kind: "group",
-          label: g.name || "",
-          secondary: g.items.length + " bookmark" + (g.items.length !== 1 ? "s" : ""),
-          alias: "",
-          group: g
-        });
-      }
-      for (const g of groups) {
-        for (const b of g.items) {
-          entries.push({
-            kind: "bookmark",
-            label: b.name || "",
-            secondary: b.bookmarkGroup || "",
-            alias: b.shortcut || "",
-            bookmark: b
-          });
-        }
-      }
       const actions = [
         {
           kind: "action",
@@ -797,12 +798,11 @@
         }
       ];
       actions.sort((a, b) => a.label.localeCompare(b.label));
-      entries.push(...actions);
       if (profiles && profiles.length > 1) {
         const disabled = getDisabledProfiles();
         for (const p of profiles) {
           if (p === "all") continue;
-          entries.push({
+          actions.push({
             kind: "action",
             label: disabled.has(p) ? "Show Profile: " + p : "Hide Profile: " + p,
             secondary: disabled.has(p) ? "hidden" : "visible",
@@ -812,7 +812,7 @@
           });
         }
       }
-      return entries;
+      return buildPaletteEntries(groups, getMru(getActiveProfile()), actions);
     }
     function openPalette(groups, profiles, isLoading) {
       if (paletteOpen) return;

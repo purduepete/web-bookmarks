@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import type { WebBookmarksItem } from '../types';
 import { bulkCreateBookmarks, fetchGroups } from '../api';
 import DarkSelect from './DarkSelect';
@@ -96,7 +96,10 @@ export default function ImportModal({ activeProfile, profiles, onClose, onImport
         setParsed((prev) => prev.map((b, i) => (i === index ? { ...b, [field]: value } : b)));
     };
 
-    const allGroups = [...new Set([...existingGroups, ...customGroups, ...parsed.map((p) => p.folder)])].sort();
+    const allGroups = useMemo(
+        () => [...new Set([...existingGroups, ...customGroups, ...parsed.map((p) => p.folder)])].sort(),
+        [existingGroups, customGroups, parsed],
+    );
 
     const commitNewGroup = (index: number) => {
         const name = newGroupValue.trim();
@@ -146,8 +149,8 @@ export default function ImportModal({ activeProfile, profiles, onClose, onImport
         }
     };
 
-    const selectedCount = parsed.filter((b) => b.selected).length;
-    const folders = [...new Set(parsed.map((b) => b.folder))];
+    const selectedCount = useMemo(() => parsed.filter((b) => b.selected).length, [parsed]);
+    const folders = useMemo(() => [...new Set(parsed.map((b) => b.folder))], [parsed]);
 
     return (
         <Modal title="Import Bookmarks" onClose={onClose} contentClassName="modal-wide">

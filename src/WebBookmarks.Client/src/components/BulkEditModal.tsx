@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { WebBookmarksItem } from '../types';
 import { bulkUpdateBookmarks, bulkDeleteBookmarks, fetchGroups } from '../api';
 import DarkSelect from './DarkSelect';
@@ -50,16 +50,19 @@ export default function BulkEditModal({ bookmarks, activeProfile, profiles, onCl
         });
     };
 
-    const filtered = bookmarks.filter((b) => {
-        if (!filter) return true;
+    // Memoized so unrelated state changes (action choice, busy, target fields)
+    // don't re-run the filter over every bookmark on each render.
+    const filtered = useMemo(() => {
+        if (!filter) return bookmarks;
         const term = filter.toLowerCase();
-        return (
-            b.name.toLowerCase().includes(term) ||
-            b.bookmarkGroup.toLowerCase().includes(term) ||
-            b.profile.toLowerCase().includes(term) ||
-            b.url.toLowerCase().includes(term)
+        return bookmarks.filter(
+            (b) =>
+                b.name.toLowerCase().includes(term) ||
+                b.bookmarkGroup.toLowerCase().includes(term) ||
+                b.profile.toLowerCase().includes(term) ||
+                b.url.toLowerCase().includes(term),
         );
-    });
+    }, [bookmarks, filter]);
 
     const handleApply = async () => {
         if (selected.size === 0) return;

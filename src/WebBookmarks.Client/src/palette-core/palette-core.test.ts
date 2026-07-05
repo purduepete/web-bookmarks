@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { Bookmark, PaletteEntry, MruEntry } from './index';
+import type { Bookmark, BookmarkGroup, PaletteEntry, MruEntry } from './index';
 import {
     wildcardMatch,
     resolveBookmarkUrl,
@@ -7,8 +7,10 @@ import {
     detectNumberSelection,
     assignBookmarkNumbers,
     filterEntries,
+    buildPaletteEntries,
     applyMru,
     applyMruMany,
+    MRU_LIMIT,
     MRU_MAX_ENTRIES,
 } from './index';
 
@@ -151,6 +153,40 @@ describe('filterEntries', () => {
         expect(r).toHaveLength(1);
         expect(r[0].action).toBe('google-search');
         expect(r[0].actionPayload).toBe('cats');
+    });
+});
+
+describe('buildPaletteEntries', () => {
+    const group = (name: string, items: Bookmark[]): BookmarkGroup => ({ name, items });
+    const action = (label: string): PaletteEntry => entry({ kind: 'action', label, action: label });
+
+    it('orders recents, then groups, then bookmarks, then actions as given', () => {
+        const b1 = bm({ id: 1, name: 'One', bookmarkGroup: 'G', shortcut: 'o' });
+        const b2 = bm({ id: 2, name: 'Two', bookmarkGroup: 'G' });
+        const groups = [group('G', [b1, b2])];
+        const mru: MruEntry[] = [{ id: 2, count: 1, ts: 100 }];
+        const actions = [action('Zed'), action('Abc')];
+
+        const out = buildPaletteEntries(groups, mru, actions);
+        const kinds = out.map((e) => e.kind);
+        // recent bookmark, group, 2 bookmarks, 2 actions (in given order)
+        expect(kinds).toEqual(['bookmark', 'group', 'bookmark', 'bookmark', 'action', 'action']);
+        expect(out[0].isRecent).toBe(true);
+        expect(out[0].bookmark?.id).toBe(2);
+        expect(out[1].kind).toBe('group');
+        expect(out.slice(4).map((e) => e.label)).toEqual(['Zed', 'Abc']);
+    });
+
+    it('skips stale MRU ids and caps recents at MRU_LIMIT', () => {
+        const items = Array.from({ length: MRU_LIMIT + 3 }, (_, i) => bm({ id: i + 1, name: `B${i + 1}` }));
+        const groups = [group('G', items)];
+        // MRU references a stale id (999) plus more than MRU_LIMIT valid ids.
+        const mru: MruEntry[] = [{ id: 999, count: 1, ts: 999 }, ...items.map((b, i) => ({ id: b.id, count: 1, ts: i }))];
+
+        const out = buildPaletteEntries(groups, mru, []);
+        const recents = out.filter((e) => e.isRecent);
+        expect(recents).toHaveLength(MRU_LIMIT);
+        expect(recents.every((e) => e.bookmark?.id !== 999)).toBe(true);
     });
 });
 

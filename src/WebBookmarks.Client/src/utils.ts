@@ -1,9 +1,9 @@
 import type { WebBookmarksItem } from './types';
-import { resolveBookmarkUrl } from './palette-core';
+import { resolveShortcutTargets, sanitizeUrl } from './palette-core';
 
-// wildcardMatch and resolveBookmarkUrl now live in the shared palette-core;
-// re-exported here so existing '../utils' import sites keep working.
-export { wildcardMatch, resolveBookmarkUrl } from './palette-core';
+// wildcardMatch, resolveBookmarkUrl and sanitizeUrl now live in the shared
+// palette-core; re-exported here so existing '../utils' import sites keep working.
+export { wildcardMatch, resolveBookmarkUrl, sanitizeUrl } from './palette-core';
 
 const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
@@ -17,23 +17,6 @@ const HTML_ESCAPES: Record<string, string> = {
 
 export function escapeHtml(value: string): string {
     return value.replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]);
-}
-
-// Neutralizes URLs that use a dangerous scheme (javascript:, data:, vbscript:)
-// by collapsing them to about:blank, so they can never execute when navigated to
-// or rendered into an href. All other schemes (http, https, file, mailto,
-// tel, ...) and relative URLs are left untouched.
-const UNSAFE_SCHEME = /^\s*(javascript|data|vbscript):/i;
-
-export function sanitizeUrl(url: string): string {
-    const value = url ?? '';
-    // Browsers strip ASCII control chars (tab/newline/CR, etc.) from URLs before
-    // parsing, so "java\tscript:" would execute. Strip them before the scheme test
-    // so such payloads can't bypass the blocklist; the original value is returned
-    // unchanged when it is safe.
-    // eslint-disable-next-line no-control-regex -- control chars are the payload we strip
-    const stripped = value.replace(/[\u0000-\u001F\u007F]/g, '');
-    return UNSAFE_SCHEME.test(stripped) ? 'about:blank' : value;
 }
 
 export function openUrls(items: { name: string; url: string }[], openInNewTab = false) {
@@ -72,33 +55,12 @@ ${items.map((item) => `<a href="${escapeHtml(sanitizeUrl(item.url))}" target="_b
 }
 
 // Resolves a raw "<shortcut> <terms…>" command against the bookmark list and, if
-// it matches (by exact then partial alias, then by name for search-URL bookmarks),
-// opens the matching bookmark(s). Returns true when it navigated, false otherwise.
+// it matches, opens the matching bookmark(s). Matching + URL resolution live in
+// palette-core (resolveShortcutTargets) so this and the palette stay in sync.
+// Returns true when it navigated, false otherwise.
 export function navigateByShortcut(input: string, bookmarks: WebBookmarksItem[], openInNewTab = false): boolean {
-    const trimmed = input.trim();
-    if (!trimmed) return false;
-
-    const parts = trimmed.split(/\s+/);
-    const shortcut = parts[0].toLowerCase();
-    const searchQuery = parts.slice(1).join(' ');
-
-    let matches = bookmarks.filter((b) => b.shortcut.trim().toLowerCase() === shortcut);
-    if (matches.length === 0) {
-        matches = bookmarks.filter((b) => b.shortcut.trim().toLowerCase().includes(shortcut));
-    }
-    // Also match by name for bookmarks with search URLs (e.g. "seek msft")
-    if (matches.length === 0 && searchQuery) {
-        matches = bookmarks.filter((b) => b.urls && b.name.toLowerCase().startsWith(shortcut));
-    }
-
-    if (matches.length === 0) return false;
-
-    openUrls(
-        matches.map((m) => ({
-            name: m.name,
-            url: resolveBookmarkUrl(m, trimmed),
-        })),
-        openInNewTab,
-    );
+    const targets = resolveShortcutTargets(input, bookmarks);
+    if (targets.length === 0) return false;
+    openUrls(targets, openInNewTab);
     return true;
 }

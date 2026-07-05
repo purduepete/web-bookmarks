@@ -10,6 +10,7 @@ import {
     filterEntries,
     assignBookmarkNumbers,
     resolveBookmarkUrl,
+    sanitizeUrl,
     buildPaletteEntries,
     applyMru,
     applyMruMany,
@@ -371,16 +372,9 @@ import {
     // utils.ts): when a bookmark has a search URL and the query is
     // "<alias-or-name> <terms…>", the terms are substituted into the search URL.
 
-    // Neutralizes URLs using a dangerous scheme (javascript:, data:, vbscript:) by
-    // collapsing them to about:blank. ASCII control chars are stripped first so an
-    // embedded control char (e.g. "java\tscript:", which browsers strip and then
-    // execute) can't bypass the check. Mirrors sanitizeUrl() in the web app's utils.ts.
-    const UNSAFE_SCHEME = /^\s*(javascript|data|vbscript):/i;
-    function sanitizeUrl(url) {
-        const value = url || '';
-        const stripped = value.replace(/[\u0000-\u001F\u007F]/g, '');
-        return UNSAFE_SCHEME.test(stripped) ? 'about:blank' : value;
-    }
+    // sanitizeUrl() is also imported from palette-core, so the userscript and the
+    // web app share one navigation-safety blocklist (javascript:/data:/vbscript:)
+    // that cannot drift.
 
     // ── MRU ──────────────────────────────────────────────────
     // getMru/recordMru persist the per-profile MRU list; buildPaletteEntries

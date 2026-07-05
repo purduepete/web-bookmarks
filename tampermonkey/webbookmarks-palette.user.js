@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      4.9.31
+// @version      4.9.32
 // @description  Press Ctrl+Alt+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
@@ -49,6 +49,12 @@
       return bookmark.urls.replace("{q}", encodeURIComponent(parts.slice(1).join(" ")));
     }
     return bookmark.url;
+  }
+  var UNSAFE_SCHEME = /^\s*(javascript|data|vbscript):/i;
+  function sanitizeUrl(url) {
+    const value = url ?? "";
+    const stripped = value.replace(/[\u0000-\u001F\u007F]/g, "");
+    return UNSAFE_SCHEME.test(stripped) ? "about:blank" : value;
   }
 
   // ../src/WebBookmarks.Client/src/palette-core/numbers.ts
@@ -120,50 +126,52 @@
   function filterEntries(allEntries, searchPart) {
     const q = searchPart.trim();
     if (!q) return allEntries;
-    const source = allEntries.filter((e) => !e.isRecent);
     if (q.startsWith("?")) {
       const sub = q.slice(1).trim();
-      if (!sub) return source;
+      if (!sub) return allEntries.filter((e) => !e.isRecent);
       return [googleSearchEntry(sub, "Google")];
     }
-    if (q === ">") return source.filter((e) => e.kind === "action");
-    if (q === "/") return source.filter((e) => e.kind === "bookmark");
-    if (q === "@") return source.filter((e) => e.kind === "group");
+    if (q === ">") return allEntries.filter((e) => !e.isRecent && e.kind === "action");
+    if (q === "/") return allEntries.filter((e) => !e.isRecent && e.kind === "bookmark");
+    if (q === "@") return allEntries.filter((e) => !e.isRecent && e.kind === "group");
     if (q === "*")
-      return source.filter((e) => e.kind === "bookmark" && e.bookmark?.isFavorite).sort((a, b) => a.label.localeCompare(b.label));
+      return allEntries.filter((e) => !e.isRecent && e.kind === "bookmark" && e.bookmark?.isFavorite).sort((a, b) => a.label.localeCompare(b.label));
     let result;
     if (q.startsWith(">")) {
       const sub = q.slice(1).trim().toLowerCase();
-      result = source.filter((e) => e.kind === "action" && matchLabelSecondary(e, sub));
+      result = allEntries.filter((e) => !e.isRecent && e.kind === "action" && matchLabelSecondary(e, sub));
     } else if (q.startsWith("/")) {
       const sub = q.slice(1).trim().toLowerCase();
-      result = source.filter((e) => e.kind === "bookmark" && matchLabelSecondaryAlias(e, sub));
+      result = allEntries.filter((e) => !e.isRecent && e.kind === "bookmark" && matchLabelSecondaryAlias(e, sub));
     } else if (q.startsWith("@")) {
       const sub = q.slice(1).trim().toLowerCase();
-      result = source.filter((e) => e.kind === "group" && matchLabelSecondary(e, sub));
+      result = allEntries.filter((e) => !e.isRecent && e.kind === "group" && matchLabelSecondary(e, sub));
     } else if (q.startsWith("*")) {
       const sub = q.slice(1).trim().toLowerCase();
-      result = source.filter((e) => e.kind === "bookmark" && e.bookmark?.isFavorite && matchLabelSecondaryAlias(e, sub)).sort((a, b) => a.label.localeCompare(b.label));
+      result = allEntries.filter(
+        (e) => !e.isRecent && e.kind === "bookmark" && e.bookmark?.isFavorite && matchLabelSecondaryAlias(e, sub)
+      ).sort((a, b) => a.label.localeCompare(b.label));
     } else {
       const lq = q.toLowerCase();
-      result = source.filter((e) => matchLabelSecondaryAlias(e, lq));
-      if (q.includes(" ")) {
-        const shortcutPart = q.split(/\s+/)[0].toLowerCase();
-        const seen = new Set(result);
-        for (const e of source) {
-          if (e.kind !== "bookmark" || !e.bookmark?.urls || seen.has(e)) continue;
-          const f = lowerFields(e);
-          if (f.alias === shortcutPart || f.label.startsWith(shortcutPart)) {
-            result.push(e);
-            seen.add(e);
-          }
-        }
-      }
       const favorites = [];
       const nonFavorites = [];
-      for (const e of result) {
+      const seen = /* @__PURE__ */ new Set();
+      const push = (e) => {
+        seen.add(e);
         if (e.kind === "bookmark" && e.bookmark?.isFavorite) favorites.push(e);
         else nonFavorites.push(e);
+      };
+      for (const e of allEntries) {
+        if (e.isRecent) continue;
+        if (matchLabelSecondaryAlias(e, lq)) push(e);
+      }
+      if (q.includes(" ")) {
+        const shortcutPart = q.split(/\s+/)[0].toLowerCase();
+        for (const e of allEntries) {
+          if (e.isRecent || e.kind !== "bookmark" || !e.bookmark?.urls || seen.has(e)) continue;
+          const f = lowerFields(e);
+          if (f.alias === shortcutPart || f.label.startsWith(shortcutPart)) push(e);
+        }
       }
       result = [...favorites, ...nonFavorites];
     }
@@ -578,12 +586,6 @@
       const d = document.createElement("div");
       d.textContent = s;
       return d.innerHTML;
-    }
-    const UNSAFE_SCHEME = /^\s*(javascript|data|vbscript):/i;
-    function sanitizeUrl(url) {
-      const value = url || "";
-      const stripped = value.replace(/[\u0000-\u001F\u007F]/g, "");
-      return UNSAFE_SCHEME.test(stripped) ? "about:blank" : value;
     }
     function mruKey(profile) {
       return "mru_" + profile;

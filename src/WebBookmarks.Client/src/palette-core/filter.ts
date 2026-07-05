@@ -50,62 +50,67 @@ function matchLabelSecondaryAlias(e: PaletteEntry, lowerNeedle: string): boolean
 export function filterEntries(allEntries: PaletteEntry[], searchPart: string): PaletteEntry[] {
     const q = searchPart.trim();
     if (!q) return allEntries;
-    // Strip recents once a query is active (recents only show on empty query).
-    const source = allEntries.filter((e) => !e.isRecent);
+
+    // Recents only show on an empty query, so they're excluded once a query is
+    // active. The `!e.isRecent` guard is folded into each branch's scan rather than
+    // pre-building an intermediate non-recent array and then re-scanning it.
 
     // Google explicit search: prefix with "?"
     if (q.startsWith('?')) {
         const sub = q.slice(1).trim();
-        if (!sub) return source;
+        if (!sub) return allEntries.filter((e) => !e.isRecent);
         return [googleSearchEntry(sub, 'Google')];
     }
-    if (q === '>') return source.filter((e) => e.kind === 'action');
-    if (q === '/') return source.filter((e) => e.kind === 'bookmark');
-    if (q === '@') return source.filter((e) => e.kind === 'group');
+    if (q === '>') return allEntries.filter((e) => !e.isRecent && e.kind === 'action');
+    if (q === '/') return allEntries.filter((e) => !e.isRecent && e.kind === 'bookmark');
+    if (q === '@') return allEntries.filter((e) => !e.isRecent && e.kind === 'group');
     if (q === '*')
-        return source
-            .filter((e) => e.kind === 'bookmark' && e.bookmark?.isFavorite)
+        return allEntries
+            .filter((e) => !e.isRecent && e.kind === 'bookmark' && e.bookmark?.isFavorite)
             .sort((a, b) => a.label.localeCompare(b.label));
 
     let result: PaletteEntry[];
     if (q.startsWith('>')) {
         const sub = q.slice(1).trim().toLowerCase();
-        result = source.filter((e) => e.kind === 'action' && matchLabelSecondary(e, sub));
+        result = allEntries.filter((e) => !e.isRecent && e.kind === 'action' && matchLabelSecondary(e, sub));
     } else if (q.startsWith('/')) {
         const sub = q.slice(1).trim().toLowerCase();
-        result = source.filter((e) => e.kind === 'bookmark' && matchLabelSecondaryAlias(e, sub));
+        result = allEntries.filter((e) => !e.isRecent && e.kind === 'bookmark' && matchLabelSecondaryAlias(e, sub));
     } else if (q.startsWith('@')) {
         const sub = q.slice(1).trim().toLowerCase();
-        result = source.filter((e) => e.kind === 'group' && matchLabelSecondary(e, sub));
+        result = allEntries.filter((e) => !e.isRecent && e.kind === 'group' && matchLabelSecondary(e, sub));
     } else if (q.startsWith('*')) {
         const sub = q.slice(1).trim().toLowerCase();
-        result = source
-            .filter((e) => e.kind === 'bookmark' && e.bookmark?.isFavorite && matchLabelSecondaryAlias(e, sub))
+        result = allEntries
+            .filter(
+                (e) => !e.isRecent && e.kind === 'bookmark' && e.bookmark?.isFavorite && matchLabelSecondaryAlias(e, sub),
+            )
             .sort((a, b) => a.label.localeCompare(b.label));
     } else {
         const lq = q.toLowerCase();
-        result = source.filter((e) => matchLabelSecondaryAlias(e, lq));
-        // Also include bookmarks with search URLs when the first word matches
-        // alias or name (e.g. "g hello world", "seek msft").
-        if (q.includes(' ')) {
-            const shortcutPart = q.split(/\s+/)[0].toLowerCase();
-            const seen = new Set(result);
-            for (const e of source) {
-                if (e.kind !== 'bookmark' || !e.bookmark?.urls || seen.has(e)) continue;
-                const f = lowerFields(e);
-                if (f.alias === shortcutPart || f.label.startsWith(shortcutPart)) {
-                    result.push(e);
-                    seen.add(e);
-                }
-            }
-        }
-        // Prioritize favorites: favorites first, preserving original order within
-        // each group (single pass).
+        // Single pass over the entries: skip recents, match, and partition favorites
+        // as we go (favorites first, original order preserved within each group).
         const favorites: PaletteEntry[] = [];
         const nonFavorites: PaletteEntry[] = [];
-        for (const e of result) {
+        const seen = new Set<PaletteEntry>();
+        const push = (e: PaletteEntry) => {
+            seen.add(e);
             if (e.kind === 'bookmark' && e.bookmark?.isFavorite) favorites.push(e);
             else nonFavorites.push(e);
+        };
+        for (const e of allEntries) {
+            if (e.isRecent) continue;
+            if (matchLabelSecondaryAlias(e, lq)) push(e);
+        }
+        // Also include bookmarks with search URLs when the first word matches alias
+        // or name (e.g. "g hello world", "seek msft").
+        if (q.includes(' ')) {
+            const shortcutPart = q.split(/\s+/)[0].toLowerCase();
+            for (const e of allEntries) {
+                if (e.isRecent || e.kind !== 'bookmark' || !e.bookmark?.urls || seen.has(e)) continue;
+                const f = lowerFields(e);
+                if (f.alias === shortcutPart || f.label.startsWith(shortcutPart)) push(e);
+            }
         }
         result = [...favorites, ...nonFavorites];
     }

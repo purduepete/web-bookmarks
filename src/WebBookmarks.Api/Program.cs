@@ -324,11 +324,14 @@ app.MapPatch("/api/bookmarks/{id:int}/favorite", async (int id, WebBookmarksCont
         .ExecuteUpdateAsync(s => s.SetProperty(b => b.IsFavorite, b => !b.IsFavorite), ct);
     if (affected == 0) return Results.NotFound();
     // Read back the resulting state to return the current truth to the client.
+    // Project to a nullable so a concurrent delete between the update and this read
+    // yields null (-> 404) rather than an unhandled InvalidOperationException (500).
     var isFavorite = await db.WebBookmarkItems
         .Where(b => b.Id == id)
-        .Select(b => b.IsFavorite)
-        .FirstAsync(ct);
-    return Results.Ok(new { id, isFavorite });
+        .Select(b => (bool?)b.IsFavorite)
+        .FirstOrDefaultAsync(ct);
+    if (isFavorite is null) return Results.NotFound();
+    return Results.Ok(new { id, isFavorite = isFavorite.Value });
 })
     .WithName("ToggleFavorite")
     .WithOpenApi();

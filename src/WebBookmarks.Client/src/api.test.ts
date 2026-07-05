@@ -1,5 +1,31 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { isRetryable, HttpError, inBulkChunks, MAX_BULK_ITEMS, validateApiKey } from './api';
+import {
+    isRetryable,
+    HttpError,
+    inBulkChunks,
+    MAX_BULK_ITEMS,
+    validateApiKey,
+    validateBulkItem,
+    hasUnsafeScheme,
+    bulkCreateBookmarks,
+} from './api';
+import type { WebBookmarksItem } from './types';
+
+function makeItem(overrides: Partial<Omit<WebBookmarksItem, 'id'>> = {}): Omit<WebBookmarksItem, 'id'> {
+    return {
+        name: 'Example',
+        url: 'https://example.com',
+        urls: '',
+        shortcut: '',
+        description: '',
+        isVisible: true,
+        bookmarkGroup: 'Group',
+        sortOrder: 0,
+        profile: 'home',
+        isFavorite: false,
+        ...overrides,
+    };
+}
 
 // Locks in the transient-only retry policy (fix from #23 / R4): the retry loop
 // must retry timeouts, network failures and transient 5xx, but NEVER 4xx
@@ -71,6 +97,47 @@ describe('inBulkChunks', () => {
             calls++;
         });
         expect(calls).toBe(1);
+    });
+});
+
+// Locks in Rob1 (#51): a bulk import must be validated in FULL before any chunk is
+// sent, so an import the API would reject writes nothing (otherwise early chunks
+// commit and a retry silently duplicates them).
+describe('validateBulkItem / hasUnsafeScheme', () => {
+    it('accepts a valid item', () => {
+        expect(validateBulkItem(makeItem())).toBeNull();
+    });
+
+    it('rejects a missing/blank name', () => {
+        expect(validateBulkItem(makeItem({ name: '' }))).toMatch(/Name is required/);
+        expect(validateBulkItem(makeItem({ name: '   ' }))).toMatch(/Name is required/);
+    });
+
+    it('enforces the field length caps', () => {
+        expect(validateBulkItem(makeItem({ name: 'a'.repeat(201) }))).toMatch(/200/);
+        expect(validateBulkItem(makeItem({ url: 'https://x/' + 'a'.repeat(2048) }))).toMatch(/2048/);
+        expect(validateBulkItem(makeItem({ bookmarkGroup: 'g'.repeat(201) }))).toMatch(/Group/);
+    });
+
+    it('blocks dangerous URL schemes, including whitespace-obfuscated ones', () => {
+        expect(hasUnsafeScheme('javascript:alert(1)')).toBe(true);
+        expect(hasUnsafeScheme('JAVASCRIPT:alert(1)')).toBe(true);
+        expect(hasUnsafeScheme('java\tscript:alert(1)')).toBe(true);
+        expect(hasUnsafeScheme('  data:text/html,x')).toBe(true);
+        expect(hasUnsafeScheme('vbscript:msgbox')).toBe(true);
+        expect(hasUnsafeScheme('https://example.com')).toBe(false);
+        expect(hasUnsafeScheme('')).toBe(false);
+        expect(hasUnsafeScheme(null)).toBe(false);
+        expect(validateBulkItem(makeItem({ url: 'javascript:alert(1)' }))).toMatch(/disallowed scheme/);
+    });
+
+    it('rejects the whole import before any request when an item is invalid', async () => {
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+        const items = [makeItem(), makeItem({ name: '', url: 'javascript:alert(1)' })];
+        await expect(bulkCreateBookmarks(items)).rejects.toThrow(/Bookmark 2/);
+        expect(fetchMock).not.toHaveBeenCalled();
+        vi.unstubAllGlobals();
     });
 });
 

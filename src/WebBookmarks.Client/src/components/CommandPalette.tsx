@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback, memo, type ReactElem
 import type { WebBookmarksItem, BookmarkGroup } from '../types';
 import { openUrls, sanitizeUrl, resolveBookmarkUrl } from '../utils';
 import type { PaletteEntry, MruEntry } from '../palette-core';
-import { detectNumberSelection, filterEntries, assignBookmarkNumbers, applyMru, MRU_LIMIT } from '../palette-core';
+import { detectNumberSelection, filterEntries, assignBookmarkNumbers, applyMru, applyMruMany, MRU_LIMIT } from '../palette-core';
 
 interface Props {
     groups: BookmarkGroup[];
@@ -28,6 +28,17 @@ function getMru(profile: string): MruEntry[] {
 function recordMru(profile: string, id: number) {
     if (!id) return;
     const list = applyMru(getMru(profile), id, Date.now());
+    try {
+        localStorage.setItem(mruKey(profile), JSON.stringify(list));
+    } catch {
+        /* quota */
+    }
+}
+// Batch variant: records several ids with a single storage read + write, instead
+// of one read/parse/stringify/write round-trip per opened bookmark.
+function recordMruMany(profile: string, ids: number[]) {
+    if (ids.length === 0) return;
+    const list = applyMruMany(getMru(profile), ids, Date.now());
     try {
         localStorage.setItem(mruKey(profile), JSON.stringify(list));
     } catch {
@@ -321,7 +332,10 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
                     setQuery(query === entry.group.name ? '' : entry.group.name);
                     return;
                 }
-                for (const b of entry.group.items) recordMru(activeProfile, b.id);
+                recordMruMany(
+                    activeProfile,
+                    entry.group.items.map((b) => b.id),
+                );
                 openUrls(
                     entry.group.items.map((b) => ({ name: b.name, url: b.url })),
                     newTab,
@@ -345,14 +359,16 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
         (nums: Set<number>, newTabArg = false) => {
             const newTab = isTouchDevice ? newTabMode : newTabArg;
             const toOpen: { name: string; url: string }[] = [];
+            const ids: number[] = [];
             for (const [idx, seq] of bookmarkNumbers) {
                 if (nums.has(seq) && displayList[idx]?.bookmark) {
                     const bm = displayList[idx].bookmark!;
-                    recordMru(activeProfile, bm.id);
+                    ids.push(bm.id);
                     toOpen.push({ name: bm.name, url: bm.url });
                 }
             }
             if (toOpen.length > 0) {
+                recordMruMany(activeProfile, ids);
                 openUrls(toOpen, newTab);
                 if (!newTab) onClose(true);
             }
@@ -364,19 +380,21 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
         (newTabArg = false) => {
             const newTab = isTouchDevice ? newTabMode : newTabArg;
             const toOpen: { name: string; url: string }[] = [];
+            const ids: number[] = [];
             for (const idx of multiSelected) {
                 const entry = displayList[idx];
                 if (entry?.kind === 'bookmark' && entry.bookmark) {
-                    recordMru(activeProfile, entry.bookmark.id);
+                    ids.push(entry.bookmark.id);
                     toOpen.push({ name: entry.bookmark.name, url: entry.bookmark.url });
                 } else if (entry?.kind === 'group' && entry.group) {
                     for (const b of entry.group.items) {
-                        recordMru(activeProfile, b.id);
+                        ids.push(b.id);
                         toOpen.push({ name: b.name, url: b.url });
                     }
                 }
             }
             if (toOpen.length > 0) {
+                recordMruMany(activeProfile, ids);
                 openUrls(toOpen, newTab);
                 onClose(true);
             }

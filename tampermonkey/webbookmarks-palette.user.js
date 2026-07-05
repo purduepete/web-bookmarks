@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      4.9.28
+// @version      4.9.29
 // @description  Press Ctrl+Alt+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
@@ -23,16 +23,15 @@
 
 (() => {
   // ../src/WebBookmarks.Client/src/palette-core/match.ts
-  function wildcardMatch(text, pattern) {
-    const lower = text.toLowerCase();
-    if (!pattern.includes("*")) {
-      return lower.includes(pattern.toLowerCase());
+  function wildcardMatchLower(lowerText, lowerPattern) {
+    if (!lowerPattern.includes("*")) {
+      return lowerText.includes(lowerPattern);
     }
-    const parts = pattern.toLowerCase().split("*");
+    const parts = lowerPattern.split("*");
     let pos = 0;
     for (const part of parts) {
       if (!part) continue;
-      const idx = lower.indexOf(part, pos);
+      const idx = lowerText.indexOf(part, pos);
       if (idx === -1) return false;
       pos = idx + part.length;
     }
@@ -73,7 +72,7 @@
     return nums.size > 0 ? nums : null;
   }
   function detectNumberSelection(query) {
-    const match = query.match(/^(.*?)\s+([\d,\s\-]+)$/);
+    const match = query.match(/^(.*?)\s+([\d,\s-]+)$/);
     if (match) {
       return { searchPart: match[1], numberSelection: parseNumberSelection(match[2]) };
     }
@@ -101,6 +100,23 @@
       actionPayload: payload
     };
   }
+  var lowerFieldsCache = /* @__PURE__ */ new WeakMap();
+  function lowerFields(e) {
+    let f = lowerFieldsCache.get(e);
+    if (!f) {
+      f = { label: e.label.toLowerCase(), secondary: e.secondary.toLowerCase(), alias: e.alias.toLowerCase() };
+      lowerFieldsCache.set(e, f);
+    }
+    return f;
+  }
+  function matchLabelSecondary(e, lowerNeedle) {
+    const f = lowerFields(e);
+    return wildcardMatchLower(f.label, lowerNeedle) || wildcardMatchLower(f.secondary, lowerNeedle);
+  }
+  function matchLabelSecondaryAlias(e, lowerNeedle) {
+    const f = lowerFields(e);
+    return wildcardMatchLower(f.label, lowerNeedle) || wildcardMatchLower(f.secondary, lowerNeedle) || wildcardMatchLower(f.alias, lowerNeedle);
+  }
   function filterEntries(allEntries, searchPart) {
     const q = searchPart.trim();
     if (!q) return allEntries;
@@ -117,39 +133,38 @@
       return source.filter((e) => e.kind === "bookmark" && e.bookmark?.isFavorite).sort((a, b) => a.label.localeCompare(b.label));
     let result;
     if (q.startsWith(">")) {
-      const sub = q.slice(1).trim();
-      result = source.filter(
-        (e) => e.kind === "action" && (wildcardMatch(e.label, sub) || wildcardMatch(e.secondary, sub))
-      );
+      const sub = q.slice(1).trim().toLowerCase();
+      result = source.filter((e) => e.kind === "action" && matchLabelSecondary(e, sub));
     } else if (q.startsWith("/")) {
-      const sub = q.slice(1).trim();
-      result = source.filter(
-        (e) => e.kind === "bookmark" && (wildcardMatch(e.label, sub) || wildcardMatch(e.secondary, sub) || wildcardMatch(e.alias, sub))
-      );
+      const sub = q.slice(1).trim().toLowerCase();
+      result = source.filter((e) => e.kind === "bookmark" && matchLabelSecondaryAlias(e, sub));
     } else if (q.startsWith("@")) {
-      const sub = q.slice(1).trim();
-      result = source.filter(
-        (e) => e.kind === "group" && (wildcardMatch(e.label, sub) || wildcardMatch(e.secondary, sub))
-      );
+      const sub = q.slice(1).trim().toLowerCase();
+      result = source.filter((e) => e.kind === "group" && matchLabelSecondary(e, sub));
     } else if (q.startsWith("*")) {
-      const sub = q.slice(1).trim();
-      result = source.filter(
-        (e) => e.kind === "bookmark" && e.bookmark?.isFavorite && (wildcardMatch(e.label, sub) || wildcardMatch(e.secondary, sub) || wildcardMatch(e.alias, sub))
-      ).sort((a, b) => a.label.localeCompare(b.label));
+      const sub = q.slice(1).trim().toLowerCase();
+      result = source.filter((e) => e.kind === "bookmark" && e.bookmark?.isFavorite && matchLabelSecondaryAlias(e, sub)).sort((a, b) => a.label.localeCompare(b.label));
     } else {
-      result = source.filter(
-        (e) => wildcardMatch(e.label, q) || wildcardMatch(e.secondary, q) || wildcardMatch(e.alias, q)
-      );
+      const lq = q.toLowerCase();
+      result = source.filter((e) => matchLabelSecondaryAlias(e, lq));
       if (q.includes(" ")) {
         const shortcutPart = q.split(/\s+/)[0].toLowerCase();
+        const seen = new Set(result);
         for (const e of source) {
-          if (e.kind === "bookmark" && e.bookmark?.urls && (e.alias.toLowerCase() === shortcutPart || e.label.toLowerCase().startsWith(shortcutPart)) && !result.includes(e)) {
+          if (e.kind !== "bookmark" || !e.bookmark?.urls || seen.has(e)) continue;
+          const f = lowerFields(e);
+          if (f.alias === shortcutPart || f.label.startsWith(shortcutPart)) {
             result.push(e);
+            seen.add(e);
           }
         }
       }
-      const favorites = result.filter((e) => e.kind === "bookmark" && e.bookmark?.isFavorite);
-      const nonFavorites = result.filter((e) => !(e.kind === "bookmark" && e.bookmark?.isFavorite));
+      const favorites = [];
+      const nonFavorites = [];
+      for (const e of result) {
+        if (e.kind === "bookmark" && e.bookmark?.isFavorite) favorites.push(e);
+        else nonFavorites.push(e);
+      }
       result = [...favorites, ...nonFavorites];
     }
     if (result.length === 0) {
@@ -170,6 +185,25 @@
       next[idx].ts = now;
     } else {
       next.push({ id, count: 1, ts: now });
+    }
+    next.sort((a, b) => b.ts - a.ts || b.count - a.count);
+    if (next.length > MRU_MAX_ENTRIES) next.length = MRU_MAX_ENTRIES;
+    return next;
+  }
+  function applyMruMany(list, ids, now) {
+    const next = list.map((e) => ({ ...e }));
+    const byId = new Map(next.map((e) => [e.id, e]));
+    for (const id of ids) {
+      if (!id) continue;
+      const existing = byId.get(id);
+      if (existing) {
+        existing.count += 1;
+        existing.ts = now;
+      } else {
+        const entry = { id, count: 1, ts: now };
+        next.push(entry);
+        byId.set(id, entry);
+      }
     }
     next.sort((a, b) => b.ts - a.ts || b.count - a.count);
     if (next.length > MRU_MAX_ENTRIES) next.length = MRU_MAX_ENTRIES;
@@ -511,6 +545,10 @@
     function recordMru(profile, id) {
       if (!id) return;
       GM_setValue(mruKey(profile), applyMru(getMru(profile), id, Date.now()));
+    }
+    function recordMruMany(profile, ids) {
+      if (!ids.length) return;
+      GM_setValue(mruKey(profile), applyMruMany(getMru(profile), ids, Date.now()));
     }
     const GOOGLE_URL = "https://www.google.com/search?q=";
     function copyText(text) {
@@ -976,7 +1014,10 @@
       function activateEntry(entry, newTab) {
         const currentProfile = getActiveProfile();
         if (entry.kind === "group" && entry.group) {
-          for (const b of entry.group.items) recordMru(currentProfile, b.id);
+          recordMruMany(
+            currentProfile,
+            entry.group.items.map((b) => b.id)
+          );
           openUrls(
             entry.group.items.map((b) => ({ name: b.name, url: b.url })),
             newTab
@@ -1062,14 +1103,16 @@
       function openByNumbers(filtered, bookmarkNumbers, nums, newTab) {
         const currentProfile = getActiveProfile();
         const toOpen = [];
+        const ids = [];
         for (const [idx, seq] of bookmarkNumbers) {
           if (nums.has(seq) && filtered[idx]?.bookmark) {
             const bm = filtered[idx].bookmark;
-            recordMru(currentProfile, bm.id);
+            ids.push(bm.id);
             toOpen.push({ name: bm.name, url: bm.url });
           }
         }
         if (toOpen.length > 0) {
+          recordMruMany(currentProfile, ids);
           openUrls(toOpen, newTab);
           if (!newTab) close();
           else {
@@ -1084,19 +1127,21 @@
       function openMultiSelected(filtered, newTab) {
         const currentProfile = getActiveProfile();
         const toOpen = [];
+        const ids = [];
         for (const idx of multiSelected) {
           const entry = filtered[idx];
           if (entry?.kind === "bookmark" && entry.bookmark) {
-            recordMru(currentProfile, entry.bookmark.id);
+            ids.push(entry.bookmark.id);
             toOpen.push({ name: entry.bookmark.name, url: entry.bookmark.url });
           } else if (entry?.kind === "group" && entry.group) {
             for (const b of entry.group.items) {
-              recordMru(currentProfile, b.id);
+              ids.push(b.id);
               toOpen.push({ name: b.name, url: b.url });
             }
           }
         }
         if (toOpen.length > 0) {
+          recordMruMany(currentProfile, ids);
           openUrls(toOpen, newTab);
           if (!newTab) close();
           else {
@@ -1294,7 +1339,6 @@
           else showCheatsheet();
           return;
         }
-        const { filtered } = getFiltered();
         if (e.key === "ArrowDown" || e.ctrlKey && (e.key === "j" || e.key === "J")) {
           e.preventDefault();
           setActiveIndex(renderedList.length ? (activeIndex + 1) % renderedList.length : 0);
@@ -1306,8 +1350,8 @@
           return;
         }
         if (e.key === "ArrowRight") {
-          const { filtered: filtered2 } = getFiltered();
-          const entry = filtered2[activeIndex];
+          const { filtered } = getFiltered();
+          const entry = filtered[activeIndex];
           if (entry?.kind === "group" && entry.group) {
             e.preventDefault();
             query = entry.group.name;

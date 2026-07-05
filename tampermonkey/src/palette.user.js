@@ -11,6 +11,7 @@ import {
     assignBookmarkNumbers,
     resolveBookmarkUrl,
     applyMru,
+    applyMruMany,
     MRU_LIMIT,
 } from '../../src/WebBookmarks.Client/src/palette-core/index';
 
@@ -384,6 +385,12 @@ import {
     function recordMru(profile, id) {
         if (!id) return;
         GM_setValue(mruKey(profile), applyMru(getMru(profile), id, Date.now()));
+    }
+    // Batch variant: records several ids with a single storage read + write instead
+    // of one round-trip per opened bookmark.
+    function recordMruMany(profile, ids) {
+        if (!ids.length) return;
+        GM_setValue(mruKey(profile), applyMruMany(getMru(profile), ids, Date.now()));
     }
 
     // ── Google search ─────────────────────────────────────────
@@ -934,7 +941,10 @@ import {
         function activateEntry(entry, newTab) {
             const currentProfile = getActiveProfile();
             if (entry.kind === 'group' && entry.group) {
-                for (const b of entry.group.items) recordMru(currentProfile, b.id);
+                recordMruMany(
+                    currentProfile,
+                    entry.group.items.map((b) => b.id),
+                );
                 openUrls(
                     entry.group.items.map((b) => ({ name: b.name, url: b.url })),
                     newTab,
@@ -1025,14 +1035,16 @@ import {
         function openByNumbers(filtered, bookmarkNumbers, nums, newTab) {
             const currentProfile = getActiveProfile();
             const toOpen = [];
+            const ids = [];
             for (const [idx, seq] of bookmarkNumbers) {
                 if (nums.has(seq) && filtered[idx]?.bookmark) {
                     const bm = filtered[idx].bookmark;
-                    recordMru(currentProfile, bm.id);
+                    ids.push(bm.id);
                     toOpen.push({ name: bm.name, url: bm.url });
                 }
             }
             if (toOpen.length > 0) {
+                recordMruMany(currentProfile, ids);
                 openUrls(toOpen, newTab);
                 if (!newTab) close();
                 else {
@@ -1048,19 +1060,21 @@ import {
         function openMultiSelected(filtered, newTab) {
             const currentProfile = getActiveProfile();
             const toOpen = [];
+            const ids = [];
             for (const idx of multiSelected) {
                 const entry = filtered[idx];
                 if (entry?.kind === 'bookmark' && entry.bookmark) {
-                    recordMru(currentProfile, entry.bookmark.id);
+                    ids.push(entry.bookmark.id);
                     toOpen.push({ name: entry.bookmark.name, url: entry.bookmark.url });
                 } else if (entry?.kind === 'group' && entry.group) {
                     for (const b of entry.group.items) {
-                        recordMru(currentProfile, b.id);
+                        ids.push(b.id);
                         toOpen.push({ name: b.name, url: b.url });
                     }
                 }
             }
             if (toOpen.length > 0) {
+                recordMruMany(currentProfile, ids);
                 openUrls(toOpen, newTab);
                 if (!newTab) close();
                 else {
@@ -1278,8 +1292,6 @@ import {
                 else showCheatsheet();
                 return;
             }
-
-            const { filtered } = getFiltered();
 
             if (e.key === 'ArrowDown' || (e.ctrlKey && (e.key === 'j' || e.key === 'J'))) {
                 e.preventDefault();

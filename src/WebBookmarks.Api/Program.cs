@@ -303,6 +303,8 @@ app.MapPost("/api/bookmarks/bulk", async (List<WebBookmarksItem> items, WebBookm
 
 app.MapPut("/api/bookmarks/bulk", async (BulkUpdateRequest request, WebBookmarksContext db, CancellationToken ct) =>
 {
+    if (request.Ids is null || request.Ids.Count == 0)
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["ids"] = new[] { "At least one id is required." } });
     if (request.Ids.Count > MaxBulkItems) return Results.ValidationProblem(TooMany("ids"));
     if (ValidateBulkUpdate(request) is { } errors) return Results.ValidationProblem(errors);
     var items = await db.WebBookmarkItems

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback, memo, type ReactElem
 import type { WebBookmarksItem, BookmarkGroup } from '../types';
 import { openUrls, sanitizeUrl, resolveBookmarkUrl } from '../utils';
 import type { PaletteEntry, MruEntry } from '../palette-core';
-import { detectNumberSelection, filterEntries, assignBookmarkNumbers, applyMru, applyMruMany, MRU_LIMIT } from '../palette-core';
+import { detectNumberSelection, filterEntries, buildPaletteEntries, assignBookmarkNumbers, applyMru, applyMruMany } from '../palette-core';
 
 interface Props {
     groups: BookmarkGroup[];
@@ -179,54 +179,9 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
         inputRef.current?.focus();
     }, []);
 
-    // Build the flat list of entries: recents (when no query), groups, bookmarks, actions
+    // Build the flat list of entries via the shared palette-core builder; this
+    // component only owns the host-specific action rows.
     const allEntries = useMemo<PaletteEntry[]>(() => {
-        const entries: PaletteEntry[] = [];
-        // Recents (only injected when query is empty — handled in `filtered` step,
-        // but we precompute the lookup here so they reuse the same data)
-        const mru = getMru(activeProfile);
-        const allBookmarks: WebBookmarksItem[] = [];
-        for (const g of groups) for (const b of g.items) allBookmarks.push(b);
-        const bmById = new Map<number, WebBookmarksItem>();
-        for (const b of allBookmarks) bmById.set(b.id, b);
-        const recents: PaletteEntry[] = [];
-        for (const m of mru) {
-            const b = bmById.get(m.id);
-            if (!b) continue;
-            recents.push({
-                kind: 'bookmark',
-                label: b.name,
-                secondary: b.bookmarkGroup,
-                alias: b.shortcut,
-                bookmark: b,
-                isRecent: true,
-            });
-            if (recents.length >= MRU_LIMIT) break;
-        }
-        entries.push(...recents);
-        // Groups
-        for (const g of groups) {
-            entries.push({
-                kind: 'group',
-                label: g.name,
-                secondary: `${g.items.length} bookmark${g.items.length !== 1 ? 's' : ''}`,
-                alias: '',
-                group: g,
-            });
-        }
-        // Bookmarks
-        for (const g of groups) {
-            for (const b of g.items) {
-                entries.push({
-                    kind: 'bookmark',
-                    label: b.name,
-                    secondary: b.bookmarkGroup,
-                    alias: b.shortcut,
-                    bookmark: b,
-                });
-            }
-        }
-        // Actions (at the bottom, sorted alphabetically by label)
         const actions: PaletteEntry[] = [
             {
                 kind: 'action',
@@ -263,8 +218,7 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
             });
         }
         actions.sort((a, b) => a.label.localeCompare(b.label));
-        entries.push(...actions);
-        return entries;
+        return buildPaletteEntries(groups, getMru(activeProfile), actions);
     }, [groups, profiles, activeProfile, isPaletteMode]);
 
     // Detect if the query ends with " <numbers>" for number-selection mode

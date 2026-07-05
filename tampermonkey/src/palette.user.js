@@ -10,9 +10,9 @@ import {
     filterEntries,
     assignBookmarkNumbers,
     resolveBookmarkUrl,
+    buildPaletteEntries,
     applyMru,
     applyMruMany,
-    MRU_LIMIT,
 } from '../../src/WebBookmarks.Client/src/palette-core/index';
 
 (function () {
@@ -375,7 +375,8 @@ import {
     }
 
     // ── MRU ──────────────────────────────────────────────────
-    // MRU_LIMIT is imported from palette-core (shared with the React app).
+    // getMru/recordMru persist the per-profile MRU list; buildPaletteEntries
+    // (palette-core) applies the MRU_LIMIT cap to the recents it builds.
     function mruKey(profile) {
         return 'mru_' + profile;
     }
@@ -585,50 +586,9 @@ import {
     getGroups().catch(() => {});
 
     function buildEntries(groups, profiles) {
-        const entries = [];
-        // Recents (only visible when query is empty; getFiltered strips them otherwise)
-        {
-            const profile = getActiveProfile();
-            const mru = getMru(profile);
-            const bmById = new Map();
-            for (const g of groups) for (const b of g.items) bmById.set(b.id, b);
-            let added = 0;
-            for (const m of mru) {
-                const b = bmById.get(m.id);
-                if (!b) continue;
-                entries.push({
-                    kind: 'bookmark',
-                    label: b.name || '',
-                    secondary: b.bookmarkGroup || '',
-                    alias: b.shortcut || '',
-                    bookmark: b,
-                    isRecent: true,
-                });
-                added++;
-                if (added >= MRU_LIMIT) break;
-            }
-        }
-        for (const g of groups) {
-            entries.push({
-                kind: 'group',
-                label: g.name || '',
-                secondary: g.items.length + ' bookmark' + (g.items.length !== 1 ? 's' : ''),
-                alias: '',
-                group: g,
-            });
-        }
-        for (const g of groups) {
-            for (const b of g.items) {
-                entries.push({
-                    kind: 'bookmark',
-                    label: b.name || '',
-                    secondary: b.bookmarkGroup || '',
-                    alias: b.shortcut || '',
-                    bookmark: b,
-                });
-            }
-        }
-        // Actions (at the bottom, sorted alphabetically by label)
+        // Host-specific action rows (sorted alphabetically). The shared
+        // buildPaletteEntries prepends recents/groups/bookmarks; profile-toggle
+        // actions are appended after the sort so they stay grouped at the end.
         const actions = [
             {
                 kind: 'action',
@@ -674,12 +634,11 @@ import {
             },
         ];
         actions.sort((a, b) => a.label.localeCompare(b.label));
-        entries.push(...actions);
         if (profiles && profiles.length > 1) {
             const disabled = getDisabledProfiles();
             for (const p of profiles) {
                 if (p === 'all') continue;
-                entries.push({
+                actions.push({
                     kind: 'action',
                     label: disabled.has(p) ? 'Show Profile: ' + p : 'Hide Profile: ' + p,
                     secondary: disabled.has(p) ? 'hidden' : 'visible',
@@ -689,7 +648,7 @@ import {
                 });
             }
         }
-        return entries;
+        return buildPaletteEntries(groups, getMru(getActiveProfile()), actions);
     }
 
     function openPalette(groups, profiles, isLoading) {

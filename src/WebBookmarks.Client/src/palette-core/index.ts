@@ -5,4 +5,5 @@ export { wildcardMatch } from './match';
 export { resolveBookmarkUrl } from './url';
 export { parseNumberSelection, detectNumberSelection, assignBookmarkNumbers } from './numbers';
 export { filterEntries } from './filter';
+export { buildPaletteEntries } from './entries';
 export { applyMru, applyMruMany, MRU_LIMIT, MRU_MAX_ENTRIES } from './mru';

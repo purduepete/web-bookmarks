@@ -181,8 +181,7 @@ import {
         }
         .wbp-loading { animation: wbp-pulse 1.2s ease-in-out infinite; }
         .wbp-item {
-            display: grid;
-            grid-template-columns: 28px 22px 1fr 70px 120px;
+            display: flex;
             align-items: center;
             gap: 10px;
             padding: 8px 16px;
@@ -197,25 +196,29 @@ import {
         .wbp-item-multi { background: #172554; color: #93c5fd; }
         .wbp-item-multi.wbp-item-active { background: #1e3a5f; }
         .wbp-item-num {
+            flex: 0 0 28px;
             text-align: right;
             font-size: 12px;
             color: #475569;
             font-variant-numeric: tabular-nums;
         }
         .wbp-item-kind {
+            flex: 0 0 22px;
             font-size: 14px;
-            text-align: center;
             display: flex;
             align-items: center;
             justify-content: center;
         }
         .wbp-item-label {
+            flex: 1 1 auto;
+            min-width: 0;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
             font-weight: 500;
         }
         .wbp-item-secondary {
+            flex: 0 0 120px;
             font-size: 12px;
             color: #475569;
             min-width: 0;
@@ -225,6 +228,7 @@ import {
             text-align: right;
         }
         .wbp-item-alias {
+            flex: 0 0 auto;
             font-size: 11px;
             color: #3b82f6;
             background: #172554;
@@ -233,11 +237,9 @@ import {
             font-family: monospace;
             text-align: center;
             white-space: nowrap;
-            min-width: 0;
-            max-width: 100%;
+            max-width: 90px;
             overflow: hidden;
             text-overflow: ellipsis;
-            justify-self: end;
         }
         .wbp-item-alias-empty { background: none; }
         .wbp-divider {
@@ -332,12 +334,12 @@ import {
             .wbp-input { font-size: 16px; padding: 10px 14px; }
             .wbp-footer { flex-direction: column; gap: 4px; text-align: center; }
             .wbp-item {
-                grid-template-columns: 20px 20px 1fr auto;
                 gap: 6px; padding: 8px 10px; font-size: 16px;
             }
             .wbp-item-secondary { display: none; }
             .wbp-item-alias { font-size: 9px; padding: 1px 4px; }
-            .wbp-item-num { font-size: 10px; }
+            .wbp-item-num { flex: 0 0 20px; font-size: 10px; }
+            .wbp-item-kind { flex: 0 0 20px; }
         }
         /* iPad-sized touch devices: make palette fill viewport with custom padding */
         @media (hover: none) and (min-width: 768px) {
@@ -348,23 +350,47 @@ import {
     `;
 
     // ── SVG icons ────────────────────────────────────
-    const FOLDER_SVG =
-        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
-    const BOOKMARK_SVG =
-        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>';
-    const BOLT_SVG =
-        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>';
-    const HEART_SVG =
-        '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" style="color:#64748b;vertical-align:middle;margin-right:6px"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
+    // Built programmatically with createElementNS rather than as innerHTML strings
+    // so they survive Trusted-Types / sanitizer-enforcing hosts (e.g. LinkedIn),
+    // which strip <svg> — and its surrounding markup — out of any string assigned
+    // to an innerHTML sink. makeIcon(name) returns a fresh <svg> node.
+    const SVG_NS = 'http://www.w3.org/2000/svg';
+    const ICON_SPECS = {
+        folder: {
+            attrs: { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' },
+            children: [['path', { d: 'M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z' }]],
+        },
+        bookmark: {
+            attrs: { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' },
+            children: [['path', { d: 'M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z' }]],
+        },
+        bolt: {
+            attrs: { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' },
+            children: [['polygon', { points: '13 2 3 14 12 14 11 22 21 10 12 10 13 2' }]],
+        },
+        heart: {
+            attrs: { width: 12, height: 12, viewBox: '0 0 24 24', fill: 'currentColor', stroke: 'currentColor', 'stroke-width': 1, style: 'color:#64748b;vertical-align:middle;margin-right:6px' },
+            children: [['path', { d: 'M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z' }]],
+        },
+        close: {
+            attrs: { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' },
+            children: [['line', { x1: 18, y1: 6, x2: 6, y2: 18 }], ['line', { x1: 6, y1: 6, x2: 18, y2: 18 }]],
+        },
+    };
+    function makeIcon(name) {
+        const spec = ICON_SPECS[name];
+        const svg = document.createElementNS(SVG_NS, 'svg');
+        for (const k in spec.attrs) svg.setAttribute(k, spec.attrs[k]);
+        for (const [tag, cattrs] of spec.children) {
+            const el = document.createElementNS(SVG_NS, tag);
+            for (const k in cattrs) el.setAttribute(k, cattrs[k]);
+            svg.appendChild(el);
+        }
+        return svg;
+    }
 
     // ── Helpers ──────────────────────────────────────
     // wildcardMatch and parseNumberSelection are imported from palette-core.
-
-    function escapeHtml(s) {
-        const d = document.createElement('div');
-        d.textContent = s;
-        return d.innerHTML;
-    }
 
     // Resolves the URL to open for a bookmark given the current query. When the
     // bookmark has a search URL ({q} placeholder) and the query is
@@ -703,8 +729,7 @@ import {
         const closeBtn = document.createElement('button');
         closeBtn.className = 'wbp-close-btn';
         closeBtn.type = 'button';
-        closeBtn.innerHTML =
-            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+        closeBtn.appendChild(makeIcon('close'));
         closeBtn.addEventListener('click', close);
         searchRow.appendChild(closeBtn);
 
@@ -719,7 +744,7 @@ import {
 
         function renderTabs() {
             if (!tabsEl) return;
-            tabsEl.innerHTML = '';
+            tabsEl.replaceChildren();
             const current = getActiveProfile();
             const disabled = getDisabledProfiles();
             for (const p of profiles) {
@@ -771,16 +796,24 @@ import {
         } else {
             const hintsEl = document.createElement('div');
             hintsEl.className = 'wbp-shortcuts';
-            hintsEl.innerHTML = [
-                '<span><kbd>\u2191\u2193</kbd> navigate</span>',
-                '<span><kbd>\u2192</kbd> expand group</span>',
-                '<span><kbd>\u2190</kbd> back/clear</span>',
-                '<span><kbd>Ctrl+Space</kbd> select</span>',
-                '<span><kbd>Enter</kbd> open</span>',
-                '<span><kbd>Ctrl+Enter</kbd> new tab</span>',
-                '<span><kbd>Esc</kbd> close</span>',
-                '<span><kbd>1-5</kbd> open by number</span>',
-            ].join('');
+            const hints = [
+                ['\u2191\u2193', 'navigate'],
+                ['\u2192', 'expand group'],
+                ['\u2190', 'back/clear'],
+                ['Ctrl+Space', 'select'],
+                ['Enter', 'open'],
+                ['Ctrl+Enter', 'new tab'],
+                ['Esc', 'close'],
+                ['1-5', 'open by number'],
+            ];
+            for (const [key, desc] of hints) {
+                const s = document.createElement('span');
+                const k = document.createElement('kbd');
+                k.textContent = key;
+                s.appendChild(k);
+                s.appendChild(document.createTextNode(' ' + desc));
+                hintsEl.appendChild(s);
+            }
             footer.appendChild(hintsEl);
         }
 
@@ -830,7 +863,7 @@ import {
             renderedList = filtered;
             rowEls = [];
 
-            listEl.innerHTML = '';
+            listEl.replaceChildren();
             if (loading) {
                 const loadingEl = document.createElement('div');
                 loadingEl.className = 'wbp-loading';
@@ -866,15 +899,31 @@ import {
                     if (isMultiSelected) cls += ' wbp-item-multi';
                     row.className = cls;
 
-                    const icon =
-                        entry.kind === 'group' ? FOLDER_SVG : entry.kind === 'action' ? BOLT_SVG : BOOKMARK_SVG;
-                    const favIcon = entry.bookmark && entry.bookmark.isFavorite ? HEART_SVG : '';
-                    row.innerHTML =
-                        `<span class="wbp-item-num">${isMultiSelected ? '\u2713' : seq != null ? seq : ''}</span>` +
-                        `<span class="wbp-item-kind">${icon}</span>` +
-                        `<span class="wbp-item-label">${favIcon}${escapeHtml(entry.label)}</span>` +
-                        `<span class="wbp-item-alias${entry.alias ? '' : ' wbp-item-alias-empty'}">${escapeHtml(entry.alias)}</span>` +
-                        `<span class="wbp-item-secondary">${escapeHtml(entry.secondary)}</span>`;
+                    const iconName =
+                        entry.kind === 'group' ? 'folder' : entry.kind === 'action' ? 'bolt' : 'bookmark';
+
+                    const numSpan = document.createElement('span');
+                    numSpan.className = 'wbp-item-num';
+                    numSpan.textContent = isMultiSelected ? '\u2713' : seq != null ? String(seq) : '';
+
+                    const kindSpan = document.createElement('span');
+                    kindSpan.className = 'wbp-item-kind';
+                    kindSpan.appendChild(makeIcon(iconName));
+
+                    const labelSpan = document.createElement('span');
+                    labelSpan.className = 'wbp-item-label';
+                    if (entry.bookmark && entry.bookmark.isFavorite) labelSpan.appendChild(makeIcon('heart'));
+                    labelSpan.appendChild(document.createTextNode(entry.label || ''));
+
+                    const aliasSpan = document.createElement('span');
+                    aliasSpan.className = 'wbp-item-alias' + (entry.alias ? '' : ' wbp-item-alias-empty');
+                    aliasSpan.textContent = entry.alias || '';
+
+                    const secondarySpan = document.createElement('span');
+                    secondarySpan.className = 'wbp-item-secondary';
+                    secondarySpan.textContent = entry.secondary || '';
+
+                    row.append(numSpan, kindSpan, labelSpan, aliasSpan, secondarySpan);
 
                     rowEls[i] = row;
                     row.addEventListener('mouseenter', () => {
@@ -1172,8 +1221,13 @@ import {
             const header = document.createElement('div');
             header.style.cssText =
                 'display:flex;justify-content:space-between;align-items:center;color:#e0e6ed;font-size:14px;font-weight:600';
-            header.innerHTML =
-                '<span>Keyboard Shortcuts</span><span style="color:#64748b;font-size:12px">Click anywhere or press Esc to close</span>';
+            const headerTitle = document.createElement('span');
+            headerTitle.textContent = 'Keyboard Shortcuts';
+            const headerHint = document.createElement('span');
+            headerHint.style.cssText = 'color:#64748b;font-size:12px';
+            headerHint.textContent = 'Click anywhere or press Esc to close';
+            header.appendChild(headerTitle);
+            header.appendChild(headerHint);
             cheatsheetEl.appendChild(header);
             const grid = document.createElement('div');
             grid.style.cssText =
@@ -1376,7 +1430,7 @@ import {
             },
             setError(msg) {
                 loading = false;
-                listEl.innerHTML = '';
+                listEl.replaceChildren();
                 const el = document.createElement('div');
                 el.className = 'wbp-empty';
                 el.textContent = 'Failed to load: ' + msg;

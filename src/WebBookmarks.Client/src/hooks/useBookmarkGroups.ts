@@ -106,30 +106,26 @@ export function useBookmarkGroups(bookmarks: WebBookmarksItem[], searchFilter: s
                 }))
                 .filter((g) => g.items.length > 0);
         } else {
-            // Search both groups and bookmarks
-            result = result
-                .filter(
-                    (g) =>
-                        wildcardMatch(g.name, raw) ||
-                        g.items.some(
-                            (item) =>
-                                wildcardMatch(item.name, raw) ||
-                                wildcardMatch(item.shortcut, raw) ||
-                                wildcardMatch(item.description, raw),
-                        ),
-                )
-                .map((g) => {
-                    if (wildcardMatch(g.name, raw)) return g;
-                    return {
-                        ...g,
-                        items: g.items.filter(
-                            (item) =>
-                                wildcardMatch(item.name, raw) ||
-                                wildcardMatch(item.shortcut, raw) ||
-                                wildcardMatch(item.description, raw),
-                        ),
-                    };
-                });
+            // Search both group names and bookmark fields. Evaluate each group's
+            // name match ONCE (the previous version ran wildcardMatch over the group
+            // name and every item twice — once to filter, once to map). A group whose
+            // name matches is returned whole; otherwise it's narrowed to its matching
+            // items and dropped if none match.
+            const next: BookmarkGroup[] = [];
+            for (const g of result) {
+                if (wildcardMatch(g.name, raw)) {
+                    next.push(g);
+                    continue;
+                }
+                const items = g.items.filter(
+                    (item) =>
+                        wildcardMatch(item.name, raw) ||
+                        wildcardMatch(item.shortcut, raw) ||
+                        wildcardMatch(item.description, raw),
+                );
+                if (items.length > 0) next.push({ ...g, items });
+            }
+            result = next;
         }
 
         return result;

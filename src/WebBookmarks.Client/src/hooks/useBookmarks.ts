@@ -69,18 +69,37 @@ export function useBookmarks() {
                 if (requestId !== requestIdRef.current) return;
                 setLoading(false);
             });
+    }, [showHidden, activeProfile]);
+
+    // Profiles change rarely (only when a mutation/import introduces or removes
+    // one), so they're fetched separately from bookmarks: once on mount and
+    // explicitly after mutations (via `reload`). Previously this ran on every
+    // bookmark load, re-fetching the profile list on each showHidden toggle and
+    // profile switch even though the list was unchanged.
+    const refreshProfiles = useCallback(() => {
         fetchProfiles()
             .then((data) => {
                 localStorage.setItem('profiles', JSON.stringify(data));
-                if (requestId !== requestIdRef.current) return;
                 setProfiles(data);
             })
             .catch(() => {});
-    }, [showHidden, activeProfile]);
+    }, []);
 
     useEffect(() => {
         loadBookmarks();
     }, [loadBookmarks]);
+
+    useEffect(() => {
+        refreshProfiles();
+    }, [refreshProfiles]);
+
+    // Refresh both the bookmark list and the profile list. Used by mutation/import
+    // flows, which can add or remove a profile; the plain auto-load path only
+    // needs bookmarks.
+    const reload = useCallback(() => {
+        loadBookmarks();
+        refreshProfiles();
+    }, [loadBookmarks, refreshProfiles]);
 
     const handleProfileChange = useCallback((profile: string) => {
         setActiveProfile(profile);
@@ -112,5 +131,7 @@ export function useBookmarks() {
         showHidden,
         setShowHidden,
         loadBookmarks,
+        reload,
+        refreshProfiles,
     };
 }

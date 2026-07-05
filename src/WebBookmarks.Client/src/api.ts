@@ -204,7 +204,53 @@ export async function inBulkChunks<T, R>(items: T[], fn: (chunk: T[]) => Promise
     return results;
 }
 
+// Blocked URL schemes, mirrored from Program.cs HasUnsafeScheme.
+const BLOCKED_SCHEMES = ['javascript:', 'data:', 'vbscript:'];
+
+// Mirror of the API's HasUnsafeScheme: strip control/whitespace chars (browsers do
+// this before parsing a URL, so "java\tscript:" would still execute) then test the
+// scheme prefix. Exported for regression tests.
+export function hasUnsafeScheme(value: string | null | undefined): boolean {
+    if (!value || !value.trim()) return false;
+    let v = '';
+    for (const ch of value) {
+        const c = ch.codePointAt(0) ?? 0;
+        // Strip C0/C1 control chars and whitespace (browsers do this before parsing).
+        if (c <= 0x1f || (c >= 0x7f && c <= 0x9f) || /\s/.test(ch)) continue;
+        v += ch;
+    }
+    v = v.toLowerCase();
+    return BLOCKED_SCHEMES.some((s) => v.startsWith(s));
+}
+
+// Mirror of the API's ValidateBookmark (Program.cs) length caps + scheme checks.
+// Returns the first validation message for an item, or null if it passes.
+export function validateBulkItem(item: Omit<WebBookmarksItem, 'id'>): string | null {
+    if (!item.name || !item.name.trim()) return 'Name is required.';
+    if (item.name.length > 200) return 'Name must be 200 characters or fewer.';
+    if (item.shortcut && item.shortcut.length > 100) return 'Shortcut must be 100 characters or fewer.';
+    if (item.description && item.description.length > 1000) return 'Description must be 1000 characters or fewer.';
+    if (item.bookmarkGroup && item.bookmarkGroup.length > 200) return 'Group must be 200 characters or fewer.';
+    if (item.profile && item.profile.length > 100) return 'Profile must be 100 characters or fewer.';
+    if (item.url && item.url.length > 2048) return 'URL must be 2048 characters or fewer.';
+    if (item.urls && item.urls.length > 4096) return 'URLs must be 4096 characters or fewer.';
+    if (hasUnsafeScheme(item.url)) return 'URL uses a disallowed scheme.';
+    if (hasUnsafeScheme(item.urls)) return 'URL uses a disallowed scheme.';
+    return null;
+}
+
 export function bulkCreateBookmarks(items: Omit<WebBookmarksItem, 'id'>[]): Promise<{ imported: number }> {
+    // Validate the WHOLE payload before sending any chunk. inBulkChunks commits
+    // chunks sequentially, so a later chunk rejected by the API would leave the
+    // earlier chunks already written — the UI reports total failure and a retry
+    // silently duplicates the committed rows. Failing fast here keeps the import
+    // all-or-nothing from the client's perspective.
+    for (let i = 0; i < items.length; i++) {
+        const err = validateBulkItem(items[i]);
+        if (err) {
+            return Promise.reject(new Error(`Bookmark ${i + 1} ("${items[i].name || 'untitled'}"): ${err}`));
+        }
+    }
     return inBulkChunks(items, (chunk) =>
         request<{ imported: number }>(`${API_BASE}/bulk`, { method: 'POST', body: chunk, label: 'bulk import' }),
     ).then((results) => ({ imported: results.reduce((sum, r) => sum + r.imported, 0) }));

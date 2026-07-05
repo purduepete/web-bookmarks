@@ -29,6 +29,7 @@ export default function App() {
         showHidden,
         setShowHidden,
         loadBookmarks,
+        reload,
     } = useBookmarks();
 
     const [searchFilter, setSearchFilter] = useState('');
@@ -87,7 +88,7 @@ export default function App() {
         openCreateFromPalette,
         openImportFromPalette,
         openBulkEditFromPalette,
-    } = useModals({ loadBookmarks, setError, openPalette, closePalette });
+    } = useModals({ loadBookmarks: reload, setError, openPalette, closePalette });
 
     const {
         startupMode,
@@ -231,7 +232,7 @@ export default function App() {
                     searchFilter={searchFilter}
                     onSearchChange={setSearchFilter}
                     onSearchKeyDown={handleSearchKeyDown}
-                    onReload={loadBookmarks}
+                    onReload={reload}
                     onOpenPalette={() => {
                         setPaletteOpen(true);
                         setStartupPaletteHiding(true);
@@ -270,7 +271,7 @@ export default function App() {
                 profiles={profiles}
                 disabledProfiles={disabledProfiles}
                 activeProfile={activeProfile}
-                onReload={loadBookmarks}
+                onReload={reload}
                 onSelectProfile={handleProfileChange}
                 modalOpen={modalOpen}
                 editingBookmark={editingBookmark}

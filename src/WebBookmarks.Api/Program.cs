@@ -204,7 +204,17 @@ app.MapPut("/api/bookmarks/{id:int}", async (int id, WebBookmarksItem input, Web
     item.Profile = input.Profile;
     item.IsFavorite = input.IsFavorite;
 
-    await db.SaveChangesAsync(ct);
+    // A concurrent delete between FindAsync and here makes EF's UPDATE affect 0
+    // rows, throwing DbUpdateConcurrencyException. Treat it as a 404 rather than a
+    // 500 — the row the client tried to update no longer exists.
+    try
+    {
+        await db.SaveChangesAsync(ct);
+    }
+    catch (DbUpdateConcurrencyException)
+    {
+        return Results.NotFound();
+    }
     return Results.NoContent();
 })
     .WithName("UpdateBookmark")
@@ -307,7 +317,17 @@ app.MapPut("/api/bookmarks/bulk", async (BulkUpdateRequest request, WebBookmarks
         if (request.IsVisible is not null) item.IsVisible = request.IsVisible.Value;
         if (request.IsFavorite is not null) item.IsFavorite = request.IsFavorite.Value;
     }
-    await db.SaveChangesAsync(ct);
+    // If any of the loaded rows is deleted concurrently before save, EF throws
+    // DbUpdateConcurrencyException. Return 409 Conflict so the client can reload
+    // and retry, instead of surfacing an unhandled 500.
+    try
+    {
+        await db.SaveChangesAsync(ct);
+    }
+    catch (DbUpdateConcurrencyException)
+    {
+        return Results.Conflict(new { error = "One or more bookmarks changed or were deleted concurrently. Reload and try again." });
+    }
     return Results.Ok(new { updated = items.Count });
 })
     .WithName("BulkUpdateBookmarks")

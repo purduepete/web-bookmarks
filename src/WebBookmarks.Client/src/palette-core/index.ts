@@ -2,7 +2,8 @@
 // (via the userscript build) the Tampermonkey userscript. No React/DOM/host deps.
 export type { Bookmark, BookmarkGroup, PaletteEntry, MruEntry } from './types';
 export { wildcardMatch } from './match';
-export { resolveBookmarkUrl } from './url';
+export { resolveBookmarkUrl, sanitizeUrl } from './url';
+export { resolveShortcutTargets } from './shortcut';
 export { parseNumberSelection, detectNumberSelection, assignBookmarkNumbers } from './numbers';
 export { filterEntries } from './filter';
 export { buildPaletteEntries } from './entries';

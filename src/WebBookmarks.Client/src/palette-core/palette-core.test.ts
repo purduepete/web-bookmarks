@@ -12,6 +12,8 @@ import {
     applyMruMany,
     MRU_LIMIT,
     MRU_MAX_ENTRIES,
+    resolveShortcutTargets,
+    sanitizeUrl,
 } from './index';
 
 function bm(over: Partial<Bookmark>): Bookmark {
@@ -34,6 +36,65 @@ function bm(over: Partial<Bookmark>): Bookmark {
 function entry(over: Partial<PaletteEntry>): PaletteEntry {
     return { kind: 'bookmark', label: '', secondary: '', alias: '', ...over };
 }
+
+// Locks in D1 (#57): shortcut command resolution shared with the React client's
+// navigateByShortcut, so the startup prompt and the palette resolve identically.
+describe('resolveShortcutTargets', () => {
+    const bookmarks = [
+        bm({ id: 1, name: 'GitHub', shortcut: 'gh', url: 'https://github.com' }),
+        bm({ id: 2, name: 'GitLab', shortcut: 'gl', url: 'https://gitlab.com' }),
+        bm({ id: 3, name: 'Google', shortcut: 'g', url: 'https://google.com', urls: 'https://google.com/search?q={q}' }),
+    ];
+
+    it('returns nothing for blank input', () => {
+        expect(resolveShortcutTargets('   ', bookmarks)).toEqual([]);
+    });
+
+    it('matches an exact alias', () => {
+        expect(resolveShortcutTargets('gh', bookmarks)).toEqual([{ name: 'GitHub', url: 'https://github.com' }]);
+    });
+
+    it('falls back to partial alias match when no exact match', () => {
+        // "git" isn't an exact alias; nothing has it as a substring -> no match.
+        expect(resolveShortcutTargets('git', bookmarks)).toEqual([]);
+        // "g" is an exact alias (Google) -> exact wins over partial.
+        expect(resolveShortcutTargets('g foo', bookmarks)).toEqual([
+            { name: 'Google', url: 'https://google.com/search?q=foo' },
+        ]);
+    });
+
+    it('matches by name prefix for search-URL bookmarks when alias fails', () => {
+        expect(resolveShortcutTargets('goo bar baz', bookmarks)).toEqual([
+            { name: 'Google', url: 'https://google.com/search?q=bar%20baz' },
+        ]);
+    });
+
+    it('returns no target when nothing matches', () => {
+        expect(resolveShortcutTargets('zzz nope', bookmarks)).toEqual([]);
+    });
+});
+
+// Locks in D2 (#58): the URL-safety blocklist shared by the React client and the
+// userscript so navigation safety rules can't drift between hosts.
+describe('sanitizeUrl', () => {
+    it('passes safe URLs through unchanged', () => {
+        expect(sanitizeUrl('https://example.com')).toBe('https://example.com');
+        expect(sanitizeUrl('/relative/path')).toBe('/relative/path');
+        expect(sanitizeUrl('mailto:a@b.com')).toBe('mailto:a@b.com');
+    });
+
+    it('collapses dangerous schemes to about:blank', () => {
+        expect(sanitizeUrl('javascript:alert(1)')).toBe('about:blank');
+        expect(sanitizeUrl('  JAVASCRIPT:alert(1)')).toBe('about:blank');
+        expect(sanitizeUrl('data:text/html,x')).toBe('about:blank');
+        expect(sanitizeUrl('vbscript:msgbox')).toBe('about:blank');
+    });
+
+    it('blocks control-char-obfuscated schemes', () => {
+        expect(sanitizeUrl('java\tscript:alert(1)')).toBe('about:blank');
+        expect(sanitizeUrl('java\u0000script:alert(1)')).toBe('about:blank');
+    });
+});
 
 describe('wildcardMatch', () => {
     it('substring match is case-insensitive when no *', () => {

@@ -16,3 +16,20 @@ export function resolveBookmarkUrl(
     }
     return bookmark.url;
 }
+
+// Neutralizes URLs that use a dangerous scheme (javascript:, data:, vbscript:) by
+// collapsing them to about:blank, so they can never execute when navigated to or
+// rendered into an href. All other schemes (http, https, file, mailto, tel, ...)
+// and relative URLs are returned unchanged. Host-neutral (no DOM), so both the
+// React client and the userscript share one source of navigation-safety truth.
+const UNSAFE_SCHEME = /^\s*(javascript|data|vbscript):/i;
+
+export function sanitizeUrl(url: string): string {
+    const value = url ?? '';
+    // Browsers strip ASCII control chars (tab/newline/CR, etc.) from URLs before
+    // parsing, so "java\tscript:" would execute. Strip them before the scheme test
+    // so such payloads can't bypass the blocklist.
+    // eslint-disable-next-line no-control-regex -- control chars are the payload we strip
+    const stripped = value.replace(/[\u0000-\u001F\u007F]/g, '');
+    return UNSAFE_SCHEME.test(stripped) ? 'about:blank' : value;
+}

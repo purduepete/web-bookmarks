@@ -32,29 +32,6 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
   }
 }
 
-// ── Log Analytics + Application Insights ────────────────────────────
-
-resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
-  name: '${baseName}-logs'
-  location: location
-  properties: {
-    sku: {
-      name: 'PerGB2018'
-    }
-    retentionInDays: 30
-  }
-}
-
-resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
-  name: '${baseName}-insights'
-  location: location
-  kind: 'web'
-  properties: {
-    Application_Type: 'web'
-    WorkspaceResourceId: logAnalytics.id
-  }
-}
-
 // ── App Service (API) ───────────────────────────────────────────────
 
 resource apiApp 'Microsoft.Web/sites@2023-12-01' = {
@@ -79,10 +56,6 @@ resource apiApp 'Microsoft.Web/sites@2023-12-01' = {
       // than App Service platform CORS, so there's a single, source-controlled
       // mechanism. The API key must be supplied separately as a secret setting.
       appSettings: [
-        {
-          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-          value: appInsights.properties.ConnectionString
-        }
         {
           name: 'Cors__AllowedOrigins__0'
           value: 'https://${staticWebApp.properties.defaultHostname}'
@@ -172,4 +145,3 @@ output staticWebAppName string = staticWebApp.name
 output staticWebAppHostname string = staticWebApp.properties.defaultHostname
 output sqlServerFqdn string = sqlServer.properties.fullyQualifiedDomainName
 output apiPrincipalId string = apiApp.identity.principalId
-output appInsightsConnectionString string = appInsights.properties.ConnectionString

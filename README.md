@@ -159,12 +159,6 @@ az deployment group create \
 
 This provisions: App Service Plan, App Service (with managed identity), Static Web App, Azure SQL Server + Database, and links the SWA backend.
 
-## Observability
-
-The API sends requests, dependencies (SQL), exceptions, and traces to Application
-Insights, and a metric alert emails you on error spikes. For the telemetry layout,
-ready-to-use KQL queries, and alert management, see [`docs/observability.md`](docs/observability.md).
-
 ## Live URLs
 
 | Component | URL                                                     |

@@ -3,10 +3,6 @@ using WebBookmarks.Api.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Application Insights. No-ops when APPLICATIONINSIGHTS_CONNECTION_STRING is
-// absent (e.g. local dev), so it only emits telemetry where it's configured.
-builder.Services.AddApplicationInsightsTelemetry();
-
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {

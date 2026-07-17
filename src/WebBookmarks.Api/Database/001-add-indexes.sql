@@ -16,25 +16,25 @@ SET XACT_ABORT ON;
 --    auto-generated (e.g. DF__webbookma__Profi__5B638405) and differ per DB, so
 --    find them dynamically. They block ALTER COLUMN (SQL error 4922/5074).
 DECLARE @drop nvarchar(max) = N'';
-SELECT @drop = @drop + 'ALTER TABLE dbo.webbookmarkitems DROP CONSTRAINT ' + QUOTENAME(dc.name) + ';'
+SELECT @drop = @drop + 'ALTER TABLE wb.webbookmarkitems DROP CONSTRAINT ' + QUOTENAME(dc.name) + ';'
 FROM sys.default_constraints dc
 JOIN sys.columns c
     ON c.object_id = dc.parent_object_id AND c.column_id = dc.parent_column_id
-WHERE dc.parent_object_id = OBJECT_ID('dbo.webbookmarkitems')
+WHERE dc.parent_object_id = OBJECT_ID('wb.webbookmarkitems')
   AND c.name IN ('Profile', 'BookmarkGroup');
 IF @drop <> N'' EXEC sp_executesql @drop;
 
 -- 2. Bound the columns. nvarchar(max) cannot be an index key (SQL error 1919).
 --    Lengths match the API validation caps.
-ALTER TABLE dbo.webbookmarkitems ALTER COLUMN Profile nvarchar(100) NULL;
-ALTER TABLE dbo.webbookmarkitems ALTER COLUMN BookmarkGroup nvarchar(200) NULL;
+ALTER TABLE wb.webbookmarkitems ALTER COLUMN Profile nvarchar(100) NULL;
+ALTER TABLE wb.webbookmarkitems ALTER COLUMN BookmarkGroup nvarchar(200) NULL;
 
 -- 3. Restore the empty-string defaults so insert behavior is unchanged.
 IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE name = 'DF_webbookmarkitems_Profile')
-    ALTER TABLE dbo.webbookmarkitems
+    ALTER TABLE wb.webbookmarkitems
         ADD CONSTRAINT DF_webbookmarkitems_Profile DEFAULT '' FOR Profile;
 IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE name = 'DF_webbookmarkitems_BookmarkGroup')
-    ALTER TABLE dbo.webbookmarkitems
+    ALTER TABLE wb.webbookmarkitems
         ADD CONSTRAINT DF_webbookmarkitems_BookmarkGroup DEFAULT '' FOR BookmarkGroup;
 GO
 
@@ -42,15 +42,15 @@ GO
 IF NOT EXISTS (
     SELECT 1 FROM sys.indexes
     WHERE name = 'IX_webbookmarkitems_Profile'
-      AND object_id = OBJECT_ID('dbo.webbookmarkitems')
+      AND object_id = OBJECT_ID('wb.webbookmarkitems')
 )
     CREATE INDEX IX_webbookmarkitems_Profile
-        ON dbo.webbookmarkitems (Profile);
+        ON wb.webbookmarkitems (Profile);
 
 IF NOT EXISTS (
     SELECT 1 FROM sys.indexes
     WHERE name = 'IX_webbookmarkitems_BookmarkGroup_SortOrder'
-      AND object_id = OBJECT_ID('dbo.webbookmarkitems')
+      AND object_id = OBJECT_ID('wb.webbookmarkitems')
 )
     CREATE INDEX IX_webbookmarkitems_BookmarkGroup_SortOrder
-        ON dbo.webbookmarkitems (BookmarkGroup, SortOrder);
+        ON wb.webbookmarkitems (BookmarkGroup, SortOrder);

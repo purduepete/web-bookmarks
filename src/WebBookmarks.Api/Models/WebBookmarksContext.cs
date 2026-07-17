@@ -14,7 +14,7 @@ public class WebBookmarksContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         var item = modelBuilder.Entity<WebBookmarksItem>();
-        item.ToTable("webbookmarkitems");
+        item.ToTable("webbookmarkitems", "wb");
 
         // Bound the indexed columns. Unbounded string maps to nvarchar(max),
         // which SQL Server cannot use as an index key. Lengths match the

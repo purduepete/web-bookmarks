@@ -54,10 +54,10 @@ using (var scope = app.Services.CreateScope())
     try
     {
         await db.Database.ExecuteSqlRawAsync(@"
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_webbookmarkitems_Profile' AND object_id = OBJECT_ID('dbo.webbookmarkitems'))
-    CREATE INDEX IX_webbookmarkitems_Profile ON dbo.webbookmarkitems (Profile) WITH (ONLINE = ON);
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_webbookmarkitems_BookmarkGroup_SortOrder' AND object_id = OBJECT_ID('dbo.webbookmarkitems'))
-    CREATE INDEX IX_webbookmarkitems_BookmarkGroup_SortOrder ON dbo.webbookmarkitems (BookmarkGroup, SortOrder) WITH (ONLINE = ON);");
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_webbookmarkitems_Profile' AND object_id = OBJECT_ID('wb.webbookmarkitems'))
+    CREATE INDEX IX_webbookmarkitems_Profile ON wb.webbookmarkitems (Profile) WITH (ONLINE = ON);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_webbookmarkitems_BookmarkGroup_SortOrder' AND object_id = OBJECT_ID('wb.webbookmarkitems'))
+    CREATE INDEX IX_webbookmarkitems_BookmarkGroup_SortOrder ON wb.webbookmarkitems (BookmarkGroup, SortOrder) WITH (ONLINE = ON);");
         logger.LogInformation("Index check complete: required indexes present.");
     }
     catch (Exception ex)

@@ -6,25 +6,32 @@ param location string = resourceGroup().location
 @description('Base name for all resources')
 param baseName string = 'webbookmarks'
 
-@description('SQL Server administrator login')
-@secure()
-param sqlAdminLogin string
-
-@description('SQL Server administrator password')
-@secure()
-param sqlAdminPassword string
-
 @description('SQL database name')
 param sqlDatabaseName string = 'webportfolio'
 
-// ── App Service Plan ────────────────────────────────────────────────
+@description('Name of the shared Azure SQL logical server')
+param sharedSqlServerName string = 'sqlgkhw25ijhyzzy'
+
+@description('Resource group that holds the shared Azure SQL server')
+param sharedSqlResourceGroup string = 'investmentportfolio'
+
+// Reference the shared Azure SQL server (lives in another resource group).
+// webbookmarks connects with its system-assigned identity via a
+// CREATE USER ... FROM EXTERNAL PROVIDER grant managed out-of-band on the
+// shared database (DB-altering changes are reviewed before running).
+resource sharedSql 'Microsoft.Sql/servers@2023-08-01-preview' existing = {
+  name: sharedSqlServerName
+  scope: resourceGroup(sharedSqlResourceGroup)
+}
+
+// ── App Service Plan (F1 Free) ──────────────────────────────────────
 
 resource appServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name: '${baseName}-plan'
   location: location
   sku: {
-    name: 'B1'
-    tier: 'Basic'
+    name: 'F1'
+    tier: 'Free'
   }
   kind: 'linux'
   properties: {
@@ -48,7 +55,7 @@ resource apiApp 'Microsoft.Web/sites@2023-12-01' = {
       connectionStrings: [
         {
           name: 'WebBookmarksDatabase'
-          connectionString: 'Server=tcp:${sqlServer.properties.fullyQualifiedDomainName},1433;Database=${sqlDatabaseName};Authentication=Active Directory Default;Encrypt=True;TrustServerCertificate=False;'
+          connectionString: 'Server=tcp:${sharedSql.properties.fullyQualifiedDomainName},1433;Database=${sqlDatabaseName};Authentication=Active Directory Default;Encrypt=True;TrustServerCertificate=False;'
           type: 'SQLAzure'
         }
       ]
@@ -66,7 +73,9 @@ resource apiApp 'Microsoft.Web/sites@2023-12-01' = {
   }
 }
 
-// ── Static Web App (Frontend) ───────────────────────────────────────
+// ── Static Web App (Frontend, Free) ─────────────────────────────────
+// Free SKU: no linkedBackend (Standard-only). The SPA calls the App
+// Service API origin directly; CORS is handled in Program.cs.
 
 resource staticWebApp 'Microsoft.Web/staticSites@2023-12-01' = {
   name: '${baseName}-web'
@@ -83,65 +92,9 @@ resource staticWebApp 'Microsoft.Web/staticSites@2023-12-01' = {
   }
 }
 
-// ── Link Static Web App → API backend ───────────────────────────────
-
-resource swaBackendLink 'Microsoft.Web/staticSites/linkedBackends@2023-12-01' = {
-  parent: staticWebApp
-  name: 'api-backend'
-  properties: {
-    backendResourceId: apiApp.id
-    region: location
-  }
-}
-
-// ── SQL Server ──────────────────────────────────────────────────────
-
-resource sqlServer 'Microsoft.Sql/servers@2023-08-01-preview' = {
-  name: '${baseName}-sql'
-  location: location
-  properties: {
-    administratorLogin: sqlAdminLogin
-    administratorLoginPassword: sqlAdminPassword
-    minimalTlsVersion: '1.2'
-  }
-}
-
-// Enable Azure AD authentication on SQL Server
-resource sqlServerAadAdmin 'Microsoft.Sql/servers/administrators@2023-08-01-preview' = {
-  parent: sqlServer
-  name: 'ActiveDirectory'
-  properties: {
-    administratorType: 'ActiveDirectory'
-    login: apiApp.name
-    sid: apiApp.identity.principalId
-    tenantId: subscription().tenantId
-  }
-}
-
-resource sqlDatabase 'Microsoft.Sql/servers/databases@2023-08-01-preview' = {
-  parent: sqlServer
-  name: sqlDatabaseName
-  location: location
-  sku: {
-    name: 'Basic'
-    tier: 'Basic'
-  }
-}
-
-// Allow Azure services to access SQL Server
-resource sqlFirewallAllowAzure 'Microsoft.Sql/servers/firewallRules@2023-08-01-preview' = {
-  parent: sqlServer
-  name: 'AllowAzureServices'
-  properties: {
-    startIpAddress: '0.0.0.0'
-    endIpAddress: '0.0.0.0'
-  }
-}
-
 // ── Outputs ─────────────────────────────────────────────────────────
 
 output apiAppName string = apiApp.name
 output staticWebAppName string = staticWebApp.name
 output staticWebAppHostname string = staticWebApp.properties.defaultHostname
-output sqlServerFqdn string = sqlServer.properties.fullyQualifiedDomainName
 output apiPrincipalId string = apiApp.identity.principalId

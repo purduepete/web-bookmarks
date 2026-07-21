@@ -10,7 +10,7 @@ permissions:
     contents: read
 
 env:
-    AZURE_RESOURCE_GROUP: webbookmarks
+    AZURE_RESOURCE_GROUP: jimbpersonal-rg
     API_APP_NAME: webbookmarksapi
 
 jobs:

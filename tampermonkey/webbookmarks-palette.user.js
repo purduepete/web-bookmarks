@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      4.9.34
+// @version      4.9.35
 // @description  Press Ctrl+Alt+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
@@ -264,9 +264,9 @@
   // src/palette.user.js
   (function() {
     "use strict";
-    if (location.origin === "https://witty-hill-00503bc10.7.azurestaticapps.net") return;
+    if (location.origin === "https://thankful-island-02f0d720f.7.azurestaticapps.net") return;
     const API_BASE = "https://webbookmarksapi.azurewebsites.net/api/bookmarks";
-    const APP_URL = "https://witty-hill-00503bc10.7.azurestaticapps.net";
+    const APP_URL = "https://thankful-island-02f0d720f.7.azurestaticapps.net";
     let API_KEY = GM_getValue("apiKey", "");
     GM_registerMenuCommand("Set WebBookmarks API Key", () => {
       const k = prompt("Enter WebBookmarks API key:", API_KEY);

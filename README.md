@@ -163,7 +163,7 @@ This provisions: App Service Plan, App Service (with managed identity), Static W
 
 | Component | URL                                                     |
 | --------- | ------------------------------------------------------- |
-| Web App   | https://witty-hill-00503bc10.7.azurestaticapps.net/     |
+| Web App   | https://thankful-island-02f0d720f.7.azurestaticapps.net/     |
 | API       | https://webbookmarksapi.azurewebsites.net/api/bookmarks |
 
 ## Browser Setup: Allow Pop-ups
@@ -174,7 +174,7 @@ When opening multiple bookmarks via a shortcut, the browser needs permission to 
 
 1. Go to `edge://settings/content/popups`
 2. Under **Allow**, click **Add**
-3. Enter the site URL (e.g. `https://witty-hill-00503bc10.7.azurestaticapps.net`)
+3. Enter the site URL (e.g. `https://thankful-island-02f0d720f.7.azurestaticapps.net`)
 4. Click **Add**
 
 ### Chrome

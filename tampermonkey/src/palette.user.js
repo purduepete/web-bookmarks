@@ -20,10 +20,10 @@ import {
     'use strict';
 
     // Don't show palette on the web app (it has its own)
-    if (location.origin === 'https://witty-hill-00503bc10.7.azurestaticapps.net') return;
+    if (location.origin === 'https://thankful-island-02f0d720f.7.azurestaticapps.net') return;
 
     const API_BASE = 'https://webbookmarksapi.azurewebsites.net/api/bookmarks';
-    const APP_URL = 'https://witty-hill-00503bc10.7.azurestaticapps.net';
+    const APP_URL = 'https://thankful-island-02f0d720f.7.azurestaticapps.net';
 
     // ── API key (set once via the Tampermonkey menu, persisted with GM_setValue) ──
     let API_KEY = GM_getValue('apiKey', '');

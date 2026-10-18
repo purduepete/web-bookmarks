@@ -3,11 +3,24 @@ import { getApiKey, clearApiKey, notifyUnauthorized } from './auth';
 
 const API_BASE =
     import.meta.env.VITE_API_BASE ??
-    (import.meta.env.PROD ? 'https://webbookmarksapi.azurewebsites.net/api/bookmarks' : '/api/bookmarks');
+    (import.meta.env.PROD ? '/api/bookmarks' : '/api/bookmarks');
 
 // Per-request timeout, and a transient-only retry policy. We retry network
 // errors/timeouts and a small set of transient HTTP statuses with exponential
 // backoff + jitter — never 4xx (auth/validation) failures, which won't recover.
+
+export async function isGatewayAuthEnabled(): Promise<boolean> {
+    const authModeUrl = API_BASE.replace(/\/bookmarks\/?$/, '/auth-mode');
+    try {
+        const res = await fetchWithTimeout(authModeUrl);
+        if (!res.ok) return false;
+        const mode: unknown = await res.json();
+        return typeof mode === 'object' && mode !== null && 'gateway' in mode && mode.gateway === true;
+    } catch {
+        return false;
+    }
+}
+
 const REQUEST_TIMEOUT_MS = 15000;
 const MAX_RETRIES = 4;
 const BASE_RETRY_DELAY_MS = 500;

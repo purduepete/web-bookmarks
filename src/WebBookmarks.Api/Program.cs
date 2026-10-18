@@ -16,8 +16,16 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddDbContext<WebBookmarksContext>(options =>
 {
     var connectionString = builder.Configuration.GetConnectionString("WebBookmarksDatabase");
-    options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure());
+    var provider = builder.Configuration["DatabaseProvider"] ?? "SqlServer";
+    if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase))
+        options.UseNpgsql(connectionString, postgres => postgres.EnableRetryOnFailure());
+    else if (provider.Equals("SqlServer", StringComparison.OrdinalIgnoreCase))
+        options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure());
+    else
+        throw new InvalidOperationException($"Unsupported database provider: {provider}.");
 });
+
+builder.Services.AddHostedService<StopFileShutdownService>();
 
 // CORS. Allowed origins come from configuration ("Cors:AllowedOrigins"), so
 // production owns its origin list via an App Service setting / IaC instead of
@@ -37,34 +45,10 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// ── Ensure required indexes exist (self-healing) ────────────────────
-// The list/group queries filter by Profile and order by (BookmarkGroup, SortOrder).
-// These indexes are declared on the EF model, but the schema is managed out-of-band
-// (schema.sql + Database/001-add-indexes.sql), so a DB can exist without them. This
-// idempotent, guarded check creates them if missing on startup. It runs no DDL once
-// they exist (only a metadata read) and never crashes the app if it can't apply them
-// (e.g. the login lacks DDL rights, or the columns are still nvarchar(max) on a
-// legacy DB — in which case the out-of-band script remains the documented path).
-// CREATE INDEX uses ONLINE = ON so a first-time build never takes a schema-mod lock
-// on the live table (per DB-change review).
-using (var scope = app.Services.CreateScope())
+app.UseForwardedHeaders(new Microsoft.AspNetCore.Builder.ForwardedHeadersOptions
 {
-    var db = scope.ServiceProvider.GetRequiredService<WebBookmarksContext>();
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    try
-    {
-        await db.Database.ExecuteSqlRawAsync(@"
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_webbookmarkitems_Profile' AND object_id = OBJECT_ID('wb.webbookmarkitems'))
-    CREATE INDEX IX_webbookmarkitems_Profile ON wb.webbookmarkitems (Profile) WITH (ONLINE = ON);
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_webbookmarkitems_BookmarkGroup_SortOrder' AND object_id = OBJECT_ID('wb.webbookmarkitems'))
-    CREATE INDEX IX_webbookmarkitems_BookmarkGroup_SortOrder ON wb.webbookmarkitems (BookmarkGroup, SortOrder) WITH (ONLINE = ON);");
-        logger.LogInformation("Index check complete: required indexes present.");
-    }
-    catch (Exception ex)
-    {
-        logger.LogWarning(ex, "Could not ensure indexes exist; continuing. Apply Database/001-add-indexes.sql manually if needed.");
-    }
-}
+    ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto
+});
 
 if (app.Environment.IsDevelopment())
 {
@@ -76,16 +60,19 @@ else
     app.UseHttpsRedirection();
 }
 
+app.UseDefaultFiles();
+app.UseStaticFiles();
 app.UseCors();
 
 // ── API key authentication ──────────────────────────────────────────
 // Enabled only when an "ApiKey" value is configured (env var / user secret /
 // App Service setting). When unset, the API stays open (convenient for local dev).
 var apiKey = app.Configuration["ApiKey"];
+var gatewayAuth = app.Configuration.GetValue<bool>("GatewayAuth");
 
-// Fail fast in non-development environments if no key is configured, so a
-// misconfigured deploy can never go live as an open, unauthenticated API.
-if (!app.Environment.IsDevelopment() && string.IsNullOrEmpty(apiKey))
+// Fail fast in non-development environments unless an upstream gateway protects
+// every route or an API key is configured.
+if (!app.Environment.IsDevelopment() && !gatewayAuth && string.IsNullOrEmpty(apiKey))
 {
     throw new InvalidOperationException(
         "ApiKey is not configured. Set the 'ApiKey' application setting " +
@@ -103,7 +90,7 @@ app.Use(async (context, next) =>
         return;
     }
 
-    if (!string.IsNullOrEmpty(apiKey))
+    if (!gatewayAuth && !string.IsNullOrEmpty(apiKey))
     {
         var provided = context.Request.Headers["X-Api-Key"].ToString();
         if (!KeysMatch(apiKey, provided))
@@ -116,6 +103,10 @@ app.Use(async (context, next) =>
 
     await next();
 });
+
+app.MapGet("/api/auth-mode", () => Results.Ok(new { gateway = gatewayAuth }))
+    .WithName("GetAuthMode")
+    .WithOpenApi();
 
 // ── Health probe ────────────────────────────────────────────────────
 // Liveness/readiness for App Service healthCheckPath and CI smoke tests.
@@ -367,6 +358,8 @@ app.MapPost("/api/bookmarks/bulk-delete", async (List<int> ids, WebBookmarksCont
     .WithName("BulkDeleteBookmarks")
     .WithOpenApi();
 
+app.MapFallbackToFile("index.html");
+
 app.Run();
 
 static bool KeysMatch(string expected, string provided)
@@ -445,3 +438,31 @@ static Dictionary<string, string[]> TooMany(string field) =>
 
 record ReorderEntry(int Id, int SortOrder);
 record BulkUpdateRequest(List<int> Ids, string? Profile, string? BookmarkGroup, string? Shortcut, bool? IsVisible, bool? ClearShortcut, bool? IsFavorite);
+
+
+sealed class StopFileShutdownService : BackgroundService
+{
+    private readonly IHostApplicationLifetime _lifetime;
+    private readonly ILogger<StopFileShutdownService> _logger;
+
+    public StopFileShutdownService(IHostApplicationLifetime lifetime, ILogger<StopFileShutdownService> logger)
+    {
+        _lifetime = lifetime;
+        _logger = logger;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        var stopFile = Environment.GetEnvironmentVariable("SOLUTIONDEPLOY_STOP_FILE");
+        if (string.IsNullOrWhiteSpace(stopFile)) return;
+
+        using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(250));
+        while (await timer.WaitForNextTickAsync(stoppingToken))
+        {
+            if (!File.Exists(stopFile)) continue;
+            _logger.LogInformation("SolutionDeploy stop file detected; stopping the host.");
+            _lifetime.StopApplication();
+            return;
+        }
+    }
+}

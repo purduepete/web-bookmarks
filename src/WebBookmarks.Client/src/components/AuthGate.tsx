@@ -1,12 +1,27 @@
 import { useState, useEffect, type FormEvent, type ReactNode } from 'react';
 import { getApiKey, setApiKey, clearApiKey, onUnauthorized } from '../auth';
-import { validateApiKey } from '../api';
+import { isGatewayAuthEnabled, validateApiKey } from '../api';
 
 export function AuthGate({ children }: { children: ReactNode }) {
     const [authed, setAuthed] = useState(() => !!getApiKey());
     const [value, setValue] = useState('');
     const [error, setError] = useState('');
     const [checking, setChecking] = useState(false);
+    const [checkingGateway, setCheckingGateway] = useState(() => !getApiKey());
+
+    useEffect(() => {
+        if (getApiKey()) {
+            setCheckingGateway(false);
+            return;
+        }
+        let active = true;
+        void isGatewayAuthEnabled().then((enabled) => {
+            if (!active) return;
+            if (enabled) setAuthed(true);
+            setCheckingGateway(false);
+        });
+        return () => { active = false; };
+    }, []);
 
     // When any API call is rejected (401), drop back to the login gate in-place.
     // This catches a stale/rotated key that looked valid at mount (a key was
@@ -22,6 +37,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     );
 
     if (authed) return <>{children}</>;
+    if (checkingGateway) return null;
 
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();

@@ -43,3 +43,7 @@ Thumbs.db
 publish.zip
 publish/
 deploy.zip
+artifacts/
+migration-tool/bin/
+migration-tool/obj/
+migration-tool/source-snapshot.json

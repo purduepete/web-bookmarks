@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
-// @namespace    https://webbookmarksapi.azurewebsites.net
-// @version      4.9.35
+// @namespace    https://web-bookmarks.jimlertech.com
+// @version      4.9.36
 // @description  Press Ctrl+Alt+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
@@ -14,8 +14,7 @@
 // @grant        GM_openInTab
 // @grant        GM_getValue
 // @grant        GM_setValue
-// @grant        GM_registerMenuCommand
-// @connect      webbookmarksapi.azurewebsites.net
+// @connect      jimbrownhome1.tail8ad282.ts.net
 // @run-at       document-idle
 // @updateURL    https://gist.githubusercontent.com/purduepete/7e7bb1d0855d688bf683069e786ac524/raw/webbookmarks-palette.user.js
 // @downloadURL  https://gist.githubusercontent.com/purduepete/7e7bb1d0855d688bf683069e786ac524/raw/webbookmarks-palette.user.js
@@ -264,17 +263,9 @@
   // src/palette.user.js
   (function() {
     "use strict";
-    if (location.origin === "https://thankful-island-02f0d720f.7.azurestaticapps.net") return;
-    const API_BASE = "https://webbookmarksapi.azurewebsites.net/api/bookmarks";
-    const APP_URL = "https://thankful-island-02f0d720f.7.azurestaticapps.net";
-    let API_KEY = GM_getValue("apiKey", "");
-    GM_registerMenuCommand("Set WebBookmarks API Key", () => {
-      const k = prompt("Enter WebBookmarks API key:", API_KEY);
-      if (k !== null) {
-        API_KEY = k.trim();
-        GM_setValue("apiKey", API_KEY);
-      }
-    });
+    const API_BASE = "https://jimbrownhome1.tail8ad282.ts.net:8792/api/bookmarks";
+    const APP_URL = "https://web-bookmarks.jimlertech.com";
+    if (location.origin === APP_URL) return;
     const FONT_CSS = `
         @font-face {
             font-family: 'Roboto Flex';
@@ -724,7 +715,7 @@
         GM_xmlhttpRequest({
           method: "GET",
           url,
-          headers: { "X-Api-Key": API_KEY },
+          headers: {},
           timeout: 15e3,
           onload(res) {
             if (res.status !== 200) return reject(new Error("HTTP " + res.status));
@@ -748,7 +739,7 @@
         GM_xmlhttpRequest({
           method: "GET",
           url: API_BASE + "/profiles",
-          headers: { "X-Api-Key": API_KEY },
+          headers: {},
           timeout: 15e3,
           onload(res) {
             if (res.status !== 200) return reject(new Error("HTTP " + res.status));

@@ -1,150 +1,55 @@
-# API Key Authentication — Maintenance Guide
+# Authentication guide
 
-This is the operations runbook for the shared-key authentication that protects the
-WebBookmarks API. Read this before rotating the key, debugging `401`s, or turning
-auth on/off.
+Production access is controlled by Cloudflare Access and Tailscale. Local development and the retained Azure rollback can use the legacy `ApiKey` middleware.
 
-## How it works
+## Production gateway
 
-The API accepts requests only when they carry a valid `X-Api-Key` header. A single
-shared secret (the "API key") is compared in constant time against the configured
-value. There are **no user accounts** — it's one key shared by all clients.
+Cloudflare Access restricts `https://web-bookmarks.jimlertech.com` to Microsoft identities. Tailscale serves the app at `https://jimbrownhome1.tail8ad282.ts.net:8792`; the API binds to `127.0.0.1:8792` on the host. Both routes reach the same API, which runs with `GatewayAuth=true` and does not request an additional API key.
 
-```
-┌──────────────┐   X-Api-Key: <key>   ┌────────────────────┐
-│  Web app     │ ───────────────────▶ │                    │
-│  (browser)   │                      │   WebBookmarks API  │
-├──────────────┤   X-Api-Key: <key>   │  (App Service)      │
-│  Tampermonkey│ ───────────────────▶ │                    │
-│  palette     │                      │  middleware checks  │
-└──────────────┘                      │  ApiKey config      │
-                                       └────────────────────┘
-        missing / wrong key  ──▶  401 Unauthorized
-```
+The React app uses same-origin `/api` requests. Tampermonkey uses `https://jimbrownhome1.tail8ad282.ts.net:8792/api/bookmarks`, so its browser must be connected to Tailscale. The userscript sends no API key.
 
-**Enforcement is opt-in:** if the `ApiKey` configuration value is empty or unset,
-the middleware is skipped and the API stays open. Setting a non-empty value turns
-enforcement on. (`OPTIONS` preflight and `/swagger` always pass through.)
+## Local development and Azure rollback
 
-Implementation: `src/WebBookmarks.Api/Program.cs` (middleware + `KeysMatch` helper).
+With gateway mode disabled, the API can enforce `X-Api-Key` when `ApiKey` is configured. The middleware compares the supplied key in constant time. It exempts `OPTIONS`, `/swagger`, and `/healthz`. Without `GatewayAuth` or `ApiKey`, legacy mode has no authentication, so do not expose that configuration to an untrusted network.
 
-## Where the key lives (4 places)
-
-The **same** secret value must be present in all of these for the system to work
-end-to-end. If you change it, change it everywhere.
-
-| # | Location | Stored as | Used by |
-| - | -------- | --------- | ------- |
-| 1 | API — local dev | .NET User Secrets (`ApiKey`) | `dotnet run` on your machine |
-| 2 | API — production | Azure App Service app setting (`ApiKey`) | the deployed API |
-| 3 | Web app | Browser `localStorage` key `webbookmarks_api_key` | the React client |
-| 4 | Tampermonkey palette | `GM_setValue('apiKey', ...)` per browser | the userscript |
-
-> Items 3 and 4 are **per-browser/per-device** — every browser you use must have the
-> key entered once.
-
-## Creating a key
-
-The key is any hard-to-guess string you invent — there's no registration.
+Store a development key in .NET User Secrets:
 
 ```powershell
-# Generate a random 32-char key
-[guid]::NewGuid().ToString('N')
-```
-
-## Setting / rotating the key
-
-Do these in order. Set the **server** first, then update the clients, so you don't
-lock yourself out mid-change.
-
-### 1. API — local dev (User Secrets)
-
-```bash
 cd src/WebBookmarks.Api
 dotnet user-secrets set "ApiKey" "YOUR_SECRET_KEY"
-# verify
-dotnet user-secrets list
 ```
 
-### 2. API — production (App Service)
+For the retained Azure rollback, use the App Service setting:
 
-```bash
-az webapp config appsettings set -g webbookmarks -n webbookmarksapi \
-  --settings ApiKey="YOUR_SECRET_KEY"
-
-# verify the value actually saved (the set command redacts it as null in output)
-az webapp config appsettings list -g webbookmarks -n webbookmarksapi \
-  --query "[?name=='ApiKey'].value" -o tsv
+```powershell
+az webapp config appsettings set -g jimbpersonal-rg -n webbookmarksapi --settings ApiKey="YOUR_SECRET_KEY"
 ```
 
-Changing an app setting **restarts** the App Service automatically, so the new key
-takes effect within a few seconds.
+The Azure setting restarts the service. The public Azure UI and API remain available for rollback; the app's current production URL is `https://web-bookmarks.jimlertech.com`.
 
-### 3. Web app
+## Tampermonkey userscript
 
-Open the web app. If the stored key is now wrong, the first failed request returns
-`401`, which clears the stored key and shows the unlock prompt again — enter the new
-key. To reset manually: clear `localStorage` for the site, or run in the console:
+The current script calls the private Tailscale API URL and does not prompt for a key. Keep Tailscale connected on the browser device. The browser also needs access to `web-bookmarks.jimlertech.com` through Microsoft-only Cloudflare Access to use the public UI.
 
-```js
-localStorage.removeItem('webbookmarks_api_key');
-```
-
-### 4. Tampermonkey palette
-
-In the Tampermonkey menu (on any page where the script runs), choose
-**Set WebBookmarks API Key** and paste the new value. Repeat in every browser/profile.
-
-## Updating the Tampermonkey gist
-
-The userscript that browsers actually run is served from a **GitHub gist**, not this
-repo. The repo copy at `tampermonkey/webbookmarks-palette.user.js` is the source of
-truth; the gist is the deployment target.
-
-- Gist ID: `7e7bb1d0855d688bf683069e786ac524`
-- The script's `@updateURL` / `@downloadURL` point at this gist's raw URL.
-
-After changing the script in the repo (and bumping `@version`), publish it:
-
-```bash
-# from the repo root, push the current main version to the gist
-git show origin/main:tampermonkey/webbookmarks-palette.user.js > palette.user.js
-gh gist edit 7e7bb1d0855d688bf683069e786ac524 -f webbookmarks-palette.user.js palette.user.js
-del palette.user.js   # (rm on macOS/Linux)
-```
-
-Tampermonkey picks up the new `@version` on its next update check; you can force it
-from the Tampermonkey dashboard (**Check for userscript updates**).
-
-> Always bump `@version` when you change the script, or Tampermonkey won't update it.
-
-## Disabling auth
-
-Set `ApiKey` to an empty string (or remove the setting) on the API:
-
-```bash
-az webapp config appsettings set -g webbookmarks -n webbookmarksapi --settings ApiKey=""
-```
-
-With auth disabled, the API ignores the header, so existing clients keep working.
+The userscript source is in `tampermonkey/src/`. After a source change, bump `@version` in `tampermonkey/src/header.txt`, run `npm run build` from `tampermonkey`, commit the regenerated `webbookmarks-palette.user.js`, then update Gist `7e7bb1d0855d688bf683069e786ac524` with that generated file. Tampermonkey downloads the new version on its next update check.
 
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
 | ------- | ------------ | --- |
-| Web app keeps showing the unlock prompt | Stored key doesn't match the server key | Re-enter the current key; confirm prod `ApiKey` value |
-| Palette stops loading bookmarks (after enabling auth) | Gist not updated, or key not set in Tampermonkey | Update the gist; run **Set WebBookmarks API Key** |
-| All requests 401 right after rotation | Clients still have the old key | Update key in web app + Tampermonkey (steps 3–4) |
-| Requests succeed without any key | Auth is disabled | `ApiKey` is empty/unset on the API — set a value |
-| CORS error mentioning `X-Api-Key` | Preflight didn't allow the header | Ensure the API/App Service CORS allows the `X-Api-Key` request header |
+| Public site redirects to Microsoft sign-in | Cloudflare Access is active | Sign in with an allowed Microsoft identity |
+| Private site does not load | Device is off Tailscale or port 8792 is unavailable | Connect Tailscale; check Tailscale Serve and the managed app task |
+| Tampermonkey cannot load bookmarks | Browser is off Tailscale or the private API URL is stale | Connect Tailscale and verify the API URL in `tampermonkey/src/palette.user.js` |
+| Azure rollback returns 401 | Its legacy `ApiKey` is configured and client key is stale | Update the rollback setting and legacy client key, or restore the previous setting |
+| Production browser reports a CORS error | The public UI is using a cross-origin API base URL | Use same-origin `/api` for the public app; Tampermonkey uses its private endpoint |
 
 ## File reference
 
 | Concern | File |
 | ------- | ---- |
-| API middleware + key compare | `src/WebBookmarks.Api/Program.cs` |
-| `ApiKey` config placeholder | `src/WebBookmarks.Api/appsettings.json` |
-| Client key storage helpers | `src/WebBookmarks.Client/src/auth.ts` |
-| Header injection + 401 handling | `src/WebBookmarks.Client/src/api.ts` (`apiFetch`) |
-| Login gate UI | `src/WebBookmarks.Client/src/components/AuthGate.tsx` |
-| Userscript (repo source) | `tampermonkey/webbookmarks-palette.user.js` |
+| Gateway and legacy API-key middleware | `src/WebBookmarks.Api/Program.cs` |
+| `ApiKey` placeholder | `src/WebBookmarks.Api/appsettings.json` |
+| Legacy client key storage | `src/WebBookmarks.Client/src/auth.ts` |
+| API request URL and key handling | `src/WebBookmarks.Client/src/api.ts` |
+| Gateway-mode login gate | `src/WebBookmarks.Client/src/components/AuthGate.tsx` |
+| Userscript source | `tampermonkey/src/palette.user.js` |

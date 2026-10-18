@@ -1,6 +1,6 @@
 # WebBookmarks Command Palette (Tampermonkey userscript)
 
-A userscript that brings the WebBookmarks command palette to any page. Press
+A userscript that brings the WebBookmarks command palette to any page. It reaches the API through the private Tailscale URL, so the browser must be connected to the tailnet. Press
 `Ctrl+Alt+/` to open it, search/filter bookmarks, and navigate.
 
 ## Architecture — one source of truth
@@ -30,6 +30,10 @@ handling, styling) is genuinely different between the two.
 | `src/header.txt` | The `==UserScript==` metadata block. **`@version` lives here.** |
 | `build.mjs` | esbuild build: bundles the source + core, prepends `header.txt` as a banner. |
 | `webbookmarks-palette.user.js` | **Generated output** — the shippable file. **Do not edit by hand** (it is overwritten on every build). |
+
+## Production endpoint
+
+The API endpoint is `https://jimbrownhome1.tail8ad282.ts.net:8792/api/bookmarks`. The public web app is `https://web-bookmarks.jimlertech.com`; Cloudflare Access restricts it to Microsoft identities. The userscript does not need an API key.
 
 ## Build
 

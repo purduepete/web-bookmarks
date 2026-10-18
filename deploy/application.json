@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "id": "web-bookmarks",
+  "repository": "https://github.com/purduepete/web-bookmarks.git",
+  "database": {
+    "engine": "postgresql",
+    "name": "web_bookmarks",
+    "connectionEnvironment": "ConnectionStrings__WebBookmarksDatabase",
+    "schemaVersion": 1,
+    "migrationsDirectory": "deploy\\postgresql",
+    "backupFormat": "custom"
+  },
+  "runtime": {
+    "kind": "node",
+    "minimumVersion": "22.12.0"
+  },
+  "launch": {
+    "entrypoint": "deploy\\run.js",
+    "arguments": [],
+    "port": 8792,
+    "environment": {
+      "ASPNETCORE_ENVIRONMENT": "Production",
+      "ASPNETCORE_URLS": "http://127.0.0.1:8792",
+      "DatabaseProvider": "PostgreSQL",
+      "GatewayAuth": "true",
+      "DOTNET_EXE": "C:\\Program Files\\dotnet\\dotnet.exe",
+      "DOTNET_DLL": "{release}\\WebBookmarks.Api.dll"
+    },
+    "secretFile": "app.env",
+    "stopFileEnvironment": "SOLUTIONDEPLOY_STOP_FILE"
+  },
+  "readiness": {
+    "path": "/healthz",
+    "expected": {
+      "status": "healthy"
+    },
+    "timeoutSeconds": 90
+  },
+  "state": [],
+  "routes": [
+    {
+      "hostname": "web-bookmarks.jimlertech.com"
+    },
+    {
+      "hostname": "webbookmarks.jimlertech.com"
+    }
+  ]
+}

@@ -5,6 +5,7 @@ import {
     inBulkChunks,
     MAX_BULK_ITEMS,
     validateApiKey,
+    isGatewayAuthEnabled,
     validateBulkItem,
     hasUnsafeScheme,
     bulkCreateBookmarks,
@@ -26,6 +27,23 @@ function makeItem(overrides: Partial<Omit<WebBookmarksItem, 'id'>> = {}): Omit<W
         ...overrides,
     };
 }
+
+describe('isGatewayAuthEnabled', () => {
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('detects gateway authentication from the API mode endpoint', async () => {
+        const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ gateway: true }) });
+        vi.stubGlobal('fetch', fetchMock);
+
+        await expect(isGatewayAuthEnabled()).resolves.toBe(true);
+        expect(fetchMock).toHaveBeenCalledWith('/api/auth-mode', expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    });
+
+    it('keeps the API-key gate when gateway mode is unavailable', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({ gateway: true }) }));
+        await expect(isGatewayAuthEnabled()).resolves.toBe(false);
+    });
+});
 
 // Locks in the transient-only retry policy (fix from #23 / R4): the retry loop
 // must retry timeouts, network failures and transient 5xx, but NEVER 4xx

@@ -1,8 +1,6 @@
 name: Deploy WebBookmarks
 
 on:
-    push:
-        branches: [main]
     workflow_dispatch:
 
 permissions:
@@ -71,6 +69,8 @@ jobs:
 
             - name: Install & Build Client
               working-directory: src/WebBookmarks.Client
+              env:
+                  VITE_API_BASE: https://webbookmarksapi.azurewebsites.net/api/bookmarks
               run: |
                   npm ci
                   npm run build

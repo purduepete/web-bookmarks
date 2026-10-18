@@ -1,15 +1,15 @@
 # Web Bookmarks
 
-A personal bookmark manager with a .NET 9 API and React frontend, deployed to Azure.
+A personal bookmark manager with a .NET 9 API, React frontend, and PostgreSQL database on `jimbrownhome1`.
 
 ## Architecture
 
-| Component | Technology                      | Azure Host                   |
+| Component | Technology                      | Production host              |
 | --------- | ------------------------------- | ---------------------------- |
-| Frontend  | React 19 + Vite + Bootstrap 5   | Azure Static Web Apps (Free) |
-| API       | .NET 9 Minimal API + EF Core    | Azure App Service (B1)       |
-| Database  | SQL Server                      | Azure SQL (Basic)            |
-| Auth      | Managed Identity (passwordless) | —                            |
+| Frontend  | React 19 + Vite + Bootstrap 5   | .NET API static hosting on `jimbrownhome1` |
+| API       | .NET 9 Minimal API + EF Core    | Windows service task, loopback port 8792 |
+| Database  | PostgreSQL 18                   | `web_bookmarks`, `public` schema |
+| Auth      | Microsoft-only Cloudflare Access and Tailscale | — |
 
 ## Features
 
@@ -19,7 +19,7 @@ A personal bookmark manager with a .NET 9 API and React frontend, deployed to Az
 - **Alias conflict detection** — warns on partial matches (e.g. `_stwp` vs `_stwpl`) both in the modal and inline with ⚠ icons
 - **Show / Hide hidden bookmarks** — toggle to reveal hidden bookmarks (dimmed at 40% opacity)
 - **Prompt mode** — optional browser prompt for quick shortcut-based navigation
-- **API key gate** — a single shared key locks the API; the web app and Tampermonkey palette ask for it once and remember it
+- **Access gate** — Microsoft-only Cloudflare Access protects the public site; Tailscale protects the private app endpoint
 
 ## Project Structure
 
@@ -45,7 +45,7 @@ azure.yaml                    # Azure Developer CLI manifest
 
 - .NET 9 SDK
 - Node.js 20+
-- Azure CLI (for managed identity local auth)
+- Azure CLI (for Azure SQL local development)
 
 ### API
 
@@ -58,29 +58,13 @@ dotnet run
 # → http://localhost:5288  (Swagger at /swagger)
 ```
 
-## Authentication (API key)
+## Authentication
 
-The API is protected by a single shared key. Requests must send it in an `X-Api-Key` header; anything else gets `401 Unauthorized`.
+Production traffic enters through Microsoft-only Cloudflare Access or the Tailscale private service. In gateway mode, the API does not ask for an extra key. Local development and the retained Azure rollback continue to support the optional `ApiKey` middleware described in [`docs/authentication.md`](docs/authentication.md).
 
-**Configure the key** (the API reads the `ApiKey` configuration value):
+Local development and the retained Azure rollback can use `ApiKey` from User Secrets or an Azure App Service setting. Production sets `GatewayAuth=true`; Cloudflare Access and Tailscale control entry, so the browser and Tampermonkey script do not prompt for a second key.
 
-```bash
-# Local dev — store it in User Secrets
-cd src/WebBookmarks.Api
-dotnet user-secrets set "ApiKey" "YOUR_SECRET_KEY"
-
-# Production — set it as an Azure App Service application setting
-az webapp config appsettings set -g webbookmarks -n webbookmarksapi --settings ApiKey="YOUR_SECRET_KEY"
-```
-
-> If `ApiKey` is left empty/unset, authentication is disabled (the API stays open). Set a value to enforce it.
-
-**Clients enter the key once:**
-
-- **Web app** — prompts for the key on first load and stores it in `localStorage` (sent on every request). On a `401` it clears the key and re-prompts.
-- **Tampermonkey palette** — run **Set WebBookmarks API Key** from the Tampermonkey menu; it's saved with `GM_setValue` and reused on every request.
-
-> 📖 For key rotation, updating the Tampermonkey gist, disabling auth, and troubleshooting, see [`docs/authentication.md`](docs/authentication.md).
+> 📖 See [`docs/authentication.md`](docs/authentication.md) for the legacy API-key mode and production gateway setup.
 
 ### Frontend
 
@@ -93,7 +77,7 @@ npm run dev
 
 ### Tampermonkey userscript
 
-The command palette is also available as a Tampermonkey userscript. It shares its
+The command palette is also available as a Tampermonkey userscript. The script calls the private API through Tailscale, so the browser must be connected to the tailnet. It shares its
 pure logic with the web app (via `src/WebBookmarks.Client/src/palette-core`) and
 is **built** from source with esbuild — the shipped file is generated, so edit
 `tampermonkey/src/`, not the generated `.user.js`.
@@ -119,26 +103,22 @@ To skip in an emergency: `git commit --no-verify`
 
 ## Deployment
 
-### Option 1: Azure Developer CLI (recommended)
+### Current production hosting
 
-```bash
-azd init
-azd up
-```
+The production app runs on `jimbrownhome1`. Cloudflare Access restricts the public hostname to Microsoft identities, and Tailscale provides private access on port 8792. The API uses the local PostgreSQL 18 database `web_bookmarks` and listens only on loopback. The Tampermonkey script uses the private Tailscale URL, so the browser must be connected to the tailnet.
 
-### Option 2: GitHub Actions
+The Azure resources and shared Azure SQL database remain in place for rollback. The Azure deploy workflow now runs only through manual `workflow_dispatch`.
 
-1. Set these repository secrets:
-    - `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` (for OIDC login)
-    - `SWA_DEPLOYMENT_TOKEN` (from your Static Web App)
-2. Push to `main` — the workflow builds and deploys both projects.
+### Azure rollback deployment (manual)
 
-### Option 3: Manual
+The Azure resources and SQL database remain available. The deploy workflow is manual-only. Use **Actions → Deploy WebBookmarks → Run workflow** to restore Azure hosting intentionally. `azd up` can also recreate resources, so review its plan before use.
+
+### Manual Azure rollback
 
 ```bash
 # API
 dotnet publish src/WebBookmarks.Api -c Release -o ./publish
-az webapp deploy --resource-group webbookmarkapi --name webbookmarks-api --src-path ./publish
+az webapp deploy --resource-group jimbpersonal-rg --name webbookmarksapi --src-path ./publish
 
 # Frontend
 cd src/WebBookmarks.Client && npm run build
@@ -151,7 +131,7 @@ Deploy Azure resources with Bicep:
 
 ```bash
 az deployment group create \
-  --resource-group webbookmarkapi \
+  --resource-group jimbpersonal-rg \
   --template-file infra/main.bicep \
   --parameters infra/main.parameters.json \
   --parameters sqlAdminLogin=YOUR_ADMIN sqlAdminPassword=YOUR_PASSWORD
@@ -163,8 +143,10 @@ This provisions: App Service Plan, App Service (with managed identity), Static W
 
 | Component | URL                                                     |
 | --------- | ------------------------------------------------------- |
-| Web App   | https://thankful-island-02f0d720f.7.azurestaticapps.net/     |
-| API       | https://webbookmarksapi.azurewebsites.net/api/bookmarks |
+| Web App   | https://web-bookmarks.jimlertech.com/ |
+| Private app | https://jimbrownhome1.tail8ad282.ts.net:8792 |
+| Alias | https://webbookmarks.jimlertech.com/ |
+| Tampermonkey API | https://jimbrownhome1.tail8ad282.ts.net:8792/api/bookmarks |
 
 ## Browser Setup: Allow Pop-ups
 
@@ -174,7 +156,7 @@ When opening multiple bookmarks via a shortcut, the browser needs permission to 
 
 1. Go to `edge://settings/content/popups`
 2. Under **Allow**, click **Add**
-3. Enter the site URL (e.g. `https://thankful-island-02f0d720f.7.azurestaticapps.net`)
+3. Enter the site URL (e.g. `https://web-bookmarks.jimlertech.com`)
 4. Click **Add**
 
 ### Chrome

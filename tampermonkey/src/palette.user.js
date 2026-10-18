@@ -19,21 +19,11 @@ import {
 (function () {
     'use strict';
 
-    // Don't show palette on the web app (it has its own)
-    if (location.origin === 'https://thankful-island-02f0d720f.7.azurestaticapps.net') return;
+    const API_BASE = 'https://jimbrownhome1.tail8ad282.ts.net:8792/api/bookmarks';
+    const APP_URL = 'https://web-bookmarks.jimlertech.com';
 
-    const API_BASE = 'https://webbookmarksapi.azurewebsites.net/api/bookmarks';
-    const APP_URL = 'https://thankful-island-02f0d720f.7.azurestaticapps.net';
-
-    // ── API key (set once via the Tampermonkey menu, persisted with GM_setValue) ──
-    let API_KEY = GM_getValue('apiKey', '');
-    GM_registerMenuCommand('Set WebBookmarks API Key', () => {
-        const k = prompt('Enter WebBookmarks API key:', API_KEY);
-        if (k !== null) {
-            API_KEY = k.trim();
-            GM_setValue('apiKey', API_KEY);
-        }
-    });
+    // Don't show palette on the web app (it has its own).
+    if (location.origin === APP_URL) return;
 
     // ── Embed Roboto Flex (same font the web app uses) as base64 @font-face so it ──
     // ── renders identically everywhere, immune to host-page CSP / offline. Injected ──
@@ -542,7 +532,7 @@ import {
             GM_xmlhttpRequest({
                 method: 'GET',
                 url: url,
-                headers: { 'X-Api-Key': API_KEY },
+                headers: {},
                 timeout: 15000,
                 onload(res) {
                     if (res.status !== 200) return reject(new Error('HTTP ' + res.status));
@@ -567,7 +557,7 @@ import {
             GM_xmlhttpRequest({
                 method: 'GET',
                 url: API_BASE + '/profiles',
-                headers: { 'X-Api-Key': API_KEY },
+                headers: {},
                 timeout: 15000,
                 onload(res) {
                     if (res.status !== 200) return reject(new Error('HTTP ' + res.status));

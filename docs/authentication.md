@@ -19,13 +19,7 @@ cd src/WebBookmarks.Api
 dotnet user-secrets set "ApiKey" "YOUR_SECRET_KEY"
 ```
 
-For the retained Azure rollback, use the App Service setting:
-
-```powershell
-az webapp config appsettings set -g jimbpersonal-rg -n webbookmarksapi --settings ApiKey="YOUR_SECRET_KEY"
-```
-
-The Azure setting restarts the service. The public Azure UI and API remain available for rollback; the app's current production URL is `https://web-bookmarks.jimlertech.com`.
+The production URL is `https://web-bookmarks.jimlertech.com`. The Azure hosting was deleted on 2026-10-18.
 
 ## Tampermonkey userscript
 

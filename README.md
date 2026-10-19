@@ -107,27 +107,11 @@ To skip in an emergency: `git commit --no-verify`
 
 The production app runs on `jimbrownhome1`. Cloudflare Access restricts the public hostname to Microsoft identities, and Tailscale provides private access on port 8792. The API uses the local PostgreSQL 18 database `web_bookmarks` and listens only on loopback. The Tampermonkey script uses the private Tailscale URL, so the browser must be connected to the tailnet.
 
-The Azure resources and shared Azure SQL database remain in place for rollback. The Azure deploy workflow now runs only through manual `workflow_dispatch`.
+The Azure App Service (`webbookmarksapi`), its plan, and the Static Web App were deleted on 2026-10-18, along with the Azure deploy workflow. The original bookmark rows are still in the shared Azure SQL database.
 
-### Azure rollback deployment (manual)
+## Infrastructure (retired Azure hosting)
 
-The Azure resources and SQL database remain available. The deploy workflow is manual-only. Use **Actions → Deploy WebBookmarks → Run workflow** to restore Azure hosting intentionally. `azd up` can also recreate resources, so review its plan before use.
-
-### Manual Azure rollback
-
-```bash
-# API
-dotnet publish src/WebBookmarks.Api -c Release -o ./publish
-az webapp deploy --resource-group jimbpersonal-rg --name webbookmarksapi --src-path ./publish
-
-# Frontend
-cd src/WebBookmarks.Client && npm run build
-# Deploy dist/ to Static Web Apps via SWA CLI or Azure Portal
-```
-
-## Infrastructure
-
-Deploy Azure resources with Bicep:
+`infra/main.bicep` recreates the old Azure hosting from scratch if it is ever needed:
 
 ```bash
 az deployment group create \
@@ -145,7 +129,6 @@ This provisions: App Service Plan, App Service (with managed identity), Static W
 | --------- | ------------------------------------------------------- |
 | Web App   | https://web-bookmarks.jimlertech.com/ |
 | Private app | https://jimbrownhome1.tail8ad282.ts.net:8792 |
-| Alias | https://webbookmarks.jimlertech.com/ |
 | Tampermonkey API | https://jimbrownhome1.tail8ad282.ts.net:8792/api/bookmarks |
 
 ## Browser Setup: Allow Pop-ups

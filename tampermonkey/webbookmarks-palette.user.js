@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://web-bookmarks.jimlertech.com
-// @version      4.9.37
+// @version      4.9.38
 // @description  Press Ctrl+Alt+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
@@ -14,7 +14,8 @@
 // @grant        GM_openInTab
 // @grant        GM_getValue
 // @grant        GM_setValue
-// @connect      jimbrownhome1.tail8ad282.ts.net
+// @connect      web-bookmarks.jimlertech.com
+// @connect      yellow-field-eef5.cloudflareaccess.com
 // @run-at       document-idle
 // @updateURL    https://gist.githubusercontent.com/purduepete/7e7bb1d0855d688bf683069e786ac524/raw/webbookmarks-palette.user.js
 // @downloadURL  https://gist.githubusercontent.com/purduepete/7e7bb1d0855d688bf683069e786ac524/raw/webbookmarks-palette.user.js
@@ -263,8 +264,8 @@
   // src/palette.user.js
   (function() {
     "use strict";
-    const API_BASE = "https://jimbrownhome1.tail8ad282.ts.net:8792/api/bookmarks";
     const APP_URL = "https://web-bookmarks.jimlertech.com";
+    const API_BASE = APP_URL + "/api/bookmarks";
     if (location.origin === APP_URL) return;
     const FONT_CSS = `
         @font-face {
@@ -709,15 +710,21 @@
       }
       return [...map.entries()].map(([name, items2]) => ({ name, items: items2 }));
     }
-    function fetchBookmarks(profile) {
-      const url = profile ? API_BASE + "?profile=" + encodeURIComponent(profile) : API_BASE;
+    function requestApi(url) {
       return new Promise((resolve, reject) => {
         GM_xmlhttpRequest({
           method: "GET",
           url,
+          anonymous: false,
           headers: {},
           timeout: 15e3,
           onload(res) {
+            const finalUrl = new URL(res.finalUrl || url);
+            if (res.status === 401 || res.status === 403 || res.status >= 300 && res.status < 400 || finalUrl.origin !== APP_URL || finalUrl.pathname.startsWith("/cdn-cgi/access/") || res.status === 200 && /^\s*</.test(res.responseText)) {
+              const error = new Error("Sign in to WebBookmarks, then reopen the palette.");
+              error.name = "SignInRequiredError";
+              return reject(error);
+            }
             if (res.status !== 200) return reject(new Error("HTTP " + res.status));
             try {
               resolve(JSON.parse(res.responseText));
@@ -725,8 +732,8 @@
               reject(e);
             }
           },
-          onerror(e) {
-            reject(e);
+          onerror() {
+            reject(new Error("Cannot reach WebBookmarks. Check your connection and sign in at " + APP_URL));
           },
           ontimeout() {
             reject(new Error("Request timed out"));
@@ -734,29 +741,11 @@
         });
       });
     }
+    function fetchBookmarks(profile) {
+      return requestApi(profile ? API_BASE + "?profile=" + encodeURIComponent(profile) : API_BASE);
+    }
     function fetchProfiles() {
-      return new Promise((resolve, reject) => {
-        GM_xmlhttpRequest({
-          method: "GET",
-          url: API_BASE + "/profiles",
-          headers: {},
-          timeout: 15e3,
-          onload(res) {
-            if (res.status !== 200) return reject(new Error("HTTP " + res.status));
-            try {
-              resolve(JSON.parse(res.responseText));
-            } catch (e) {
-              reject(e);
-            }
-          },
-          onerror(e) {
-            reject(e);
-          },
-          ontimeout() {
-            reject(new Error("Request timed out"));
-          }
-        });
-      });
+      return requestApi(API_BASE + "/profiles");
     }
     async function getGroups() {
       const profile = getActiveProfile();
@@ -769,15 +758,13 @@
       fetchProfiles().then((p) => {
         cachedProfiles = p;
         GM_setValue("cachedProfiles", p);
-      }).catch(() => {
-      });
+      }).catch((err) => console.error("[WebBookmarks] Failed to fetch profiles:", err));
       return cachedGroups;
     }
     let paletteOpen = false;
     let shadowHost = null;
     let activePaletteHandle = null;
-    getGroups().catch(() => {
-    });
+    getGroups().catch((err) => console.error("[WebBookmarks] Failed to prefetch bookmarks:", err));
     function buildEntries(groups, profiles) {
       const actions = [
         {
@@ -1498,13 +1485,22 @@
           }
           render();
         },
-        setError(msg) {
+        setError(msg, signInRequired = false) {
           loading = false;
           listEl.replaceChildren();
           const el = document.createElement("div");
           el.className = "wbp-empty";
           el.textContent = "Failed to load: " + msg;
           listEl.appendChild(el);
+          if (signInRequired) {
+            const button = document.createElement("button");
+            button.textContent = "Sign in to WebBookmarks";
+            button.addEventListener("click", () => {
+              GM_openInTab(APP_URL, { active: true, insert: true });
+            });
+            el.appendChild(document.createElement("br"));
+            el.appendChild(button);
+          }
         }
       };
       return activePaletteHandle;
@@ -1523,7 +1519,9 @@
         getGroups().then((freshGroups) => {
           const freshProfiles = cachedProfiles || profiles;
           if (paletteOpen) handle2.setData(freshGroups, freshProfiles);
-        }).catch(() => {
+        }).catch((err) => {
+          console.error("[WebBookmarks] Failed to refresh bookmarks:", err);
+          if (paletteOpen && err.name === "SignInRequiredError") handle2.setError(err.message, true);
         });
         return;
       }
@@ -1535,7 +1533,7 @@
         if (paletteOpen) handle.setData(groups, freshProfiles);
       } catch (err) {
         console.error("[WebBookmarks] Failed to fetch bookmarks:", err);
-        if (paletteOpen) handle.setError(err.message);
+        if (paletteOpen) handle.setError(err.message, err.name === "SignInRequiredError");
       }
     }
     window.addEventListener(

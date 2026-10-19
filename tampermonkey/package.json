@@ -5,7 +5,8 @@
     "type": "module",
     "description": "Build for the WebBookmarks Tampermonkey command palette userscript. Bundles the shared palette-core logic into the shippable userscript via esbuild.",
     "scripts": {
-        "build": "node build.mjs"
+        "build": "node build.mjs",
+        "test": "node --test"
     },
     "devDependencies": {
         "esbuild": "^0.25.0"

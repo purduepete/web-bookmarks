@@ -77,7 +77,7 @@ npm run dev
 
 ### Tampermonkey userscript
 
-The command palette is also available as a Tampermonkey userscript. The script calls the private API through Tailscale, so the browser must be connected to the tailnet. It shares its
+The command palette is also available as a Tampermonkey userscript. The script calls the public API through Cloudflare Access. Sign in at the public site in the same browser profile; Tailscale is not required. It shares its
 pure logic with the web app (via `src/WebBookmarks.Client/src/palette-core`) and
 is **built** from source with esbuild — the shipped file is generated, so edit
 `tampermonkey/src/`, not the generated `.user.js`.
@@ -105,7 +105,7 @@ To skip in an emergency: `git commit --no-verify`
 
 ### Current production hosting
 
-The production app runs on `jimbrownhome1`. Cloudflare Access restricts the public hostname to Microsoft identities, and Tailscale provides private access on port 8792. The API uses the local PostgreSQL 18 database `web_bookmarks` and listens only on loopback. The Tampermonkey script uses the private Tailscale URL, so the browser must be connected to the tailnet.
+The production app runs on `jimbrownhome1`. Cloudflare Access restricts the public hostname to Microsoft identities, and Tailscale provides private access on port 8792. The API uses the local PostgreSQL 18 database `web_bookmarks` and listens only on loopback. The Tampermonkey script uses the public hostname with the browser's Cloudflare Access session, so Tailscale is not required.
 
 The Azure App Service (`webbookmarksapi`), its plan, and the Static Web App were deleted on 2026-10-18, along with the Azure deploy workflow. The original bookmark rows are still in the shared Azure SQL database.
 
@@ -129,7 +129,7 @@ This provisions: App Service Plan, App Service (with managed identity), Static W
 | --------- | ------------------------------------------------------- |
 | Web App   | https://web-bookmarks.jimlertech.com/ |
 | Private app | https://jimbrownhome1.tail8ad282.ts.net:8792 |
-| Tampermonkey API | https://jimbrownhome1.tail8ad282.ts.net:8792/api/bookmarks |
+| Tampermonkey API | https://web-bookmarks.jimlertech.com/api/bookmarks |
 
 ## Browser Setup: Allow Pop-ups
 

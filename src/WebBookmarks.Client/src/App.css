@@ -54,6 +54,24 @@
     color-scheme: dark;
 }
 
+.app-tooltip {
+    position: fixed;
+    z-index: 10000;
+    width: max-content;
+    max-width: min(320px, calc(100vw - 16px));
+    max-height: calc(100dvh - 16px);
+    overflow: auto;
+    overflow-wrap: anywhere;
+    white-space: pre-line;
+    padding: 6px 10px;
+    border: 1px solid var(--line);
+    border-radius: 0;
+    background: var(--surface);
+    color: var(--text);
+    font: 400 12px/1.5 var(--font);
+    box-shadow: var(--shadow-sm);
+}
+
 * {
     scrollbar-width: thin;
     scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);

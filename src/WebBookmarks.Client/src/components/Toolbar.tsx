@@ -66,7 +66,12 @@ export default function Toolbar({
                 onChange={(e) => onSearchChange(e.target.value)}
                 onKeyDown={onSearchKeyDown}
             />
-            <button className="btn-palette input-group-text" onClick={onOpenPalette} title="Command Palette (Ctrl+Alt+/)">
+            <button
+                className="btn-palette input-group-text"
+                onClick={onOpenPalette}
+                aria-label="Command Palette"
+                data-tip="Command Palette (Ctrl+Alt+/)"
+            >
                 <svg
                     width="14"
                     height="14"
@@ -82,7 +87,12 @@ export default function Toolbar({
                 </svg>
             </button>
             <div className="dropdown-options-wrap" ref={optionsRef}>
-                <button className="btn-options input-group-text" onClick={onToggleOptions} title="Options">
+                <button
+                    className="btn-options input-group-text"
+                    onClick={onToggleOptions}
+                    aria-label="Options"
+                    data-tip="Options"
+                >
                     <svg
                         width="14"
                         height="14"
@@ -219,7 +229,12 @@ export default function Toolbar({
                     None
                 </label>
             </span>
-            <button className="btn-new-bookmark input-group-text" onClick={onNewBookmark} title="New Bookmark">
+            <button
+                className="btn-new-bookmark input-group-text"
+                onClick={onNewBookmark}
+                aria-label="New Bookmark"
+                data-tip="New Bookmark"
+            >
                 +
             </button>
             <button

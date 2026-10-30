@@ -39,7 +39,15 @@ function SortableRow({
     conflictIds: Set<number>;
     editMode: boolean;
 }) {
-    const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        setActivatorNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({
         id: item.id,
     });
 
@@ -55,7 +63,8 @@ function SortableRow({
                 <button
                     className={`btn-favorite${item.isFavorite ? ' btn-favorite-active' : ''}`}
                     onClick={() => onToggleFavorite(item)}
-                    title={item.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                    aria-label={item.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                    data-tip={item.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
                 >
                     {item.isFavorite ? (
                         <svg
@@ -89,7 +98,8 @@ function SortableRow({
                     className={`drag-handle${editMode ? '' : ' edit-hidden'}`}
                     ref={setActivatorNodeRef}
                     {...(editMode ? { ...attributes, ...listeners } : {})}
-                    title="Drag to reorder"
+                    aria-label="Drag to reorder"
+                    data-tip="Drag to reorder"
                 >
                     <svg
                         width="14"
@@ -110,9 +120,17 @@ function SortableRow({
             <td className="col3">
                 <div className="shortcut-wrap">
                     {item.shortcut && (
-                        <span className={`shortcut-label${conflictIds.has(item.id) ? ' shortcut-conflict' : ''}`}>
+                        <span
+                            className={`shortcut-label${conflictIds.has(item.id) ? ' shortcut-conflict' : ''}`}
+                        >
                             {conflictIds.has(item.id) && (
-                                <span className="conflict-icon" title="Alias conflicts with another shortcut">
+                                <span
+                                    className="conflict-icon"
+                                    role="img"
+                                    tabIndex={0}
+                                    aria-label="Alias conflicts with another shortcut"
+                                    data-tip="Alias conflicts with another shortcut"
+                                >
                                     <svg
                                         width="12"
                                         height="12"
@@ -135,7 +153,8 @@ function SortableRow({
                     <button
                         className={`btn-edit-bookmark${editMode ? '' : ' edit-hidden'}`}
                         onClick={() => onEdit(item)}
-                        title="Edit bookmark"
+                        aria-label="Edit bookmark"
+                        data-tip="Edit bookmark"
                     >
                         <svg
                             width="13"
@@ -154,7 +173,8 @@ function SortableRow({
                     <button
                         className={`btn-delete-bookmark${editMode ? '' : ' edit-hidden'}`}
                         onClick={() => onDelete(item)}
-                        title="Delete bookmark"
+                        aria-label="Delete bookmark"
+                        data-tip="Delete bookmark"
                     >
                         <svg
                             width="13"
@@ -207,8 +227,15 @@ export default function BookmarkGroup({
                 <span>{group.name.toUpperCase()}</span>
                 <span className="bookmark-count">{group.items.length}</span>
             </div>
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={group.items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+            <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+            >
+                <SortableContext
+                    items={group.items.map((i) => i.id)}
+                    strategy={verticalListSortingStrategy}
+                >
                     <table className="table table-striped table-bordered mb-0">
                         <tbody>
                             {group.items.map((item) => (

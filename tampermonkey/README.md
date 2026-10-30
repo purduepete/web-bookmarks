@@ -64,12 +64,13 @@ Run `npm test` in this folder for the API tests. After building, run
 `npm test -- src/userscript-startup.test.js` in `src/WebBookmarks.Client`
 for the bundled userscript's early-DOM, shortcut, cache and loading regressions.
 Those tests reuse the client's existing Vitest and jsdom dependencies.
+Run `Invoke-Pester .\Publish.Tests.ps1` for the publish-and-record checks.
 
 ## Distribution
 
 The userscript ships via a **GitHub Gist**, referenced by the `@updateURL` /
 `@downloadURL` in `header.txt`. It is **not** deployed by the GitHub Actions
-workflow (that only deploys the API + web app). Tampermonkey only auto-updates a
+workflow (which runs CI checks only). Tampermonkey only auto-updates a
 client when `@version` **increases**.
 
 Gist id: `7e7bb1d0855d688bf683069e786ac524`
@@ -82,12 +83,24 @@ Gist id: `7e7bb1d0855d688bf683069e786ac524`
 2. **Bump `@version`** in `src/header.txt` (never in the generated file — it's
    overwritten).
 3. **Build:** `npm run build` (regenerates `webbookmarks-palette.user.js`).
-4. Commit **both** the source and the regenerated file.
-5. **Update the Gist** with the freshly built file:
-   ```bash
-   gh gist edit 7e7bb1d0855d688bf683069e786ac524 \
-     -f "webbookmarks-palette.user.js" "tampermonkey/webbookmarks-palette.user.js"
+4. Commit and push **both** the source and the regenerated file.
+5. From the repository root, **publish and record** the exact pushed commit:
+   ```powershell
+   .\tampermonkey\Publish.ps1 -Commit HEAD
    ```
+
+The command requires PowerShell 7.5+, GitHub CLI Gist access, the sibling
+`solution-deploy` checkout and access to the release-record folder on
+`\\jimbrownhome1.local\c$`. It checks the committed bundle's metadata, requires
+a version increase for changed content, and verifies the uploaded raw file
+before recording the `tampermonkey` component in Solution Directory.
+The hosted app's `web` release record is unchanged.
+
+If publication succeeded but recording failed, rerun the same command. Identical
+content is verified and recorded without another upload. To record an existing
+release explicitly, use `-VerifyOnly -GistRevision <full-revision>` with its
+source `-Commit`. This requires the revision to still be current and uses its
+actual Gist publication time, not the time the record is written.
 
 Before publishing, test the rebuilt userscript in Tampermonkey on a page that
 loads slowly. Confirm the shortcut opens the palette while loading is still

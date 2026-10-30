@@ -22,12 +22,21 @@ Describe 'Userscript publication and release records' {
         Mock Invoke-UserscriptTool {
             if ($Name -eq 'git') {
                 $output = $Arguments | Where-Object { $_ -like '--output=*' }
-                $text = if ($Arguments[-1] -like '*src/header.txt') { $script:headerText } else { $script:bundleText }
-                [IO.File]::WriteAllText($output.Substring(9), $text)
+                $zip = [IO.Compression.ZipFile]::Open($output.Substring(9), 'Create')
+                try {
+                    foreach ($entry in @(
+                        @{ name = 'tampermonkey/webbookmarks-palette.user.js'; text = $script:bundleText },
+                        @{ name = 'tampermonkey/src/header.txt'; text = $script:headerText }
+                    )) {
+                        $writer = [IO.StreamWriter]::new($zip.CreateEntry($entry.name).Open())
+                        try { $writer.Write($entry.text) } finally { $writer.Dispose() }
+                    }
+                } finally { $zip.Dispose() }
             } elseif ($Name -eq 'gh') {
                 $script:remoteText = $script:bundleText
             } else { throw "Unexpected tool $Name" }
         }
+
         Mock Get-UserscriptGist {
             @{ history = @(@{ version = $script:revisionId; committed_at = '2026-10-30T19:20:53Z' }) }
         }
@@ -90,5 +99,25 @@ Describe 'Userscript publication and release records' {
         $script:headerText = $script:headerText.Replace('4.9.39', '4.9.40')
         Assert-PublishThrows { Invoke-UserscriptRelease $root HEAD -RecordDirectory $script:records } '*Rebuild and commit first*'
         Assert-MockCalled Get-UserscriptGist -Times 0 -Exactly -Scope It
+    }
+}
+
+Describe 'Committed userscript extraction with real Git' {
+    It 'exports the exact committed bundle and header as nonempty archive entries' {
+        $archive = Join-Path $TestDrive 'real-userscript.zip'
+        Invoke-UserscriptTool git @('archive', '--format=zip', "--output=$archive", 'HEAD',
+            'tampermonkey/webbookmarks-palette.user.js', 'tampermonkey/src/header.txt') $root
+        $zip = [IO.Compression.ZipFile]::OpenRead($archive)
+        try {
+            $texts = @{}
+            foreach ($name in 'tampermonkey/webbookmarks-palette.user.js', 'tampermonkey/src/header.txt') {
+                $reader = [IO.StreamReader]::new($zip.GetEntry($name).Open())
+                try { $texts[$name] = $reader.ReadToEnd().Replace("`r`n", "`n") } finally { $reader.Dispose() }
+            }
+            $bundle = $texts['tampermonkey/webbookmarks-palette.user.js']
+            $header = $texts['tampermonkey/src/header.txt'].TrimEnd()
+            $bundle.Length | Should BeGreaterThan 1000
+            $bundle.StartsWith($header + "`n") | Should Be $true
+        } finally { $zip.Dispose() }
     }
 }

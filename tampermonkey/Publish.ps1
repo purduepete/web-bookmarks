@@ -44,10 +44,12 @@ function Invoke-UserscriptRelease {
     $temporary = Join-Path ([IO.Path]::GetTempPath()) ('web-bookmarks-gist-' + [guid]::NewGuid().ToString('N'))
     [IO.Directory]::CreateDirectory($temporary) | Out-Null
     try {
-        $bundlePath = Join-Path $temporary $script:BundleName
-        $headerPath = Join-Path $temporary 'header.txt'
-        Invoke-UserscriptTool git @('show', "--output=$bundlePath", "${sourceCommit}:tampermonkey/$script:BundleName") $Repository
-        Invoke-UserscriptTool git @('show', "--output=$headerPath", "${sourceCommit}:tampermonkey/src/header.txt") $Repository
+        $archivePath = Join-Path $temporary 'userscript.zip'
+        Invoke-UserscriptTool git @('archive', '--format=zip', "--output=$archivePath", $sourceCommit,
+            "tampermonkey/$script:BundleName", 'tampermonkey/src/header.txt') $Repository
+        Expand-Archive -LiteralPath $archivePath -DestinationPath $temporary
+        $bundlePath = Join-Path $temporary "tampermonkey\$script:BundleName"
+        $headerPath = Join-Path $temporary 'tampermonkey\src\header.txt'
         $bundle = [IO.File]::ReadAllText($bundlePath).Replace("`r`n", "`n")
         $header = [IO.File]::ReadAllText($headerPath).Replace("`r`n", "`n").TrimEnd()
         if (-not $bundle.StartsWith($header + "`n")) { throw 'Committed bundle metadata differs from src/header.txt. Rebuild and commit first.' }

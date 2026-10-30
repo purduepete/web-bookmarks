@@ -3,6 +3,19 @@
 A userscript that brings the WebBookmarks command palette to any page. It reaches the public API through Cloudflare Access; Tailscale is not required. Press
 `Ctrl+Alt+/` to open it, search/filter bookmarks, and navigate.
 
+## Opening while a page loads
+
+The userscript runs at `document-start`, so the shortcut and Tampermonkey menu
+command don't wait for the host page to finish loading. The palette can open
+before the page has a head or body. Cached bookmarks appear immediately; without
+a cache, the palette shows its loading state while the API request is pending.
+
+If the document root doesn't exist yet, opening waits only for that root.
+Pressing the shortcut again cancels the pending open.
+
+Tampermonkey can't display the palette on browser-owned pages, before navigation
+creates a document, or while the page blocks the browser's main thread.
+
 ## Architecture — one source of truth
 
 The palette's **pure logic** (wildcard matching, number-selection parsing, URL
@@ -45,6 +58,13 @@ npm install        # first time only
 npm run build      # regenerates webbookmarks-palette.user.js
 ```
 
+## Tests
+
+Run `npm test` in this folder for the API tests. After building, run
+`npm test -- src/userscript-startup.test.js` in `src/WebBookmarks.Client`
+for the bundled userscript's early-DOM, shortcut, cache and loading regressions.
+Those tests reuse the client's existing Vitest and jsdom dependencies.
+
 ## Distribution
 
 The userscript ships via a **GitHub Gist**, referenced by the `@updateURL` /
@@ -68,6 +88,11 @@ Gist id: `7e7bb1d0855d688bf683069e786ac524`
    gh gist edit 7e7bb1d0855d688bf683069e786ac524 \
      -f "webbookmarks-palette.user.js" "tampermonkey/webbookmarks-palette.user.js"
    ```
+
+Before publishing, test the rebuilt userscript in Tampermonkey on a page that
+loads slowly. Confirm the shortcut opens the palette while loading is still
+pending. Automated browser fixtures use mocked GM APIs and don't verify the
+extension's injection timing.
 
 > ⚠️ Always **build before updating the Gist** — otherwise the Gist ships a stale
 > bundle. And bump the version, or Tampermonkey clients won't pick up the change.

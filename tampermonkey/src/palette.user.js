@@ -52,8 +52,10 @@ import {
     let fontInjected = false;
     function ensureFontInjected() {
         if (fontInjected) return;
+        const style = document.createElement('style');
+        style.textContent = FONT_CSS;
+        document.documentElement.appendChild(style);
         fontInjected = true;
-        GM_addStyle(FONT_CSS);
     }
 
     // ── CSS ──────────────────────────────────────────
@@ -432,10 +434,10 @@ import {
                     ta.value = text;
                     ta.style.position = 'fixed';
                     ta.style.opacity = '0';
-                    document.body.appendChild(ta);
+                    document.documentElement.appendChild(ta);
                     ta.select();
                     document.execCommand('copy');
-                    document.body.removeChild(ta);
+                    ta.remove();
                     resolve(true);
                 } catch (_e) {
                     resolve(false);
@@ -592,8 +594,9 @@ import {
     let paletteOpen = false;
     let shadowHost = null;
     let activePaletteHandle = null;
+    let pendingOpenObserver = null;
 
-    // Pre-fetch bookmarks on page load so palette opens instantly
+    // Pre-fetch without waiting for the host page to finish loading.
     getGroups().catch((err) => console.error('[WebBookmarks] Failed to prefetch bookmarks:', err));
 
     function buildEntries(groups, profiles) {
@@ -1367,7 +1370,7 @@ import {
         styleEl.textContent = PALETTE_CSS;
         shadow.appendChild(styleEl);
         shadow.appendChild(backdrop);
-        document.body.appendChild(shadowHost);
+        document.documentElement.appendChild(shadowHost);
         document.addEventListener('keydown', escHandler, true);
 
         // While open, the palette owns the keyboard: block every key from reaching
@@ -1433,7 +1436,35 @@ import {
     }
 
     // ── Palette activation flow (shared by the hotkey and the Tampermonkey menu) ──
+    function cancelPendingOpen() {
+        if (!pendingOpenObserver) return;
+        pendingOpenObserver.disconnect();
+        pendingOpenObserver = null;
+    }
+
+    function restorePaletteHost() {
+        if (!paletteOpen || !shadowHost || shadowHost.isConnected || !document.documentElement) return false;
+        document.documentElement.appendChild(shadowHost);
+        shadowHost.shadowRoot.querySelector('.wbp-input').focus();
+        return true;
+    }
+
     async function activatePalette() {
+        if (paletteOpen) return;
+        // document-start can run before even <html> exists. Wait only for that
+        // root, never for DOMContentLoaded or load.
+        if (!document.documentElement) {
+            if (!pendingOpenObserver) {
+                pendingOpenObserver = new MutationObserver(() => {
+                    if (!document.documentElement) return;
+                    cancelPendingOpen();
+                    activatePalette();
+                });
+                pendingOpenObserver.observe(document, { childList: true, subtree: true });
+            }
+            return;
+        }
+        cancelPendingOpen();
         const profile = getActiveProfile();
         const profiles = cachedProfiles || ['home'];
 
@@ -1486,6 +1517,11 @@ import {
             if (e.ctrlKey && e.altKey && !e.shiftKey && !e.metaKey && isSlash) {
                 e.preventDefault();
                 e.stopImmediatePropagation();
+                if (restorePaletteHost()) return;
+                if (pendingOpenObserver) {
+                    cancelPendingOpen();
+                    return;
+                }
                 if (paletteOpen) {
                     // Close palette on second Ctrl+Alt+/ (routes through close() so the
                     // keyboard shield + listeners are torn down).
@@ -1499,6 +1535,6 @@ import {
     );
 
     GM_registerMenuCommand('Open WebBookmarks Palette', () => {
-        if (!paletteOpen) activatePalette();
+        if (!restorePaletteHost() && !paletteOpen) activatePalette();
     });
 })();

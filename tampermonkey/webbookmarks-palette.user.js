@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://web-bookmarks.jimlertech.com
-// @version      4.9.38
+// @version      4.9.39
 // @description  Press Ctrl+Alt+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
@@ -14,9 +14,10 @@
 // @grant        GM_openInTab
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @grant        GM_registerMenuCommand
 // @connect      web-bookmarks.jimlertech.com
 // @connect      yellow-field-eef5.cloudflareaccess.com
-// @run-at       document-idle
+// @run-at       document-start
 // @updateURL    https://gist.githubusercontent.com/purduepete/7e7bb1d0855d688bf683069e786ac524/raw/webbookmarks-palette.user.js
 // @downloadURL  https://gist.githubusercontent.com/purduepete/7e7bb1d0855d688bf683069e786ac524/raw/webbookmarks-palette.user.js
 // ==/UserScript==
@@ -290,8 +291,10 @@
     let fontInjected = false;
     function ensureFontInjected() {
       if (fontInjected) return;
+      const style = document.createElement("style");
+      style.textContent = FONT_CSS;
+      document.documentElement.appendChild(style);
       fontInjected = true;
-      GM_addStyle(FONT_CSS);
     }
     const PALETTE_CSS = `
         :host { all: initial; }
@@ -637,10 +640,10 @@
             ta.value = text;
             ta.style.position = "fixed";
             ta.style.opacity = "0";
-            document.body.appendChild(ta);
+            document.documentElement.appendChild(ta);
             ta.select();
             document.execCommand("copy");
-            document.body.removeChild(ta);
+            ta.remove();
             resolve(true);
           } catch (_e) {
             resolve(false);
@@ -764,6 +767,7 @@
     let paletteOpen = false;
     let shadowHost = null;
     let activePaletteHandle = null;
+    let pendingOpenObserver = null;
     getGroups().catch((err) => console.error("[WebBookmarks] Failed to prefetch bookmarks:", err));
     function buildEntries(groups, profiles) {
       const actions = [
@@ -1453,7 +1457,7 @@
       styleEl.textContent = PALETTE_CSS;
       shadow.appendChild(styleEl);
       shadow.appendChild(backdrop);
-      document.body.appendChild(shadowHost);
+      document.documentElement.appendChild(shadowHost);
       document.addEventListener("keydown", escHandler, true);
       const keyShield = (e) => {
         if (!paletteOpen) return;
@@ -1505,7 +1509,31 @@
       };
       return activePaletteHandle;
     }
+    function cancelPendingOpen() {
+      if (!pendingOpenObserver) return;
+      pendingOpenObserver.disconnect();
+      pendingOpenObserver = null;
+    }
+    function restorePaletteHost() {
+      if (!paletteOpen || !shadowHost || shadowHost.isConnected || !document.documentElement) return false;
+      document.documentElement.appendChild(shadowHost);
+      shadowHost.shadowRoot.querySelector(".wbp-input").focus();
+      return true;
+    }
     async function activatePalette() {
+      if (paletteOpen) return;
+      if (!document.documentElement) {
+        if (!pendingOpenObserver) {
+          pendingOpenObserver = new MutationObserver(() => {
+            if (!document.documentElement) return;
+            cancelPendingOpen();
+            activatePalette();
+          });
+          pendingOpenObserver.observe(document, { childList: true, subtree: true });
+        }
+        return;
+      }
+      cancelPendingOpen();
       const profile = getActiveProfile();
       const profiles = cachedProfiles || ["home"];
       if (cachedGroups && cachedProfile === profile && Date.now() - lastFetch < CACHE_TTL) {
@@ -1543,6 +1571,11 @@
         if (e.ctrlKey && e.altKey && !e.shiftKey && !e.metaKey && isSlash) {
           e.preventDefault();
           e.stopImmediatePropagation();
+          if (restorePaletteHost()) return;
+          if (pendingOpenObserver) {
+            cancelPendingOpen();
+            return;
+          }
           if (paletteOpen) {
             if (activePaletteHandle) activePaletteHandle.close();
           } else {
@@ -1553,7 +1586,7 @@
       true
     );
     GM_registerMenuCommand("Open WebBookmarks Palette", () => {
-      if (!paletteOpen) activatePalette();
+      if (!restorePaletteHost() && !paletteOpen) activatePalette();
     });
   })();
 })();

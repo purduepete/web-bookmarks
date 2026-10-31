@@ -4,6 +4,7 @@ import App from './App';
 import { AuthGate } from './components/AuthGate';
 import Tooltip from './components/Tooltip';
 import './App.css';
+import './first-load.css';
 
 createRoot(document.getElementById('root')!).render(
     <StrictMode>

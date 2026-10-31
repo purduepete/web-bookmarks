@@ -1,6 +1,7 @@
 import { useState, useEffect, type FormEvent, type ReactNode } from 'react';
 import { getApiKey, setApiKey, clearApiKey, onUnauthorized } from '../auth';
 import { isGatewayAuthEnabled, validateApiKey } from '../api';
+import { useFirstLoad } from '../hooks/useFirstLoad';
 
 export function AuthGate({ children }: { children: ReactNode }) {
     const [authed, setAuthed] = useState(() => !!getApiKey());
@@ -8,6 +9,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     const [error, setError] = useState('');
     const [checking, setChecking] = useState(false);
     const [checkingGateway, setCheckingGateway] = useState(() => !getApiKey());
+    useFirstLoad(false, !authed && !checkingGateway);
 
     useEffect(() => {
         if (getApiKey()) {
@@ -20,7 +22,9 @@ export function AuthGate({ children }: { children: ReactNode }) {
             if (enabled) setAuthed(true);
             setCheckingGateway(false);
         });
-        return () => { active = false; };
+        return () => {
+            active = false;
+        };
     }, []);
 
     // When any API call is rejected (401), drop back to the login gate in-place.

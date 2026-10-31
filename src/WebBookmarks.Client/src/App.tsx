@@ -8,6 +8,8 @@ import { useModals } from './hooks/useModals';
 import { focusPageInput } from './lib/modalFocus';
 import { useStartup } from './hooks/useStartup';
 import { useGlobalShortcuts } from './hooks/useGlobalShortcuts';
+import { useFirstLoad } from './hooks/useFirstLoad';
+import PageLoading from './components/PageLoading';
 
 import BookmarkList from './components/BookmarkList';
 import ProfileTabs from './components/ProfileTabs';
@@ -32,6 +34,7 @@ export default function App() {
         loadBookmarks,
         reload,
     } = useBookmarks();
+    useFirstLoad(!loading, !!error);
 
     const [searchFilter, setSearchFilter] = useState('');
     const forceLanding = (() => {
@@ -182,7 +185,7 @@ export default function App() {
                 loadBookmarks();
             }
         },
-        [groups, loadBookmarks],
+        [groups, loadBookmarks, setBookmarks, setError],
     );
 
     const handleToggleFavorite = useCallback(
@@ -198,18 +201,21 @@ export default function App() {
                 loadBookmarks();
             }
         },
-        [loadBookmarks],
+        [loadBookmarks, setBookmarks, setError],
     );
 
-    if (loading) return null;
     // Only show a full-page error when there's nothing cached to fall back on.
     // If we have bookmarks (from cache), keep showing them and surface the
     // failure as a non-blocking banner below instead of wiping the UI.
-    if (error && bookmarks.length === 0)
-        return <div className="loading-msg text-danger">{error}</div>;
     if (promptActive) {
         return (
             <div className="app-body">
+                {loading && !error && <PageLoading />}
+                {error && bookmarks.length === 0 && (
+                    <div className="loading-msg text-danger" role="alert">
+                        {error}
+                    </div>
+                )}
                 {promptModalOpen && (
                     <PromptModal
                         title="Quick command"
@@ -224,6 +230,12 @@ export default function App() {
     }
     return (
         <div className="app-body">
+            {loading && !error && <PageLoading />}
+            {error && bookmarks.length === 0 && (
+                <div className="loading-msg text-danger" role="alert">
+                    {error}
+                </div>
+            )}
             <div className="header-spacer" />
 
             <div
@@ -232,7 +244,7 @@ export default function App() {
             >
                 {error && bookmarks.length > 0 && (
                     <div className="offline-banner text-warning" role="status">
-                        ⚠ Showing saved bookmarks — couldn't reach the server.
+                        ⚠ Showing available bookmarks. {error}
                     </div>
                 )}
                 <ProfileTabs

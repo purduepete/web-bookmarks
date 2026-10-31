@@ -1,15 +1,26 @@
 # Web Bookmarks
 
+## First entry
+
+The initial bookmark list and profiles settle before the controls and content enter
+together over 600ms. Saved data stays cache-first. A 40px ring appears after 250ms
+when the first load is slow. Errors and sign-in reveal immediately; refreshes keep the
+shell visible. Reduced motion removes the entrance and ring rotation.
+
+Profile responses and saved profile lists must contain only strings. Profile read failures
+are logged and shown with available bookmarks; a later successful bookmark read does not
+clear the profile error. Usable saved profiles and bookmarks remain available offline.
+
 A personal bookmark manager with a .NET 9 API, React frontend, and PostgreSQL database on `jimbrownhome1`.
 
 ## Architecture
 
-| Component | Technology                      | Production host              |
-| --------- | ------------------------------- | ---------------------------- |
-| Frontend  | React 19 + Vite + Bootstrap 5   | .NET API static hosting on `jimbrownhome1` |
-| API       | .NET 9 Minimal API + EF Core    | Windows service task, loopback port 8792 |
-| Database  | PostgreSQL 18                   | `web_bookmarks`, `public` schema |
-| Auth      | Microsoft-only Cloudflare Access and Tailscale | — |
+| Component | Technology                                     | Production host                            |
+| --------- | ---------------------------------------------- | ------------------------------------------ |
+| Frontend  | React 19 + Vite + Bootstrap 5                  | .NET API static hosting on `jimbrownhome1` |
+| API       | .NET 9 Minimal API + EF Core                   | Windows service task, loopback port 8792   |
+| Database  | PostgreSQL 18                                  | `web_bookmarks`, `public` schema           |
+| Auth      | Microsoft-only Cloudflare Access and Tailscale | —                                          |
 
 ## Features
 
@@ -130,10 +141,10 @@ This provisions: App Service Plan, App Service (with managed identity), Static W
 
 ## Live URLs
 
-| Component | URL                                                     |
-| --------- | ------------------------------------------------------- |
-| Web App   | https://web-bookmarks.jimlertech.com/ |
-| Private app | https://jimbrownhome1.tail8ad282.ts.net:8792 |
+| Component        | URL                                                |
+| ---------------- | -------------------------------------------------- |
+| Web App          | https://web-bookmarks.jimlertech.com/              |
+| Private app      | https://jimbrownhome1.tail8ad282.ts.net:8792       |
 | Tampermonkey API | https://web-bookmarks.jimlertech.com/api/bookmarks |
 
 ## Browser Setup: Allow Pop-ups

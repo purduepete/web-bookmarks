@@ -3,8 +3,14 @@ import { readFileSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-const bundle = readFileSync(new URL('../../../tampermonkey/webbookmarks-palette.user.js', import.meta.url), 'utf8');
-const header = readFileSync(new URL('../../../tampermonkey/src/header.txt', import.meta.url), 'utf8');
+const bundle = readFileSync(
+    new URL('../../../tampermonkey/webbookmarks-palette.user.js', import.meta.url),
+    'utf8',
+);
+const header = readFileSync(
+    new URL('../../../tampermonkey/src/header.txt', import.meta.url),
+    'utf8',
+);
 const pages = [];
 const bookmark = {
     id: 1,
@@ -15,13 +21,25 @@ const bookmark = {
     profile: 'home',
 };
 
-function page({ root = true, body = false, cached = false } = {}) {
+function page({
+    root = true,
+    body = false,
+    cached = false,
+    ua = 'Windows',
+    platform = 'Win32',
+    touches = 0,
+} = {}) {
     const dom = new JSDOM('<!doctype html><html></html>', {
         url: 'https://example.com',
         runScripts: 'outside-only',
     });
     pages.push(dom);
     const { window } = dom;
+    Object.defineProperties(window.navigator, {
+        userAgent: { value: ua },
+        platform: { value: platform },
+        maxTouchPoints: { value: touches },
+    });
     if (!body) window.document.body.remove();
     window.document.head.remove();
     if (!root) window.document.documentElement.remove();
@@ -39,9 +57,9 @@ function page({ root = true, body = false, cached = false } = {}) {
         }
     };
     Object.assign(window, {
-        GM_getValue: (key, fallback) => values.has(key) ? values.get(key) : fallback,
+        GM_getValue: (key, fallback) => (values.has(key) ? values.get(key) : fallback),
         GM_setValue: (key, value) => values.set(key, value),
-        GM_xmlhttpRequest: options => requests.push(options),
+        GM_xmlhttpRequest: (options) => requests.push(options),
         GM_registerMenuCommand: (label, callback) => menus.push({ label, callback }),
         GM_openInTab: vi.fn(),
         matchMedia: () => ({ matches: false }),
@@ -56,15 +74,17 @@ function page({ root = true, body = false, cached = false } = {}) {
         menus,
         host: () => window.document.getElementById('wbp-shadow-host'),
         key(key = '/', code = 'Slash') {
-            window.dispatchEvent(new window.KeyboardEvent('keydown', {
-                key,
-                code,
-                ctrlKey: key === '/',
-                altKey: key === '/',
-                bubbles: true,
-                composed: true,
-                cancelable: true,
-            }));
+            window.dispatchEvent(
+                new window.KeyboardEvent('keydown', {
+                    key,
+                    code,
+                    ctrlKey: key === '/',
+                    altKey: key === '/',
+                    bubbles: true,
+                    composed: true,
+                    cancelable: true,
+                }),
+            );
         },
     };
 }
@@ -74,9 +94,28 @@ afterEach(() => {
 });
 
 describe('userscript startup during page loading', () => {
+    it.each([
+        ['desktop', 'Windows', 'Win32', 0, 'wbp-input'],
+        ['iPhone', 'iPhone', 'iPhone', 5, 'wbp-container'],
+        ['iPad', 'iPad', 'iPad', 5, 'wbp-container'],
+        ['desktop-UA iPad', 'Macintosh', 'MacIntel', 5, 'wbp-container'],
+    ])(
+        'opens safely on %s and allows explicit input focus',
+        (_name, ua, platform, touches, expected) => {
+            const p = page({ ua, platform, touches, cached: true });
+            p.key();
+            const shadow = p.host().shadowRoot;
+            expect(shadow.activeElement.className).toBe(expected);
+            const input = shadow.querySelector('.wbp-input');
+            input.focus();
+            expect(shadow.activeElement).toBe(input);
+        },
+    );
+
     it('ships document-start timing and the menu grant in source and bundle metadata', () => {
         expect(bundle.startsWith(header.trimEnd())).toBe(true);
         for (const text of [header, bundle]) {
+            expect(text).toMatch(/@version\s+\d+\.\d+\.\d+(?:\r?\n|$)/);
             expect(text).toMatch(/@run-at\s+document-start/);
             expect(text).toMatch(/@grant\s+GM_registerMenuCommand/);
         }
@@ -133,7 +172,9 @@ describe('userscript startup during page loading', () => {
         expect(p.requests.length).toBeGreaterThan(0);
         expect(p.host().shadowRoot.textContent).toContain('Loading');
         expect(p.host().shadowRoot.activeElement.className).toBe('wbp-input');
-        expect(p.window.document.documentElement.querySelector('style').textContent).toContain('@font-face');
+        expect(p.window.document.documentElement.querySelector('style').textContent).toContain(
+            '@font-face',
+        );
     });
 
     it('shows cached bookmarks before a slow refresh returns', () => {
@@ -177,6 +218,8 @@ describe('userscript startup during page loading', () => {
         p.menus[0].callback();
         p.key('Escape', 'Escape');
         expect(p.host()).toBeNull();
-        expect(p.window.document.documentElement.querySelectorAll(':scope > style')).toHaveLength(1);
+        expect(p.window.document.documentElement.querySelectorAll(':scope > style')).toHaveLength(
+            1,
+        );
     });
 });

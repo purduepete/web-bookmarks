@@ -34,6 +34,10 @@ azure.yaml                    # Azure Developer CLI manifest
 
 ## Local Development
 
+On iPhone and iPad (including an iPad using a desktop user agent), dialogs and command palettes
+open with focus on the dialog or Close button so the keyboard stays closed. Desktop input
+autofocus remains enabled. Tap a field to edit; validation and keyboard focus navigation still work.
+
 ### Quick Start
 
 ```powershell

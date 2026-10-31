@@ -5,6 +5,7 @@ import { openUrls } from './utils';
 import { useBookmarks } from './hooks/useBookmarks';
 import { useBookmarkGroups } from './hooks/useBookmarkGroups';
 import { useModals } from './hooks/useModals';
+import { focusPageInput } from './lib/modalFocus';
 import { useStartup } from './hooks/useStartup';
 import { useGlobalShortcuts } from './hooks/useGlobalShortcuts';
 
@@ -120,16 +121,21 @@ export default function App() {
 
     useEffect(() => {
         if (!loading && !promptActive) {
-            bookmarkInputRef.current?.focus();
+            focusPageInput(bookmarkInputRef.current);
         }
     }, [loading, promptActive]);
 
-    const { groups, paletteGroups, conflictIds, displayedGroups } = useBookmarkGroups(bookmarks, searchFilter);
+    const { groups, paletteGroups, conflictIds, displayedGroups } = useBookmarkGroups(
+        bookmarks,
+        searchFilter,
+    );
 
     const openFilteredBookmarks = useCallback(
         (newTab = false) => {
             openUrls(
-                displayedGroups.flatMap((g) => g.items).map((item) => ({ name: item.name, url: item.url })),
+                displayedGroups
+                    .flatMap((g) => g.items)
+                    .map((item) => ({ name: item.name, url: item.url })),
                 newTab,
             );
         },
@@ -164,7 +170,9 @@ export default function App() {
             // Optimistic update — apply new sort orders in a single pass via a map.
             const orderById = new Map(entries.map((e) => [e.id, e.sortOrder]));
             setBookmarks((prev) =>
-                prev.map((b) => (orderById.has(b.id) ? { ...b, sortOrder: orderById.get(b.id)! } : b)),
+                prev.map((b) =>
+                    orderById.has(b.id) ? { ...b, sortOrder: orderById.get(b.id)! } : b,
+                ),
             );
 
             try {
@@ -180,7 +188,9 @@ export default function App() {
     const handleToggleFavorite = useCallback(
         async (item: WebBookmarksItem) => {
             // Optimistic update
-            setBookmarks((prev) => prev.map((b) => (b.id === item.id ? { ...b, isFavorite: !b.isFavorite } : b)));
+            setBookmarks((prev) =>
+                prev.map((b) => (b.id === item.id ? { ...b, isFavorite: !b.isFavorite } : b)),
+            );
             try {
                 await toggleFavorite(item.id);
             } catch (e) {
@@ -195,7 +205,8 @@ export default function App() {
     // Only show a full-page error when there's nothing cached to fall back on.
     // If we have bookmarks (from cache), keep showing them and surface the
     // failure as a non-blocking banner below instead of wiping the UI.
-    if (error && bookmarks.length === 0) return <div className="loading-msg text-danger">{error}</div>;
+    if (error && bookmarks.length === 0)
+        return <div className="loading-msg text-danger">{error}</div>;
     if (promptActive) {
         return (
             <div className="app-body">
@@ -215,7 +226,10 @@ export default function App() {
         <div className="app-body">
             <div className="header-spacer" />
 
-            <div id="colMain" style={startupPaletteHiding || newBookmarkOnly ? { display: 'none' } : undefined}>
+            <div
+                id="colMain"
+                style={startupPaletteHiding || newBookmarkOnly ? { display: 'none' } : undefined}
+            >
                 {error && bookmarks.length > 0 && (
                     <div className="offline-banner text-warning" role="status">
                         ⚠ Showing saved bookmarks — couldn't reach the server.

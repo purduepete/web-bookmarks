@@ -3,6 +3,7 @@ import type { WebBookmarksItem } from '../types';
 import { checkAlias, createBookmark, updateBookmark, fetchGroups } from '../api';
 import DarkSelect from './DarkSelect';
 import Modal from './Modal';
+import { focusModalInput } from '../lib/modalFocus';
 
 interface Props {
     bookmark: WebBookmarksItem | null; // null = create mode
@@ -38,7 +39,9 @@ export default function BookmarkModal({
 }: Props) {
     const isEdit = bookmark !== null;
     const [form, setForm] = useState<Omit<WebBookmarksItem, 'id'>>(
-        bookmark ? { ...bookmark } : { ...emptyBookmark, profile: activeProfile, ...(prefill || {}) },
+        bookmark
+            ? { ...bookmark }
+            : { ...emptyBookmark, profile: activeProfile, ...(prefill || {}) },
     );
     const [groups, setGroups] = useState<string[]>([]);
     const [newGroup, setNewGroup] = useState('');
@@ -62,7 +65,7 @@ export default function BookmarkModal({
     }, [form.profile]);
 
     useEffect(() => {
-        nameRef.current?.focus();
+        focusModalInput(nameRef.current);
     }, []);
 
     const validateAlias = useCallback(
@@ -76,7 +79,9 @@ export default function BookmarkModal({
                 try {
                     const result = await checkAlias(alias, bookmark?.id);
                     if (result.isDuplicate) {
-                        const names = result.matches.map((m) => `"${m.shortcut}" (${m.name})`).join(', ');
+                        const names = result.matches
+                            .map((m) => `"${m.shortcut}" (${m.name})`)
+                            .join(', ');
                         setAliasWarning(`Partial match with: ${names}`);
                     } else {
                         setAliasWarning(null);
@@ -99,7 +104,9 @@ export default function BookmarkModal({
                 (b) => b.bookmarkGroup === group && b.sortOrder === order && b.id !== bookmark?.id,
             );
             if (conflict) {
-                setSortOrderWarning(`Sort order ${order} is already used by "${conflict.name}" in this group.`);
+                setSortOrderWarning(
+                    `Sort order ${order} is already used by "${conflict.name}" in this group.`,
+                );
             } else {
                 setSortOrderWarning(null);
             }
@@ -119,7 +126,11 @@ export default function BookmarkModal({
         }
         if (field === 'sortOrder' || field === 'bookmarkGroup') {
             const group =
-                field === 'bookmarkGroup' ? String(value) : useNewGroup ? newGroup.trim() : next.bookmarkGroup;
+                field === 'bookmarkGroup'
+                    ? String(value)
+                    : useNewGroup
+                      ? newGroup.trim()
+                      : next.bookmarkGroup;
             const order = field === 'sortOrder' ? Number(value) || 0 : next.sortOrder;
             validateSortOrder(order, group);
         }
@@ -171,137 +182,142 @@ export default function BookmarkModal({
         <Modal title={isEdit ? 'Edit Bookmark' : 'New Bookmark'} onClose={onClose}>
             <form onSubmit={handleSubmit}>
                 <div className="modal-body-custom">
-                        <div className="modal-field">
-                            <label>Name</label>
-                            <input
-                                ref={nameRef}
-                                className="form-control form-control-sm"
-                                value={form.name}
-                                onChange={(e) => handleChange('name', e.target.value)}
-                            />
-                        </div>
-                        <div className="modal-field">
-                            <label>URL</label>
-                            <input
-                                className="form-control form-control-sm"
-                                value={form.url}
-                                onChange={(e) => handleChange('url', e.target.value)}
-                            />
-                        </div>
-                        <div className="modal-field">
-                            <label>Search URL (optional, use {'{q}'} placeholder)</label>
-                            <input
-                                className="form-control form-control-sm"
-                                value={form.urls ?? ''}
-                                onChange={(e) => handleChange('urls', e.target.value)}
-                            />
-                        </div>
-                        <div className="modal-field">
-                            <label>Alias / Shortcut</label>
-                            <input
-                                className="form-control form-control-sm"
-                                value={form.shortcut}
-                                onChange={(e) => handleChange('shortcut', e.target.value)}
-                            />
-                            {aliasWarning && <div className="alias-warning">{aliasWarning}</div>}
-                        </div>
+                    <div className="modal-field">
+                        <label>Name</label>
+                        <input
+                            ref={nameRef}
+                            className="form-control form-control-sm"
+                            value={form.name}
+                            onChange={(e) => handleChange('name', e.target.value)}
+                        />
+                    </div>
+                    <div className="modal-field">
+                        <label>URL</label>
+                        <input
+                            className="form-control form-control-sm"
+                            value={form.url}
+                            onChange={(e) => handleChange('url', e.target.value)}
+                        />
+                    </div>
+                    <div className="modal-field">
+                        <label>Search URL (optional, use {'{q}'} placeholder)</label>
+                        <input
+                            className="form-control form-control-sm"
+                            value={form.urls ?? ''}
+                            onChange={(e) => handleChange('urls', e.target.value)}
+                        />
+                    </div>
+                    <div className="modal-field">
+                        <label>Alias / Shortcut</label>
+                        <input
+                            className="form-control form-control-sm"
+                            value={form.shortcut}
+                            onChange={(e) => handleChange('shortcut', e.target.value)}
+                        />
+                        {aliasWarning && <div className="alias-warning">{aliasWarning}</div>}
+                    </div>
 
-                        <div className="modal-field">
-                            <label>Group</label>
-                            <div className="group-select-row">
-                                {!useNewGroup ? (
-                                    <DarkSelect
-                                        value={form.bookmarkGroup}
-                                        placeholder="-- Select Group --"
-                                        options={groups.map((g) => ({ value: g, label: g }))}
-                                        onChange={(v) => handleChange('bookmarkGroup', v)}
-                                    />
-                                ) : (
-                                    <input
-                                        className="form-control form-control-sm"
-                                        placeholder="New group name"
-                                        value={newGroup}
-                                        onChange={(e) => setNewGroup(e.target.value)}
-                                        autoFocus
-                                    />
-                                )}
-                                <button
-                                    type="button"
-                                    className="btn-toggle-group"
-                                    onClick={() => setUseNewGroup(!useNewGroup)}
-                                >
-                                    {useNewGroup ? 'Existing' : '+ New'}
-                                </button>
-                            </div>
-                        </div>
-                        <div className="modal-field">
-                            <label>Profile</label>
-                            <div className="group-select-row">
-                                {!useNewProfile ? (
-                                    <DarkSelect
-                                        value={form.profile}
-                                        options={[
-                                            ...(!profiles.includes('all') ? [{ value: 'all', label: 'all' }] : []),
-                                            ...profiles.map((p) => ({ value: p, label: p })),
-                                            ...(!profiles.includes(form.profile) && form.profile !== 'all'
-                                                ? [{ value: form.profile, label: form.profile }]
-                                                : []),
-                                        ]}
-                                        onChange={(v) => handleChange('profile', v)}
-                                    />
-                                ) : (
-                                    <input
-                                        className="form-control form-control-sm"
-                                        placeholder="New profile name"
-                                        value={newProfile}
-                                        onChange={(e) => setNewProfile(e.target.value)}
-                                        autoFocus
-                                    />
-                                )}
-                                <button
-                                    type="button"
-                                    className="btn-toggle-group"
-                                    onClick={() => setUseNewProfile(!useNewProfile)}
-                                >
-                                    {useNewProfile ? 'Existing' : '+ New'}
-                                </button>
-                            </div>
-                        </div>
-                        <div className="modal-field-row">
-                            <div className="modal-field">
-                                <label>Sort Order</label>
+                    <div className="modal-field">
+                        <label>Group</label>
+                        <div className="group-select-row">
+                            {!useNewGroup ? (
+                                <DarkSelect
+                                    value={form.bookmarkGroup}
+                                    placeholder="-- Select Group --"
+                                    options={groups.map((g) => ({ value: g, label: g }))}
+                                    onChange={(v) => handleChange('bookmarkGroup', v)}
+                                />
+                            ) : (
                                 <input
                                     className="form-control form-control-sm"
-                                    value={sortOrderText}
-                                    onChange={(e) => {
-                                        setSortOrderText(e.target.value);
-                                        handleChange('sortOrder', Number(e.target.value) || 0);
-                                    }}
+                                    placeholder="New group name"
+                                    value={newGroup}
+                                    onChange={(e) => setNewGroup(e.target.value)}
+                                    autoFocus
                                 />
-                                {sortOrderWarning && <div className="alias-warning">{sortOrderWarning}</div>}
-                            </div>
-                            <div className="modal-field">
-                                <label className="checkbox-label">
-                                    <input
-                                        type="checkbox"
-                                        className="form-check-input"
-                                        checked={form.isVisible}
-                                        onChange={(e) => handleChange('isVisible', e.target.checked)}
-                                    />
-                                    <span>Visible</span>
-                                </label>
-                            </div>
+                            )}
+                            <button
+                                type="button"
+                                className="btn-toggle-group"
+                                onClick={() => setUseNewGroup(!useNewGroup)}
+                            >
+                                {useNewGroup ? 'Existing' : '+ New'}
+                            </button>
                         </div>
-                        {error && <div className="modal-error">{error}</div>}
                     </div>
-                    <div className="modal-footer-custom">
-                        <button type="button" className="btn-modal btn-modal-cancel" onClick={onClose}>
-                            Cancel
-                        </button>
-                        <button type="submit" className="btn-modal btn-modal-save" disabled={saving}>
-                            {saving ? 'Saving...' : 'Save'}
-                        </button>
+                    <div className="modal-field">
+                        <label>Profile</label>
+                        <div className="group-select-row">
+                            {!useNewProfile ? (
+                                <DarkSelect
+                                    value={form.profile}
+                                    options={[
+                                        ...(!profiles.includes('all')
+                                            ? [{ value: 'all', label: 'all' }]
+                                            : []),
+                                        ...profiles.map((p) => ({ value: p, label: p })),
+                                        ...(!profiles.includes(form.profile) &&
+                                        form.profile !== 'all'
+                                            ? [{ value: form.profile, label: form.profile }]
+                                            : []),
+                                    ]}
+                                    onChange={(v) => handleChange('profile', v)}
+                                />
+                            ) : (
+                                <input
+                                    className="form-control form-control-sm"
+                                    placeholder="New profile name"
+                                    value={newProfile}
+                                    onChange={(e) => setNewProfile(e.target.value)}
+                                    autoFocus
+                                />
+                            )}
+                            <button
+                                type="button"
+                                className="btn-toggle-group"
+                                onClick={() => setUseNewProfile(!useNewProfile)}
+                            >
+                                {useNewProfile ? 'Existing' : '+ New'}
+                            </button>
+                        </div>
                     </div>
+                    <div className="modal-field-row">
+                        <div className="modal-field">
+                            <label>Sort Order</label>
+                            <input
+                                className="form-control form-control-sm"
+                                value={sortOrderText}
+                                onChange={(e) => {
+                                    setSortOrderText(e.target.value);
+                                    handleChange('sortOrder', Number(e.target.value) || 0);
+                                }}
+                            />
+                            {sortOrderWarning && (
+                                <div className="alias-warning">{sortOrderWarning}</div>
+                            )}
+                        </div>
+                        <div className="modal-field">
+                            <label className="checkbox-label">
+                                <input
+                                    type="checkbox"
+                                    className="form-check-input"
+                                    checked={form.isVisible}
+                                    onChange={(e) => handleChange('isVisible', e.target.checked)}
+                                />
+                                <span>Visible</span>
+                            </label>
+                        </div>
+                    </div>
+                    {error && <div className="modal-error">{error}</div>}
+                </div>
+                <div className="modal-footer-custom">
+                    <button type="button" className="btn-modal btn-modal-cancel" onClick={onClose}>
+                        Cancel
+                    </button>
+                    <button type="submit" className="btn-modal btn-modal-save" disabled={saving}>
+                        {saving ? 'Saving...' : 'Save'}
+                    </button>
+                </div>
             </form>
         </Modal>
     );

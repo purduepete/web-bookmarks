@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://web-bookmarks.jimlertech.com
-// @version      4.9.40
+// @version      4.9.41
 // @description  Press Ctrl+Alt+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
@@ -831,6 +831,9 @@
       }
       return buildPaletteEntries(groups, getMru(getActiveProfile()), actions);
     }
+    function isIOSDevice() {
+      return /iPad|iPhone|iPod/.test(navigator.userAgent) || navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+    }
     function openPalette(groups, profiles, isLoading) {
       if (paletteOpen) return;
       paletteOpen = true;
@@ -847,6 +850,10 @@
       backdrop.className = "wbp-backdrop";
       const container = document.createElement("div");
       container.className = "wbp-container";
+      container.setAttribute("role", "dialog");
+      container.setAttribute("aria-modal", "true");
+      container.setAttribute("aria-label", "Command palette");
+      container.tabIndex = -1;
       backdrop.appendChild(container);
       let newTabMode = false;
       const isTouchDevice = window.matchMedia("(hover: none)").matches;
@@ -1472,7 +1479,7 @@
       window.addEventListener("keydown", keyShield, true);
       window.addEventListener("keyup", keyBlock, true);
       window.addEventListener("keypress", keyBlock, true);
-      input.focus();
+      (isIOSDevice() ? container : input).focus({ preventScroll: true });
       render();
       activePaletteHandle = {
         close,
@@ -1517,7 +1524,8 @@
     function restorePaletteHost() {
       if (!paletteOpen || !shadowHost || shadowHost.isConnected || !document.documentElement) return false;
       document.documentElement.appendChild(shadowHost);
-      shadowHost.shadowRoot.querySelector(".wbp-input").focus();
+      const target = shadowHost.shadowRoot.querySelector(isIOSDevice() ? ".wbp-container" : ".wbp-input");
+      target.focus({ preventScroll: true });
       return true;
     }
     async function activatePalette() {

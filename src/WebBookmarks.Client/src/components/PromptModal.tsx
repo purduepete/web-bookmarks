@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import Modal from './Modal';
+import { focusModalInput, isIOSDevice } from '../lib/modalFocus';
 
 interface Props {
     message: string;
@@ -26,8 +27,8 @@ export default function PromptModal({
     const [value, setValue] = useState(initialValue);
 
     useEffect(() => {
-        inputRef.current?.focus();
-        inputRef.current?.select();
+        focusModalInput(inputRef.current);
+        if (!isIOSDevice()) inputRef.current?.select();
     }, []);
 
     return (

@@ -1,8 +1,16 @@
 import { useState, useEffect, useRef, useMemo, useCallback, memo, type ReactElement } from 'react';
 import type { WebBookmarksItem, BookmarkGroup } from '../types';
 import { openUrls, sanitizeUrl, resolveBookmarkUrl } from '../utils';
+import { focusModalInput } from '../lib/modalFocus';
 import type { PaletteEntry, MruEntry } from '../palette-core';
-import { detectNumberSelection, filterEntries, buildPaletteEntries, assignBookmarkNumbers, applyMru, applyMruMany } from '../palette-core';
+import {
+    detectNumberSelection,
+    filterEntries,
+    buildPaletteEntries,
+    assignBookmarkNumbers,
+    applyMru,
+    applyMruMany,
+} from '../palette-core';
 
 interface Props {
     groups: BookmarkGroup[];
@@ -51,27 +59,70 @@ const GOOGLE_URL = 'https://www.google.com/search?q=';
 // Row icons hoisted to module scope so each is allocated once instead of being
 // rebuilt for every row on every render (perf fix for #33 / P1).
 const ICON_CHECK = (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+    >
         <polyline points="20 6 9 17 4 12" />
     </svg>
 );
 const ICON_ACTION = (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+    >
         <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
     </svg>
 );
 const ICON_GROUP = (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+    >
         <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
     </svg>
 );
 const ICON_BOOKMARK = (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+    >
         <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
     </svg>
 );
 const ICON_STAR = (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1">
+    <svg
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        stroke="currentColor"
+        strokeWidth="1"
+    >
         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
     </svg>
 );
@@ -126,7 +177,9 @@ const PaletteRow = memo(function PaletteRow({
                     )}
                     {entry.label}
                 </span>
-                <span className={`palette-item-alias${entry.alias ? '' : ' palette-item-alias-empty'}`}>
+                <span
+                    className={`palette-item-alias${entry.alias ? '' : ' palette-item-alias-empty'}`}
+                >
                     {entry.alias || ''}
                 </span>
                 <span className="palette-item-secondary">{entry.secondary}</span>
@@ -156,7 +209,14 @@ async function copyText(text: string): Promise<boolean> {
     }
 }
 
-export default function CommandPalette({ groups, onClose, onAction, profiles, activeProfile, isPaletteMode }: Props) {
+export default function CommandPalette({
+    groups,
+    onClose,
+    onAction,
+    profiles,
+    activeProfile,
+    isPaletteMode,
+}: Props) {
     const [query, setQuery] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
     const listRef = useRef<HTMLDivElement>(null);
@@ -176,7 +236,7 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
     }, []);
 
     useEffect(() => {
-        inputRef.current?.focus();
+        focusModalInput(inputRef.current);
     }, []);
 
     // Build the flat list of entries via the shared palette-core builder; this
@@ -190,9 +250,21 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
                 alias: 'add new +',
                 action: 'new-bookmark',
             },
-            { kind: 'action', label: 'Import Bookmarks', secondary: '', alias: '', action: 'import' },
+            {
+                kind: 'action',
+                label: 'Import Bookmarks',
+                secondary: '',
+                alias: '',
+                action: 'import',
+            },
             { kind: 'action', label: 'Bulk Edit', secondary: '', alias: '', action: 'bulk-edit' },
-            { kind: 'action', label: 'Reload Bookmarks', secondary: '', alias: '', action: 'reload' },
+            {
+                kind: 'action',
+                label: 'Reload Bookmarks',
+                secondary: '',
+                alias: '',
+                action: 'reload',
+            },
             {
                 kind: 'action',
                 label: 'Copy as Markdown link',
@@ -371,7 +443,15 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
                 activateEntry(displayList[activeIndex], true, newTab);
             }
         },
-        [multiSelected, numberSelection, displayList, activeIndex, openMultiSelected, openByNumbers, activateEntry],
+        [
+            multiSelected,
+            numberSelection,
+            displayList,
+            activeIndex,
+            openMultiSelected,
+            openByNumbers,
+            activateEntry,
+        ],
     );
 
     // Latest-value refs so the row callbacks below can stay referentially stable
@@ -443,7 +523,9 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
             }
             if (e.key === 'ArrowUp' || (e.ctrlKey && e.key === 'k')) {
                 e.preventDefault();
-                setActiveIndex((i) => (displayList.length ? (i - 1 + displayList.length) % displayList.length : 0));
+                setActiveIndex((i) =>
+                    displayList.length ? (i - 1 + displayList.length) % displayList.length : 0,
+                );
                 return;
             }
             if (e.key === 'ArrowRight') {
@@ -518,7 +600,8 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
             // can never drift from the URL that actually opens.
             return resolveBookmarkUrl(entry.bookmark, searchPart);
         }
-        if (entry.kind === 'group' && entry.group) return `${entry.group.items.length} bookmarks — Enter to open all`;
+        if (entry.kind === 'group' && entry.group)
+            return `${entry.group.items.length} bookmarks — Enter to open all`;
         if (entry.kind === 'action') return 'Action — Enter to execute';
         return '';
     }, [displayList, activeIndex, searchPart]);
@@ -553,7 +636,13 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
         >
             <div
                 className="palette-container"
-                style={{ position: 'relative', minHeight: cheatsheetOpen ? 'min(70vh, 560px)' : undefined }}
+                role="dialog"
+                aria-modal="true"
+                aria-label="Command palette"
+                style={{
+                    position: 'relative',
+                    minHeight: cheatsheetOpen ? 'min(70vh, 560px)' : undefined,
+                }}
                 onMouseDown={(e) => e.stopPropagation()}
             >
                 <form
@@ -756,7 +845,9 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
                             }}
                         >
                             <span>Keyboard Shortcuts</span>
-                            <span style={{ color: '#64748b', fontSize: 12 }}>Click anywhere or press Esc to close</span>
+                            <span style={{ color: '#64748b', fontSize: 12 }}>
+                                Click anywhere or press Esc to close
+                            </span>
                         </div>
                         <div
                             style={{
@@ -769,7 +860,9 @@ export default function CommandPalette({ groups, onClose, onAction, profiles, ac
                         >
                             {cheatsheetItems.map((it, idx) => (
                                 <div key={idx} style={{ display: 'contents' }}>
-                                    <div style={{ color: '#94a3b8', fontFamily: 'monospace' }}>{it.keys}</div>
+                                    <div style={{ color: '#94a3b8', fontFamily: 'monospace' }}>
+                                        {it.keys}
+                                    </div>
                                     <div style={{ color: '#b2bac2' }}>{it.desc}</div>
                                 </div>
                             ))}

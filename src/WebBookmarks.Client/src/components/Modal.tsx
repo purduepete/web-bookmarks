@@ -1,4 +1,5 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
+import { isIOSDevice } from '../lib/modalFocus';
 
 interface Props {
     title: string;
@@ -13,8 +14,25 @@ interface Props {
 // Shared modal shell: backdrop (click-out to close), Escape-to-close, an
 // optional focus trap, and the standard header with a close button. Callers
 // supply the body and footer as children.
-export default function Modal({ title, onClose, children, contentClassName, trapFocus = true }: Props) {
+export default function Modal({
+    title,
+    onClose,
+    children,
+    contentClassName,
+    trapFocus = true,
+}: Props) {
     const backdropRef = useRef<HTMLDivElement>(null);
+    const closeRef = useRef<HTMLButtonElement>(null);
+
+    useLayoutEffect(() => {
+        const previousFocus = document.activeElement;
+        if (isIOSDevice()) closeRef.current?.focus({ preventScroll: true });
+        return () => {
+            if (previousFocus instanceof HTMLElement && previousFocus.isConnected) {
+                previousFocus.focus({ preventScroll: true });
+            }
+        };
+    }, []);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -37,7 +55,7 @@ export default function Modal({ title, onClose, children, contentClassName, trap
             const last = focusable[focusable.length - 1];
 
             if (e.shiftKey) {
-                if (document.activeElement === first) {
+                if (document.activeElement === first || document.activeElement === modal) {
                     e.preventDefault();
                     last.focus();
                 }
@@ -57,14 +75,23 @@ export default function Modal({ title, onClose, children, contentClassName, trap
             ref={backdropRef}
             role="dialog"
             aria-modal="true"
+            aria-label={title}
             onMouseDown={(e) => {
                 if (e.target === e.currentTarget) onClose();
             }}
         >
-            <div className={`modal-content-custom${contentClassName ? ` ${contentClassName}` : ''}`}>
+            <div
+                className={`modal-content-custom${contentClassName ? ` ${contentClassName}` : ''}`}
+            >
                 <div className="modal-header-custom">
                     <span>{title}</span>
-                    <button className="modal-close-btn" onClick={onClose}>
+                    <button
+                        ref={closeRef}
+                        type="button"
+                        aria-label="Close"
+                        className="modal-close-btn"
+                        onClick={onClose}
+                    >
                         ×
                     </button>
                 </div>

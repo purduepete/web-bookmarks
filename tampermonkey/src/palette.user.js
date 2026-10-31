@@ -665,6 +665,11 @@ import {
         return buildPaletteEntries(groups, getMru(getActiveProfile()), actions);
     }
 
+    function isIOSDevice() {
+        return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    }
+
     function openPalette(groups, profiles, isLoading) {
         if (paletteOpen) return;
         paletteOpen = true;
@@ -688,6 +693,10 @@ import {
 
         const container = document.createElement('div');
         container.className = 'wbp-container';
+        container.setAttribute('role', 'dialog');
+        container.setAttribute('aria-modal', 'true');
+        container.setAttribute('aria-label', 'Command palette');
+        container.tabIndex = -1;
         backdrop.appendChild(container);
 
         let newTabMode = false;
@@ -1395,7 +1404,7 @@ import {
         window.addEventListener('keydown', keyShield, true);
         window.addEventListener('keyup', keyBlock, true);
         window.addEventListener('keypress', keyBlock, true);
-        input.focus();
+        (isIOSDevice() ? container : input).focus({ preventScroll: true });
         render();
 
         // Return a handle to populate data after open
@@ -1445,7 +1454,8 @@ import {
     function restorePaletteHost() {
         if (!paletteOpen || !shadowHost || shadowHost.isConnected || !document.documentElement) return false;
         document.documentElement.appendChild(shadowHost);
-        shadowHost.shadowRoot.querySelector('.wbp-input').focus();
+        const target = shadowHost.shadowRoot.querySelector(isIOSDevice() ? '.wbp-container' : '.wbp-input');
+        target.focus({ preventScroll: true });
         return true;
     }
 

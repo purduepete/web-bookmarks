@@ -58,6 +58,8 @@ describe('modal-open focus', () => {
         act(() => root.unmount());
         expect(document.activeElement).toBe(trigger);
         focusPageInput(landingInput);
+        expect(document.activeElement).toBe(ios ? trigger : landingInput);
+        landingInput.focus();
         expect(document.activeElement).toBe(landingInput);
     });
 

@@ -105,6 +105,9 @@ import {
             flex-direction: column;
             overflow: hidden;
         }
+        .wbp-container:focus {
+            outline: none;
+        }
         .wbp-search-row {
             display: flex;
             align-items: stretch;

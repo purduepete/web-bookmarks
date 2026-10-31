@@ -94,6 +94,15 @@ afterEach(() => {
 });
 
 describe('userscript startup during page loading', () => {
+    it('keeps the initially focused palette container free of a browser outline', () => {
+        expect(bundle).toMatch(/\.wbp-container:focus\s*\{\s*outline: none;/);
+        const css = readFileSync(new URL('./App.css', import.meta.url), 'utf8');
+        expect(css).toMatch(
+            /\.palette-container\[tabindex='-1'\]:focus,\s*\.modal-backdrop-custom\[tabindex='-1'\]:focus\s*\{\s*outline: none;/,
+        );
+        expect(css).not.toMatch(/input:focus\s*\{\s*outline: none;/);
+    });
+
     it.each([
         ['desktop', 'Windows', 'Win32', 0, 'wbp-input'],
         ['iPhone', 'iPhone', 'iPhone', 5, 'wbp-container'],

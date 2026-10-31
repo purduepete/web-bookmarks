@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WebBookmarks Command Palette
 // @namespace    https://web-bookmarks.jimlertech.com
-// @version      4.9.41
+// @version      4.9.42
 // @description  Press Ctrl+Alt+/ on any page to open the WebBookmarks command palette
 // @match        *://*/*
 // @exclude      http://192.168.50.100:3002/*
@@ -339,6 +339,9 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+        }
+        .wbp-container:focus {
+            outline: none;
         }
         .wbp-search-row {
             display: flex;

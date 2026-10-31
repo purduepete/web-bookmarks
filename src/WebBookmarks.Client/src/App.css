@@ -1426,6 +1426,11 @@ select.bulk-edit-input option:checked {
     border-bottom: none;
 }
 
+.palette-container[tabindex='-1']:focus,
+.modal-backdrop-custom[tabindex='-1']:focus {
+    outline: none;
+}
+
 .palette-input {
     width: 100%;
     padding: 12px 16px;

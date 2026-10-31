@@ -20,5 +20,5 @@ export function focusModalInput(input: HTMLInputElement | null): void {
 
 /** A late page load must not move initial focus out of an open dialog. */
 export function focusPageInput(input: HTMLInputElement | null): void {
-    if (!document.querySelector('[role="dialog"]')) input?.focus();
+    if (!isIOSDevice() && !document.querySelector('[role="dialog"]')) input?.focus();
 }

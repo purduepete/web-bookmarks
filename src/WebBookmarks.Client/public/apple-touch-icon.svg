@@ -1,6 +1,6 @@
-<!-- Source for apple-touch-icon.png. Full bleed on purpose: iOS applies its own rounded mask, and
-     the rx=6 corner favicon.svg uses leaves light wedges under it. Re-render at 180x180 after editing. -->
+<!-- Source for apple-touch-icon.png (dark device). Full bleed on purpose: iOS applies its own rounded mask,
+     and the rx=6 corner favicon.svg uses leaves light wedges under it. Re-render at 180x180 after editing. -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="180" height="180" role="img" aria-label="Web Bookmarks">
-  <rect width="32" height="32" fill="#0f172a"/>
-  <path d="M8 6h16a2 2 0 0 1 2 2v18l-10-5-10 5V8a2 2 0 0 1 2-2z" fill="#3b82f6"/>
-</svg>
+  <rect width="32" height="32" fill="#020617"/>
+  <path d="M15.5 4h6a1.8 1.8 0 0 1 1.8 1.8v18.4l-4.8-3.1-4.8 3.1V5.8A1.8 1.8 0 0 1 15.5 4Z" fill="#6b8cae"/>
+  <path d="M10.5 7.5h6a1.8 1.8 0 0 1 1.8 1.8v18.4l-4.8-3.1-4.8 3.1V9.3a1.8 1.8 0 0 1 1.8-1.8Z" fill="#fb923c" stroke="#020617" stroke-width="1.2"/></svg>

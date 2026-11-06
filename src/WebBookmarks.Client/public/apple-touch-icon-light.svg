@@ -1,0 +1,5 @@
+<!-- Source for apple-touch-icon-light.png (light device). Full bleed; re-render at 180x180 after editing. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="180" height="180" role="img" aria-label="Web Bookmarks">
+  <rect width="32" height="32" fill="#fff7ed"/>
+  <path d="M15.5 4h6a1.8 1.8 0 0 1 1.8 1.8v18.4l-4.8-3.1-4.8 3.1V5.8A1.8 1.8 0 0 1 15.5 4Z" fill="#2f477b"/>
+  <path d="M10.5 7.5h6a1.8 1.8 0 0 1 1.8 1.8v18.4l-4.8-3.1-4.8 3.1V9.3a1.8 1.8 0 0 1 1.8-1.8Z" fill="#ea580c" stroke="#fff7ed" stroke-width="1.2"/></svg>
